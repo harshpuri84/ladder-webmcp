@@ -52,4 +52,39 @@ describe('recordingProxy', () => {
     });
     expect(() => { p.rows.A.price = 1; }).toThrow('nope');
   });
+
+  it('records a delete as a write to undefined', () => {
+    const writes: WriteRecord[] = [];
+    const s = fixture();
+    const p = recordingProxy(s, { onWrite: w => writes.push(w) });
+    delete (p.rows.A as any).status;
+    expect(writes).toEqual([
+      { entity: 'rows', id: 'A', field: 'status', before: 'x', after: undefined, group: 'rows:A' },
+    ]);
+    expect('status' in s.rows.A).toBe(false);
+  });
+
+  it('records nothing when deleting a field that is not there', () => {
+    const writes: WriteRecord[] = [];
+    const p = recordingProxy(fixture(), { onWrite: w => writes.push(w) });
+    delete (p.rows.A as any).missing;
+    expect(writes).toHaveLength(0);
+  });
+
+  it('leaves the field in place when the guard refuses a delete', () => {
+    const writes: WriteRecord[] = [];
+    const s = fixture();
+    const p = recordingProxy(s, { onWrite: w => writes.push(w), guard: () => 'skip' });
+    delete (p.rows.A as any).status;
+    expect(s.rows.A.status).toBe('x');
+    expect(writes).toHaveLength(0);
+  });
+
+  it('lets a throwing guard propagate out of a delete', () => {
+    const p = recordingProxy(fixture(), {
+      onWrite: () => {},
+      guard: () => { throw new Error('nope'); },
+    });
+    expect(() => { delete (p.rows.A as any).status; }).toThrow('nope');
+  });
 });

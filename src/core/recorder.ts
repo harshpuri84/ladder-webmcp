@@ -23,5 +23,15 @@ export function recordingProxy<T extends object>(root: T, hooks: RecorderHooks, 
       hooks.onWrite({ entity, id, field, before, after: value, group: groupKey(entity, id) });
       return Reflect.set(target, prop, value, recv);
     },
+    deleteProperty(target, prop) {
+      if (typeof prop === 'symbol' || path.length !== 2) return Reflect.deleteProperty(target, prop);
+      if (!(prop in target)) return true;
+      const [entity, id] = path;
+      const field = String(prop);
+      const before = Reflect.get(target, prop);
+      if (hooks.guard?.({ entity, id, field }) === 'skip') return true;
+      hooks.onWrite({ entity, id, field, before, after: undefined, group: groupKey(entity, id) });
+      return Reflect.deleteProperty(target, prop);
+    },
   }) as T;
 }
