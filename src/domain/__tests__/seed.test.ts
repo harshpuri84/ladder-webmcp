@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { seedShipments } from '../../domain/seed';
+import { seedShipments } from '../seed';
 
 describe('seedShipments', () => {
   it('is deterministic', () => {
