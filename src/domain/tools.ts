@@ -137,6 +137,17 @@ const repriceShipments: LadderToolSpec = {
   },
   async exec(input: Filter & { pct: number }, ctx: Ctx<AppState>) {
     const rows = findMatches(ctx.db, input);
+    // The schema marks `pct` required, but nothing in exec enforced that — a missing or
+    // non-finite pct computed NaN in both preview and commit alike, so the guard saw no
+    // divergence and approved a change that wrote NaN into every matching row's price. Refuse
+    // before computing anything, and say why, rather than let the engine be right about a
+    // change that is garbage.
+    if (typeof input.pct !== 'number' || !Number.isFinite(input.pct)) {
+      for (const row of rows) {
+        ctx.notes.push({ id: row.id, reason: 'pct was missing or not a finite number, so the price was left unchanged' });
+      }
+      return { matched: 0 };
+    }
     for (const row of rows) {
       const s = ctx.db.shipments[row.id];
       s.price = Math.round(s.price * (1 + input.pct / 100));
@@ -169,6 +180,15 @@ const notifyCustomers: LadderToolSpec = {
   async exec(input: Filter & { message: string }, ctx: Ctx<AppState>) {
     const rows = findMatches(ctx.db, input);
     const customers = [...new Set(rows.map(r => r.customer))];
+    // Same audit as reprice_shipments: `message` is required in the schema but nothing here
+    // enforced it, so a missing message would happily reach a customer as the literal word
+    // "undefined". Refuse before creating any notify action.
+    if (typeof input.message !== 'string' || input.message.trim() === '') {
+      for (const customer of customers) {
+        ctx.notes.push({ id: customer, reason: 'no message was given, so nothing was sent' });
+      }
+      return { notified: [] };
+    }
     for (const customer of customers) {
       await ctx.effects.notify(customer, input.message);
     }

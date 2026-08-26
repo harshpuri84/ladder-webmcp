@@ -519,6 +519,55 @@ describe('domain tools', () => {
     expect((registered.get('update_shipments')! as any).inputSchema.properties.setStatus.enum).toEqual(validStatuses);
   });
 
+  // F3: a missing `pct` used to compute NaN in both the preview and the commit re-run, so the
+  // guard saw no divergence between the two and approved it — a clean-looking `applied 23,
+  // replan no` landing NaN in the price column. There is no engine bug to fix here; the tool
+  // has to refuse its own bad input rather than compute from it.
+  it('refuses to compute a price change when pct is missing, instead of writing NaN', async () => {
+    const matches = Object.values(store.state.shipments).filter(s => s.customer === 'Karo Textiles');
+    expect(matches.length).toBeGreaterThan(0);
+    const pricesBefore = matches.map(s => store.state.shipments[s.id].price);
+
+    const payload = await callTool('reprice_shipments', { customer: 'Karo Textiles' });
+
+    expect(payload.applied).toBe(0);
+    expect(payload.status).not.toBe('applied');
+    expect(matches.map(s => store.state.shipments[s.id].price)).toEqual(pricesBefore);
+    expect(matches.every(s => Number.isFinite(store.state.shipments[s.id].price))).toBe(true);
+
+    const rejectedTotal = payload.rejected.reduce((n: number, r: any) => n + r.count, 0);
+    expect(rejectedTotal).toBe(matches.length);
+    expect(payload.applied + rejectedTotal).toBe(payload.requested);
+    expect(payload.rejected.some((r: any) => /pct/i.test(r.reason))).toBe(true);
+  });
+
+  it('refuses to compute a price change when pct is non-finite, instead of writing NaN', async () => {
+    const matches = Object.values(store.state.shipments).filter(s => s.customer === 'Ashgrove Pharma');
+    expect(matches.length).toBeGreaterThan(0);
+
+    const payload = await callTool('reprice_shipments', { customer: 'Ashgrove Pharma', pct: NaN });
+
+    expect(payload.applied).toBe(0);
+    expect(matches.every(s => Number.isFinite(store.state.shipments[s.id].price))).toBe(true);
+    const rejectedTotal = payload.rejected.reduce((n: number, r: any) => n + r.count, 0);
+    expect(rejectedTotal).toBe(matches.length);
+    expect(payload.applied + rejectedTotal).toBe(payload.requested);
+  });
+
+  // The rest of the audit F3 asked for: notify_customers marks `message` required in its
+  // schema but never enforced it, so a missing message used to reach the human's panel (and,
+  // if approved, real customers) as a literal "undefined". Refused before any notify action is
+  // even created.
+  it('refuses to notify when message is missing, rather than sending the literal word "undefined"', async () => {
+    const payload = await callTool('notify_customers', { customer: 'Karo Textiles' });
+
+    expect(payload.applied).toBe(0);
+    expect(payload.actions_released).toBe(0);
+    const rejectedTotal = payload.rejected.reduce((n: number, r: any) => n + r.count, 0);
+    expect(payload.applied + rejectedTotal).toBe(payload.requested);
+    expect(payload.rejected.some((r: any) => /message/i.test(r.reason))).toBe(true);
+  });
+
   // Placed last: ratifying a policy here makes update_shipments auto-approve for the rest of
   // this file's run, which would starve captureProposal (no PendingProposal ever fires) in
   // any test that runs after it.
