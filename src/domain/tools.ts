@@ -162,10 +162,20 @@ const cancelShipments: LadderToolSpec = {
   inputSchema: { type: 'object', properties: { ...filterProps } },
   async exec(input: Filter = {}, ctx: Ctx<AppState>) {
     const rows = findMatches(ctx.db, input);
+    let matched = 0;
     for (const row of rows) {
-      ctx.db.shipments[row.id].status = 'Cancelled';
+      const s = ctx.db.shipments[row.id];
+      // F9: update_shipments already treats an open customs hold as frozen — its ETA can't be
+      // changed until the hold clears. Cancelling the same shipment outright would be incoherent
+      // next to that, so it gets the identical skip-and-note treatment.
+      if (s.customsHold) {
+        ctx.notes.push({ id: s.id, reason: 'customs hold open' });
+        continue;
+      }
+      s.status = 'Cancelled';
+      matched++;
     }
-    return { matched: rows.length };
+    return { matched };
   },
 };
 

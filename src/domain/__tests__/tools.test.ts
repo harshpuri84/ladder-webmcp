@@ -615,6 +615,41 @@ describe('domain tools', () => {
     expect(() => revoke('update_shipments')).not.toThrow();
   });
 
+  // F9: update_shipments already skips and notes a customs-hold row rather than touching it.
+  // cancel_shipments cancelled one outright — a held shipment whose ETA can't be changed could
+  // still be cancelled, which is incoherent as a domain rule. Same skip-and-note treatment here.
+  it('skips and notes customs-hold rows for cancel_shipments too, consistent with update_shipments', async () => {
+    const matches = Object.values(store.state.shipments).filter(s => s.customer === 'Northwind Retail');
+    const held = matches.filter(s => s.customsHold);
+    const unheld = matches.filter(s => !s.customsHold);
+    expect(held.length).toBeGreaterThan(0);
+    expect(unheld.length).toBeGreaterThan(0);
+
+    const proposal = await captureProposal('cancel_shipments', { customer: 'Northwind Retail' });
+
+    expect(proposal.diff.totals.records).toBe(unheld.length);
+    expect(proposal.notes).toHaveLength(held.length);
+    for (const h of held) {
+      expect(proposal.notes.some((n: any) => n.id === h.id && n.reason === 'customs hold open')).toBe(true);
+    }
+
+    proposal.resolve({ groups: proposal.diff.groups.map((g: any) => g.group), actions: [] });
+    const payload = await proposal.result;
+
+    expect(payload.status).toBe('partially_applied');
+    expect(payload.applied).toBe(unheld.length);
+    const rejectedTotal = payload.rejected.reduce((n: number, r: any) => n + r.count, 0);
+    expect(rejectedTotal).toBe(held.length);
+    expect(payload.applied + rejectedTotal).toBe(payload.requested);
+
+    for (const h of held) {
+      expect(store.state.shipments[h.id].status).not.toBe('Cancelled');
+    }
+    for (const u of unheld) {
+      expect(store.state.shipments[u.id].status).toBe('Cancelled');
+    }
+  });
+
   // Placed last: ratifying a policy here makes update_shipments auto-approve for the rest of
   // this file's run, which would starve captureProposal (no PendingProposal ever fires) in
   // any test that runs after it.
