@@ -7,7 +7,10 @@ import { DiffGroupRow } from './DiffGroupRow';
 import { ActionCard } from './ActionCard';
 import { ResultCard } from './ResultCard';
 
-const RESULT_HOLD_MS = 8000;
+// 8s read back as "already fading" from a paused frame two seconds in — that turned out to be
+// an opaque-background bug on the auto-apply tone (see .rc--auto in styles.css), not the hold
+// itself, but the hold is lengthened anyway so a demo video has real margin either way.
+const RESULT_HOLD_MS = 12000;
 
 interface Filter {
   customer?: string;

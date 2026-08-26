@@ -798,7 +798,13 @@ body {
 .rc--moved { border-left-color: var(--text-muted); }
 .rc--blocked { border-left-color: var(--before); }
 .rc--fault { border-left-color: var(--text-muted); border-style: dashed; }
-.rc--auto { background: rgba(193, 95, 60, 0.05); }
+/* Opaque, not rgba: `.rc` is the one card in this app that floats `position: fixed` directly
+   over the live page rather than sitting inside an already-opaque parent (unlike `.ac`/`.pp-notes`,
+   nested inside `.pp`'s solid surface). A translucent background here let the console table
+   underneath bleed straight through the card for its entire hold, reading as an early fade when
+   it was really a legibility bug from the first frame. This is the same 5% accent-over-white mix,
+   pre-blended to a flat, fully opaque color. */
+.rc--auto { background: #FCF7F5; }
 
 .rc-head {
   display: flex;
