@@ -42,7 +42,12 @@ export interface PendingProposal {
 // 'auto_applied' is 'applied' plus one fact a human still needs: nothing was shown to them
 // before it happened. Folding it into plain 'applied' would make a standing rule firing look
 // identical to a change the human just reviewed — the one distinction the receipt exists to draw.
-export type OutcomeCause = 'applied' | 'auto_applied' | 'refused' | 'stale' | 'blocked' | 'tool_error';
+// 'nothing_to_decide' is 'refused' minus the human: the T8-1 no-panel path resolves through
+// the same branch a genuine decline uses (same status, same rejected shape), but nobody was
+// ever asked. Folding it into 'refused' would tell the human they declined something they
+// were never shown.
+export type OutcomeCause =
+  | 'applied' | 'auto_applied' | 'refused' | 'nothing_to_decide' | 'stale' | 'blocked' | 'tool_error';
 export interface ProposalOutcome {
   toolName: string; cause: OutcomeCause; payload: ToolPayload;
   /** Set only for 'auto_applied': the standing rule's own words, so the receipt can name it. */
@@ -229,7 +234,7 @@ export function registerLadderTool(spec: LadderToolSpec) {
     if (!approved) {
       history.push({ tool: spec.name, proposalId, proposed: requested, approved: 0,
                      valueDelta: shadow.diff.totals.valueDelta });
-      return finish('refused', {
+      return finish(nothingToDecide ? 'nothing_to_decide' : 'refused', {
         status: 'denied', requested, applied: 0,
         rejected: [...rejectedFrom(shadow.notes),
                    { count: diffRequested, reason: 'the operator refused this change', ids: [] }],

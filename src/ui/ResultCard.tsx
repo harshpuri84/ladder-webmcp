@@ -38,6 +38,12 @@ function frame(o: ProposalOutcome): Framing {
         title: 'The tool errored',
         note: `${o.toolName} threw while it ran. Nothing was blocked and nothing was written — this is a fault in the tool, not the guard stopping it.`,
       };
+    case 'nothing_to_decide':
+      return {
+        tone: 'skipped',
+        title: 'Nothing to change',
+        note: `${o.toolName} found nothing it could change, so no panel was needed — every matching row was already accounted for. The agent has been told why.`,
+      };
     case 'refused':
       return {
         tone: 'sent',

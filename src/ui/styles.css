@@ -798,6 +798,10 @@ body {
 .rc--moved { border-left-color: var(--text-muted); }
 .rc--blocked { border-left-color: var(--before); }
 .rc--fault { border-left-color: var(--text-muted); border-style: dashed; }
+/* Neither a success (no accent fill, unlike .rc--auto) nor a failure (no --before red, unlike
+   .rc--blocked) — nothing happened because there was nothing to do, so this reads as quietly
+   informational, the same weight as .rc--moved/.rc--fault. */
+.rc--skipped { border-left-color: var(--text-muted); }
 /* Opaque, not rgba: `.rc` is the one card in this app that floats `position: fixed` directly
    over the live page rather than sitting inside an already-opaque parent (unlike `.ac`/`.pp-notes`,
    nested inside `.pp`'s solid surface). A translucent background here let the console table

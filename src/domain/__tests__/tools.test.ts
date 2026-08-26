@@ -3,6 +3,7 @@ import type { store as StoreModule } from '../store';
 import type { registerDomainTools as RegisterDomainTools } from '../tools';
 import type {
   onProposal as OnProposal,
+  onResult as OnResult,
   registerLadderTool as RegisterLadderTool,
   ratify as Ratify,
 } from '../../webmcp/adapter';
@@ -15,6 +16,7 @@ describe('domain tools', () => {
   let store: typeof StoreModule;
   let registerDomainTools: typeof RegisterDomainTools;
   let onProposal: typeof OnProposal;
+  let onResult: typeof OnResult;
   let registerLadderTool: typeof RegisterLadderTool;
   let ratify: typeof Ratify;
   const registered = new Map<string, { description: string; execute: (...args: any[]) => Promise<any> }>();
@@ -28,7 +30,7 @@ describe('domain tools', () => {
     };
     ({ store } = await import('../store'));
     ({ registerDomainTools } = await import('../tools'));
-    ({ onProposal, registerLadderTool, ratify } = await import('../../webmcp/adapter'));
+    ({ onProposal, onResult, registerLadderTool, ratify } = await import('../../webmcp/adapter'));
     registerDomainTools();
   });
 
@@ -170,11 +172,19 @@ describe('domain tools', () => {
     expect(matches.every(s => s.customsHold)).toBe(true);
 
     let sawProposal = false;
-    const off = onProposal(p => { if (p && p.toolName === 'update_shipments') sawProposal = true; });
+    const offProposal = onProposal(p => { if (p && p.toolName === 'update_shipments') sawProposal = true; });
+    // Finding #2: the same branch a genuine human decline uses must not tell the human they
+    // refused something they were never shown. `cause` (not the payload, which is unchanged)
+    // is where that attribution lives, so capture it via onResult rather than reading it off
+    // the tool's return value.
+    let cause: string | undefined;
+    const offResult = onResult(o => { if (o.toolName === 'update_shipments') cause = o.cause; });
     const payload = await callTool('update_shipments', { customer: 'Belmont Foods', origin: 'Busan', setEta: '2099-03-03' });
-    off();
+    offProposal();
+    offResult();
 
     expect(sawProposal).toBe(false);
+    expect(cause).toBe('nothing_to_decide');
     expect(payload.applied).toBe(0);
     expect(payload.replan_required).toBe(true);
     expect(payload.status).not.toBe('applied');
