@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { activePolicy, describePolicy, onDraft, onPolicyChange, ratify } from '../webmcp/adapter';
+import { activePolicy, describePolicy, onDraft, onPolicyChange, ratify, revoke } from '../webmcp/adapter';
 import type { Policy } from '../core/policy';
 import { NEVER_ELIGIBLE } from '../domain/policy-eligibility';
 
@@ -133,6 +133,20 @@ export function RungStrip() {
             >
               <span className="rs-chip-tool mono">{tool}</span>
               <ChipState tool={tool} />
+              {/* F5: the only exits from a ratified rule used to be waiting for expiry or
+                  reloading the page. Revoking goes through the same path expiry already uses
+                  (see revoke() in webmcp/adapter.ts) — the tool goes back to its base
+                  description and the next call is reviewed again. */}
+              {rung1 && (
+                <button
+                  className="rs-revoke"
+                  type="button"
+                  onClick={() => revoke(tool)}
+                  aria-label={`Revoke the standing rule for ${tool}`}
+                >
+                  Revoke
+                </button>
+              )}
             </div>
           );
         })}

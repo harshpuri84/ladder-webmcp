@@ -106,6 +106,18 @@ export function activePolicy(tool: string): Policy | undefined {
 }
 
 /**
+ * The one place a policy is actually removed and its tool put back to its base description —
+ * expiry and a human revoking it are the same event as far as the registered tool and every
+ * rung chip are concerned, so both go through this rather than each reimplementing it.
+ */
+function clearPolicy(tool: string) {
+  const r = registrations.get(tool);
+  policies.delete(tool);
+  if (r) reregister(tool, r.spec.description);
+  policyListeners.forEach(fn => fn());
+}
+
+/**
  * The tool's registered description keeps the "applied without review" clause until something
  * says otherwise — ratify() is push-based (reregister() is only ever called from ratify() and
  * here). Checked at call time, right as a tool runs, rather than on a timer that a reload would
@@ -116,10 +128,19 @@ export function activePolicy(tool: string): Policy | undefined {
 function revertIfExpired(tool: string, now: Date) {
   const p = policies.get(tool);
   if (!p || !isLapsed(p, now)) return;
-  const r = registrations.get(tool);
-  policies.delete(tool);
-  if (r) reregister(tool, r.spec.description);
-  policyListeners.forEach(fn => fn());
+  clearPolicy(tool);
+}
+
+/**
+ * F5: nothing anywhere used to remove or narrow a ratified rule — the chip was inert, and the
+ * only exits were waiting for expiry or reloading the page. For a product whose pitch is that
+ * autonomy is granted by a human rather than assumed, the human has to be able to take it back
+ * too. Goes through the exact same path expiry already uses (clearPolicy), not a second one:
+ * the tool is re-registered with its base description, and the next call is reviewed again.
+ */
+export function revoke(tool: string): void {
+  if (!policies.has(tool)) return;
+  clearPolicy(tool);
 }
 
 // Guarded the same way reregister() already is: in a browser with no WebMCP,

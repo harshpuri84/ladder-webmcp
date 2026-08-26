@@ -9,6 +9,8 @@ import type {
   onResult as OnResult,
   registerLadderTool as RegisterLadderTool,
   ratify as Ratify,
+  revoke as Revoke,
+  activePolicy as ActivePolicy,
 } from '../../webmcp/adapter';
 
 // This suite exercises the *real* registration and preview path — the actual
@@ -23,6 +25,8 @@ describe('domain tools', () => {
   let onResult: typeof OnResult;
   let registerLadderTool: typeof RegisterLadderTool;
   let ratify: typeof Ratify;
+  let revoke: typeof Revoke;
+  let activePolicy: typeof ActivePolicy;
   const registered = new Map<string, { description: string; execute: (...args: any[]) => Promise<any> }>();
 
   beforeAll(async () => {
@@ -34,7 +38,7 @@ describe('domain tools', () => {
     };
     ({ store } = await import('../store'));
     ({ registerDomainTools, setBuggyToolEnabled } = await import('../tools'));
-    ({ onProposal, onResult, registerLadderTool, ratify } = await import('../../webmcp/adapter'));
+    ({ onProposal, onResult, registerLadderTool, ratify, revoke, activePolicy } = await import('../../webmcp/adapter'));
     registerDomainTools();
   });
 
@@ -566,6 +570,49 @@ describe('domain tools', () => {
     const rejectedTotal = payload.rejected.reduce((n: number, r: any) => n + r.count, 0);
     expect(payload.applied + rejectedTotal).toBe(payload.requested);
     expect(payload.rejected.some((r: any) => /message/i.test(r.reason))).toBe(true);
+  });
+
+  // F5: nothing anywhere previously removed or narrowed a ratified rule — the chip was inert,
+  // and the only exits were waiting for expiry or reloading the page. revoke() has to go
+  // through the exact same path expiry already uses, so this locks that both the description
+  // and the review behaviour come back, not just one of the two.
+  it('revoke() restores the base description and a subsequent call is reviewed again', async () => {
+    registerLadderTool({
+      name: 'revoke_test_tool', description: 'Test-only: base description, unmodified.',
+      inputSchema: { type: 'object', properties: {} },
+      async exec(_input: any, ctx: any) {
+        const [firstId] = Object.keys(ctx.db.shipments);
+        ctx.db.shipments[firstId].status = 'Booked';
+        return { matched: 1 };
+      },
+    });
+    const baseDescription = registered.get('revoke_test_tool')!.description;
+
+    ratify({
+      id: 'test-policy-revoke', tool: 'revoke_test_tool',
+      maxRecords: 1000, maxValue: 1_000_000,
+      expiresAt: '2099-01-01T00:00:00.000Z', draftedFrom: 'test', ratified: false,
+    });
+    expect(registered.get('revoke_test_tool')!.description).not.toBe(baseDescription);
+    expect(activePolicy('revoke_test_tool')).toBeDefined();
+
+    revoke('revoke_test_tool');
+
+    expect(registered.get('revoke_test_tool')!.description).toBe(baseDescription);
+    expect(activePolicy('revoke_test_tool')).toBeUndefined();
+
+    let sawProposal = false;
+    const off = onProposal(p => { if (p && p.toolName === 'revoke_test_tool') sawProposal = true; });
+    const proposal = await captureProposal('revoke_test_tool', {});
+    off();
+    expect(sawProposal).toBe(true);
+
+    proposal.resolve(null);
+    await proposal.result;
+  });
+
+  it('revoke() is a safe no-op when the tool has no active policy', () => {
+    expect(() => revoke('update_shipments')).not.toThrow();
   });
 
   // Placed last: ratifying a policy here makes update_shipments auto-approve for the rest of
