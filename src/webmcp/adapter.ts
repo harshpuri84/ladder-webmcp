@@ -6,7 +6,7 @@ import { recordingProxy } from '../core/recorder';
 import { NEVER_ELIGIBLE } from '../domain/policy-eligibility';
 import type { Diff } from '../core/diff';
 import type { Note, WriteRecord } from '../core/types';
-import { toolResult } from './result';
+import { toolResult, type ToolPayload } from './result';
 import { store } from '../domain/store';
 
 const mc: any = (document as any).modelContext ?? (navigator as any).modelContext;
@@ -29,14 +29,27 @@ export interface LadderToolSpec {
 
 export interface Decision { groups: string[]; actions: string[]; }
 export interface PendingProposal {
-  toolName: string; diff: Diff; notes: Note[];
+  toolName: string; input: unknown; diff: Diff; notes: Note[];
   resolve(d: Decision | null): void;
 }
 
+/**
+ * Why the outcome carries a cause as well as the payload: the payload is written for the
+ * agent, and there `denied` covers a tool that threw and a tool that tried to write outside
+ * the approved set alike. A human reading those as the same thing would read a crash as the
+ * guard being trigger-happy, so the UI is told which of the two actually happened.
+ */
+export type OutcomeCause = 'applied' | 'refused' | 'stale' | 'blocked' | 'tool_error';
+export interface ProposalOutcome { toolName: string; cause: OutcomeCause; payload: ToolPayload; }
+
 const proposalListeners = new Set<(p: PendingProposal | null) => void>();
+const resultListeners = new Set<(o: ProposalOutcome) => void>();
 const draftListeners = new Set<(p: Policy | null) => void>();
 export function onProposal(fn: (p: PendingProposal | null) => void) {
   proposalListeners.add(fn); return () => { proposalListeners.delete(fn); };
+}
+export function onResult(fn: (o: ProposalOutcome) => void) {
+  resultListeners.add(fn); return () => { resultListeners.delete(fn); };
 }
 export function onDraft(fn: (p: Policy | null) => void) {
   draftListeners.add(fn); return () => { draftListeners.delete(fn); };
@@ -81,11 +94,11 @@ function rejectedFrom(notes: Note[]) {
   return [...byReason].map(([reason, ids]) => ({ reason, ids, count: ids.length }));
 }
 
-async function decide(toolName: string, diff: Diff, notes: Note[], agent: any, signal?: AbortSignal) {
+async function decide(toolName: string, input: unknown, diff: Diff, notes: Note[], agent: any, signal?: AbortSignal) {
   let resolveFn!: (d: Decision | null) => void;
   const decision = new Promise<Decision | null>(r => { resolveFn = r; });
   signal?.addEventListener('abort', () => resolveFn(null), { once: true });
-  const pending: PendingProposal = { toolName, diff, notes, resolve: resolveFn };
+  const pending: PendingProposal = { toolName, input, diff, notes, resolve: resolveFn };
 
   const show = async () => {
     proposalListeners.forEach(fn => fn(pending));
@@ -118,11 +131,15 @@ export function registerLadderTool(spec: LadderToolSpec) {
 
   const execute = async (input: any, agent?: any, options?: { signal?: AbortSignal }) => {
     const proposalId = `prop-${++seq}`;
+    const finish = (cause: OutcomeCause, payload: ToolPayload) => {
+      resultListeners.forEach(fn => fn({ toolName: spec.name, cause, payload }));
+      return toolResult(payload);
+    };
     const run: Exec<State, unknown> = ctx => spec.exec(input, ctx);
 
     const shadow = await runShadow(store.state, run, { proposalId, versionOf, deltaOf });
     if (!shadow.ok) {
-      return toolResult({
+      return finish('tool_error', {
         status: 'denied', requested: 0, applied: 0,
         rejected: [{ count: 0, reason: `the tool failed during preview: ${shadow.error!.message}`, ids: [] }],
         actions_released: 0, actions_dropped: 0, replan_required: true, rule_offered: null,
@@ -140,12 +157,12 @@ export function registerLadderTool(spec: LadderToolSpec) {
 
     const approved: Decision | null = auto
       ? { groups: shadow.diff.groups.map(g => g.group), actions: [] }
-      : await decide(spec.name, shadow.diff, shadow.notes, agent, options?.signal);
+      : await decide(spec.name, input, shadow.diff, shadow.notes, agent, options?.signal);
 
     if (!approved) {
       history.push({ tool: spec.name, proposalId, proposed: requested, approved: 0,
                      valueDelta: shadow.diff.totals.valueDelta });
-      return toolResult({
+      return finish('refused', {
         status: 'denied', requested, applied: 0,
         rejected: [...rejectedFrom(shadow.notes),
                    { count: diffRequested, reason: 'the operator refused this change', ids: [] }],
@@ -182,7 +199,16 @@ export function registerLadderTool(spec: LadderToolSpec) {
       : null;
     if (draft) draftListeners.forEach(fn => fn(draft));
 
-    return toolResult({
+    const cause: OutcomeCause =
+      out.status === 'aborted_stale' ? 'stale' :
+      out.status === 'aborted_diverged' ? 'blocked' :
+      !committed && out.violation ? 'blocked' :
+      // A commit that returned `denied` with no violation key is a tool that threw, not the
+      // guard firing. Kept apart so the UI never reports a crash as enforcement.
+      !committed ? 'tool_error' :
+      'applied';
+
+    return finish(cause, {
       status: reportedStatus,
       requested,
       applied: appliedRows + out.released.length,
