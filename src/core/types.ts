@@ -14,7 +14,7 @@ export interface Note { id: string; reason: string; }
 
 export interface RecorderHooks {
   onWrite(w: WriteRecord): void;
-  guard?(k: { entity: string; id: string; field: string }): 'allow' | 'skip';
+  guard?(k: { entity: string; id: string; field: string; after: unknown }): 'allow' | 'skip';
 }
 
 export const groupKey = (entity: string, id: string) => `${entity}:${id}`;

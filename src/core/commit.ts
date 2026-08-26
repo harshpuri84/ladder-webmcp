@@ -13,7 +13,18 @@ export class ScopeViolation extends Error {
   }
 }
 
-export type CommitStatus = 'applied' | 'partially_applied' | 'denied' | 'aborted_stale';
+export class Divergence extends Error {
+  readonly key: string;
+  constructor(key: string) {
+    super(`approved field would receive a value the preview never showed: ${key}`);
+    this.key = key;
+  }
+}
+
+const same = (a: unknown, b: unknown) =>
+  Object.is(a, b) || JSON.stringify(a) === JSON.stringify(b);
+
+export type CommitStatus = 'applied' | 'partially_applied' | 'denied' | 'aborted_stale' | 'aborted_diverged';
 
 export interface CommitOutcome {
   status: CommitStatus;
@@ -40,14 +51,21 @@ export async function runCommit<S extends object, R>(
   const applied: WriteRecord[] = [];
   const notes: Note[] = [];
   let skipped = 0;
+  let violation: string | undefined;
+  let divergence: string | undefined;
   const { effects, released, dropped } = releasingEffects(ws.actions);
 
   const db = recordingProxy(state, {
     onWrite: w => applied.push(w),
     guard: k => {
       const key = fieldKey(k.entity, k.id, k.field);
-      if (ws.allowed.has(key)) return 'allow';
+      if (ws.allowed.has(key)) {
+        const want = ws.expected.get(key);
+        if (!same(want, k.after)) { divergence = key; throw new Divergence(key); }
+        return 'allow';
+      }
       if (ws.previewed.has(key)) { skipped++; return 'skip'; }
+      violation = key;
       throw new ScopeViolation(key);
     },
   });
@@ -58,9 +76,27 @@ export async function runCommit<S extends object, R>(
     for (const k of Object.keys(snapshot as object)) {
       (state as Record<string, unknown>)[k] = (snapshot as Record<string, unknown>)[k];
     }
+    for (const k of Object.keys(state as object)) {
+      if (!(k in (snapshot as object))) delete (state as Record<string, unknown>)[k];
+    }
     return {
-      status: 'denied', applied: [], skipped: 0, released: [], dropped: [], notes,
-      violation: e instanceof ScopeViolation ? e.key : undefined,
+      status: e instanceof Divergence ? 'aborted_diverged' : 'denied',
+      applied: [], skipped: 0, released: [], dropped: [], notes,
+      violation: (e instanceof ScopeViolation || e instanceof Divergence) ? e.key : undefined,
+    };
+  }
+
+  if (violation !== undefined || divergence !== undefined) {
+    for (const k of Object.keys(snapshot as object)) {
+      (state as Record<string, unknown>)[k] = (snapshot as Record<string, unknown>)[k];
+    }
+    for (const k of Object.keys(state as object)) {
+      if (!(k in (snapshot as object))) delete (state as Record<string, unknown>)[k];
+    }
+    return {
+      status: divergence !== undefined ? 'aborted_diverged' : 'denied',
+      applied: [], skipped: 0, released: [], dropped: [], notes,
+      violation: divergence ?? violation,
     };
   }
 

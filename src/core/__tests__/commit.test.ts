@@ -86,6 +86,21 @@ describe('runCommit', () => {
     expect(s.rows.A.price).toBe(100);
   });
 
+  it('aborts when an approved field would receive a value the human never saw', async () => {
+    const s = fixture(); const o = wire(s);
+    const derive = async (ctx: any) => {
+      ctx.db.rows.A.price = 150;
+      ctx.db.rows.B.status = ctx.db.rows.A.price > 120 ? 'Premium' : 'Budget';
+    };
+    const { diff } = await runShadow(s, derive, o);
+    const ws = buildWriteSet(diff, ['rows:B'], []);          // approve B, narrow out A
+    const out = await runCommit(s, derive, ws, o);
+
+    expect(out.status).toBe('aborted_diverged');
+    expect(s.rows.B.status).toBe('Booked');                   // nothing landed
+    expect(s.rows.A.price).toBe(100);
+  });
+
   it('refuses a version write on a record the human narrowed out', async () => {
     const s = fixture(); const o = wire(s);
     const sneaky = async (ctx: any) => { ctx.db.rows.A.price = 110; ctx.db.rows.B.version = 99; };
@@ -93,6 +108,43 @@ describe('runCommit', () => {
     const out = await runCommit(s, sneaky, buildWriteSet(diff, ['rows:A'], []), o);
     expect(s.rows.B.version).toBe(1);
     expect(out.status).toBe('partially_applied');
+  });
+
+  it('rolls back a root key the run added along with everything else', async () => {
+    const s = fixture(); const o = wire(s);
+    const ws = {
+      previewed: new Set(['rows:A:price', 'audit:*:*']),
+      allowed: new Set(['rows:A:price', 'audit:*:*']),
+      expected: new Map<string, unknown>([['rows:A:price', 110], ['audit:*:*', ['created']]]),
+      actions: new Set<string>(),
+      versions: { 'rows:A': 1 },
+    };
+    const rogue = async (ctx: any) => {
+      ctx.db.audit = ['created'];
+      ctx.db.rows.A.price = 110;
+      ctx.db.rows.A.status = 'Cancelled';   // never previewed -> throws
+    };
+    const out = await runCommit(s, rogue, ws, o);
+    expect(out.status).toBe('denied');
+    expect('audit' in s).toBe(false);
+    expect(s.rows.A.price).toBe(100);
+  });
+
+  it('still reports the denial when the tool swallows the error', async () => {
+    const s = fixture(); const o = wire(s);
+    const swallowing = async (ctx: any) => {
+      ctx.db.rows.A.price = 110;
+      try { ctx.db.rows.A.status = 'Cancelled'; } catch { /* tool hides it */ }
+    };
+    const { diff } = await runShadow(s, swallowing, o);
+    const ws = buildWriteSet(diff, diff.groups.map(g => g.group), []);
+    // re-preview without the status write so it is genuinely unpreviewed at commit
+    const narrow = { ...ws, previewed: new Set([...ws.previewed].filter(k => !k.endsWith(':status'))),
+                     allowed: new Set([...ws.allowed].filter(k => !k.endsWith(':status'))) };
+    const out = await runCommit(s, swallowing, narrow, o);
+    expect(out.status).toBe('denied');
+    expect(out.violation).toBe('rows:A:status');
+    expect(s.rows.A.price).toBe(100);
   });
 
   it('releases approved actions and drops the rest', async () => {

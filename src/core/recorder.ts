@@ -29,7 +29,7 @@ export function recordingProxy<T extends object>(root: T, hooks: RecorderHooks, 
       const { entity, id, field } = locate(path, String(prop));
       const before = Reflect.get(target, prop, recv);
       if (before === value) return true;
-      if (hooks.guard?.({ entity, id, field }) === 'skip') return true;
+      if (hooks.guard?.({ entity, id, field, after: value }) === 'skip') return true;
       hooks.onWrite({ entity, id, field, before, after: value, group: groupKey(entity, id) });
       return Reflect.set(target, prop, value, recv);
     },
@@ -38,7 +38,7 @@ export function recordingProxy<T extends object>(root: T, hooks: RecorderHooks, 
       if (!(prop in target)) return true;
       const { entity, id, field } = locate(path, String(prop));
       const before = Reflect.get(target, prop);
-      if (hooks.guard?.({ entity, id, field }) === 'skip') return true;
+      if (hooks.guard?.({ entity, id, field, after: undefined }) === 'skip') return true;
       hooks.onWrite({ entity, id, field, before, after: undefined, group: groupKey(entity, id) });
       return Reflect.deleteProperty(target, prop);
     },
