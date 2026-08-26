@@ -114,4 +114,14 @@ describe('recordingProxy', () => {
     (p.rows as any).Z = { price: 10 };
     expect('Z' in s.rows).toBe(false);
   });
+
+  it('never writes a proxy back into the target', () => {
+    const writes: WriteRecord[] = [];
+    const s = fixture();
+    const p = recordingProxy(s, { onWrite: w => writes.push(w) });
+    const row = (p.rows as any).A;
+    (p.rows as any).A = row;                 // read it out, put it straight back
+    expect(writes).toHaveLength(0);          // nothing actually changed
+    expect(() => structuredClone(s)).not.toThrow();
+  });
 });
