@@ -1,0 +1,75 @@
+<!doctype html>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Ladder probe</title>
+<style>
+  :root { color-scheme: light }
+  body { font: 16px/1.5 -apple-system, system-ui, sans-serif; background: #FAF9F5; color: #1c1b18;
+         margin: 0; padding: 2rem; max-width: 720px }
+  h1 { font-size: 1.25rem; margin: 0 0 .25rem }
+  p.sub { margin: 0 0 1.5rem; color: #6b6862 }
+  button { font: inherit; background: #C15F3C; color: #fff; border: 0; border-radius: 8px;
+           padding: .7rem 1.4rem; cursor: pointer }
+  button:disabled { background: #cfccc4; cursor: default }
+  #log { font-family: ui-monospace, Menlo, monospace; font-size: 13px; white-space: pre-wrap;
+         background: #fff; border: 1px solid #E5E4DF; border-radius: 10px; padding: 1rem; margin-top: 1.5rem }
+</style>
+
+<h1>Ladder probe</h1>
+<p class="sub">Invoke <code>slow_approval_probe</code>, wait 90 seconds, then press Approve.</p>
+<button id="go" disabled>Approve</button>
+<div id="log"></div>
+
+<script>
+  const el = document.getElementById('log');
+  const btn = document.getElementById('go');
+  const log = (m) => { el.textContent += `[${new Date().toISOString().slice(11,19)}] ${m}\n`; };
+
+  const mc = document.modelContext ?? navigator.modelContext;
+  log('namespace: ' + (document.modelContext ? 'document.modelContext'
+                     : navigator.modelContext ? 'navigator.modelContext (deprecated)' : 'ABSENT'));
+  log('userAgent: ' + navigator.userAgent);
+
+  if (!mc) {
+    log('WebMCP not available. Chrome 149+ needs chrome://flags/#enable-webmcp-testing enabled and a restart.');
+  } else {
+    mc.registerTool({
+      name: "slow_approval_probe",
+      description: "Applies a change, but only after a human approves it inside the page. Call it, wait for the result, then report the returned JSON verbatim.",
+      inputSchema: { type: "object", properties: { note: { type: "string" } } },
+      execute: async (input, agent, options) => {
+        const t0 = Date.now();
+        log('--- execute started ---');
+        log('arg2 type: ' + typeof agent);
+        log('arg2 keys: ' + (agent && typeof agent === 'object' ? Object.keys(agent).join(', ') || '(none)' : 'N/A'));
+        log('requestUserInteraction present: ' + !!(agent && typeof agent.requestUserInteraction === 'function'));
+        log('arg3 keys: ' + (options && typeof options === 'object' ? Object.keys(options).join(', ') || '(none)' : 'N/A'));
+        log('signal present: ' + !!(options && options.signal) + ' | ' + !!(agent && agent.signal));
+
+        btn.disabled = false;
+        log('waiting for a human click. Do not click for 90 seconds.');
+
+        const decision = await new Promise((resolve) => {
+          window.__resolve = resolve;
+          const sig = (options && options.signal) || (agent && agent.signal);
+          if (sig) sig.addEventListener('abort', () => { log('!! aborted by the agent'); resolve('aborted'); }, { once: true });
+        });
+
+        btn.disabled = true;
+        const waited = Date.now() - t0;
+        log('resolved after ' + waited + 'ms with: ' + decision);
+
+        const payload = {
+          decision, waited_ms: waited,
+          requested: 47, applied: 12,
+          rejected: [{ count: 35, reason: "customs hold open" }],
+          replan_required: true
+        };
+        return { ...payload, content: [{ type: "text", text: JSON.stringify(payload) }] };
+      }
+    });
+    log('registered slow_approval_probe. Ready.');
+  }
+
+  btn.onclick = () => { if (window.__resolve) { window.__resolve('approved'); window.__resolve = null; } };
+</script>
