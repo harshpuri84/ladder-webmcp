@@ -147,6 +147,29 @@ describe('runCommit', () => {
     expect(s.rows.A.price).toBe(100);
   });
 
+  it('sends nothing when the run is rolled back', async () => {
+    const s = fixture(); const o = wire(s);
+
+    const previewed = async (ctx: any) => {
+      await ctx.effects.notify('a@example.com', 'one');
+    };
+    const atCommit = async (ctx: any) => {
+      await ctx.effects.notify('a@example.com', 'one');
+      ctx.db.rows.A.status = 'Cancelled';        // genuinely absent from the preview
+    };
+
+    const { diff } = await runShadow(s, previewed, o);
+    const ws = buildWriteSet(diff, [], [diff.actions[0].actionId]);
+
+    const sent: unknown[] = [];
+    const out = await runCommit(s, atCommit, ws, { ...o, send: (_k: string, p: unknown) => sent.push(p) });
+
+    expect(out.status).toBe('denied');
+    expect(out.violation).toBe('rows:A:status');
+    expect(sent).toEqual([]);
+    expect(out.released).toEqual([]);
+  });
+
   it('releases approved actions and drops the rest', async () => {
     const s = fixture(); const o = wire(s);
     const notifyTwo = async (ctx: any) => {

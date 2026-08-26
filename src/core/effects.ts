@@ -4,6 +4,8 @@ export interface Effects { notify(to: string, message: string): Promise<void>; }
 
 export type SendFn = (kind: string, payload: Record<string, unknown>) => void;
 
+const defaultSend: SendFn = (kind, payload) => console.info(`[${kind}]`, payload);
+
 /**
  * An action's identity is its content, never its position in the call sequence.
  * Preview and commit run the same tool twice; if the id depended on call order,
@@ -31,19 +33,20 @@ export function collectingEffects(): { effects: Effects; actions: ActionRecord[]
   };
 }
 
-export function releasingEffects(
-  allowed: Set<string>,
-  send: SendFn = (kind, payload) => console.info(`[${kind}]`, payload),
-): { effects: Effects; released: string[]; dropped: string[] } {
+export function releasingEffects(allowed: Set<string>, send: SendFn = defaultSend): {
+  effects: Effects; released: string[]; dropped: string[]; flush(): void;
+} {
   const released: string[] = [], dropped: string[] = [];
+  const pending: { kind: string; payload: Record<string, unknown> }[] = [];
   const seen = new Map<string, number>();
   return {
     released, dropped,
+    flush() { for (const p of pending) send(p.kind, p.payload); pending.length = 0; },
     effects: {
       async notify(to, message) {
         const payload = { to, message };
         const id = identify('notify', payload, seen);
-        if (allowed.has(id)) { released.push(id); send('notify', payload); }
+        if (allowed.has(id)) { released.push(id); pending.push({ kind: 'notify', payload }); }
         else { dropped.push(id); }
       },
     },

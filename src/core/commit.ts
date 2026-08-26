@@ -4,6 +4,7 @@ import { fieldKey } from './types';
 import type { Note, WriteRecord } from './types';
 import type { WriteSet } from './writeset';
 import type { Ctx, Exec } from './shadow';
+import type { SendFn } from './effects';
 
 export class ScopeViolation extends Error {
   readonly key: string;
@@ -38,7 +39,7 @@ export interface CommitOutcome {
 
 export async function runCommit<S extends object, R>(
   state: S, exec: Exec<S, R>, ws: WriteSet,
-  opts: { versionOf(e: string, id: string): number; bumpVersion(e: string, id: string): void },
+  opts: { versionOf(e: string, id: string): number; bumpVersion(e: string, id: string): void; send?: SendFn },
 ): Promise<CommitOutcome> {
   for (const [gk, seen] of Object.entries(ws.versions)) {
     const [entity, id] = gk.split(':');
@@ -53,7 +54,7 @@ export async function runCommit<S extends object, R>(
   let skipped = 0;
   let violation: string | undefined;
   let divergence: string | undefined;
-  const { effects, released, dropped } = releasingEffects(ws.actions);
+  const { effects, released, dropped, flush } = releasingEffects(ws.actions, opts.send);
 
   const db = recordingProxy(state, {
     onWrite: w => applied.push(w),
@@ -104,6 +105,8 @@ export async function runCommit<S extends object, R>(
     const [entity, id] = gk.split(':');
     opts.bumpVersion(entity, id);
   }
+
+  flush();
 
   return {
     status: skipped > 0 ? 'partially_applied' : 'applied',

@@ -108,6 +108,8 @@ describe('action identity', () => {
     const commit = releasingEffects(approved, (_kind, payload) => sent.push(payload));
     await commit.effects.notify('drop@example.com', 'drop me');   // reversed
     await commit.effects.notify('keep@example.com', 'keep me');
+    // sends are held until the run is proven clean — nothing actually goes out until flush()
+    commit.flush();
 
     expect(sent).toEqual([{ to: 'keep@example.com', message: 'keep me' }]);
   });
