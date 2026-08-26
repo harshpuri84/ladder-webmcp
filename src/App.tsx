@@ -1,5 +1,6 @@
 import { Console } from './ui/Console';
 import { ProposalPanel } from './ui/ProposalPanel';
+import { RungStrip } from './ui/RungStrip';
 import { webmcpAvailable } from './webmcp/adapter';
 import { registerDomainTools } from './domain/tools';
 
@@ -35,6 +36,7 @@ function App() {
       </header>
       <main>
         {!webmcpAvailable && <WebmcpBanner />}
+        <RungStrip />
         <Console />
       </main>
       <ProposalPanel />

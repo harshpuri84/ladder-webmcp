@@ -7,15 +7,18 @@
  *
  * `import.meta.env.DEV` gates the import in main.tsx, so this module is not in the build.
  */
-const registered = new Map<string, { execute(input: unknown): Promise<unknown> }>();
+interface FakeSpec { name: string; description: string; execute(input: unknown): Promise<unknown>; }
+const registered = new Map<string, FakeSpec>();
 
 (document as unknown as Record<string, unknown>).modelContext = {
-  registerTool: (spec: { name: string; execute(input: unknown): Promise<unknown> }) =>
-    registered.set(spec.name, spec),
+  registerTool: (spec: FakeSpec) => registered.set(spec.name, spec),
   unregisterTool: (name: string) => registered.delete(name),
 };
 
 (window as unknown as Record<string, unknown>).__ladderDemo = {
   tools: () => [...registered.keys()],
+  // Task 8's whole point is that ratifying a policy changes the registered tool's
+  // *description*, live — so the double has to be able to show that back, not just the name.
+  describe: (name: string) => registered.get(name)?.description,
   call: (name: string, input: unknown) => registered.get(name)!.execute(input),
 };

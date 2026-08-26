@@ -39,12 +39,22 @@ export interface PendingProposal {
  * the approved set alike. A human reading those as the same thing would read a crash as the
  * guard being trigger-happy, so the UI is told which of the two actually happened.
  */
-export type OutcomeCause = 'applied' | 'refused' | 'stale' | 'blocked' | 'tool_error';
-export interface ProposalOutcome { toolName: string; cause: OutcomeCause; payload: ToolPayload; }
+// 'auto_applied' is 'applied' plus one fact a human still needs: nothing was shown to them
+// before it happened. Folding it into plain 'applied' would make a standing rule firing look
+// identical to a change the human just reviewed — the one distinction the receipt exists to draw.
+export type OutcomeCause = 'applied' | 'auto_applied' | 'refused' | 'stale' | 'blocked' | 'tool_error';
+export interface ProposalOutcome {
+  toolName: string; cause: OutcomeCause; payload: ToolPayload;
+  /** Set only for 'auto_applied': the standing rule's own words, so the receipt can name it. */
+  ruleDescription?: string;
+}
 
 const proposalListeners = new Set<(p: PendingProposal | null) => void>();
 const resultListeners = new Set<(o: ProposalOutcome) => void>();
 const draftListeners = new Set<(p: Policy | null) => void>();
+// Fires whenever a policy is ratified — from a drafted proposal or from the up-front form —
+// so any UI showing rungs can re-read activePolicy() instead of tracking policy state itself.
+const policyListeners = new Set<() => void>();
 export function onProposal(fn: (p: PendingProposal | null) => void) {
   proposalListeners.add(fn); return () => { proposalListeners.delete(fn); };
 }
@@ -53,6 +63,9 @@ export function onResult(fn: (o: ProposalOutcome) => void) {
 }
 export function onDraft(fn: (p: Policy | null) => void) {
   draftListeners.add(fn); return () => { draftListeners.delete(fn); };
+}
+export function onPolicyChange(fn: () => void) {
+  policyListeners.add(fn); return () => { policyListeners.delete(fn); };
 }
 
 const history: Disposition[] = [];
@@ -64,6 +77,7 @@ export function ratify(p: Policy) {
   policies.set(p.tool, { ...p, ratified: true });
   reregister(p.tool, `${registrations.get(p.tool)!.spec.description} Changes within the standing rule (${describePolicy(p)}) are applied without review.`);
   draftListeners.forEach(fn => fn(null));
+  policyListeners.forEach(fn => fn());
 }
 export const describePolicy = (p: Policy) =>
   `up to ${p.maxRecords} records, up to EUR ${p.maxValue}, reversible only, expires ${p.expiresAt.slice(0, 10)}`;
@@ -131,8 +145,8 @@ export function registerLadderTool(spec: LadderToolSpec) {
 
   const execute = async (input: any, agent?: any, options?: { signal?: AbortSignal }) => {
     const proposalId = `prop-${++seq}`;
-    const finish = (cause: OutcomeCause, payload: ToolPayload) => {
-      resultListeners.forEach(fn => fn({ toolName: spec.name, cause, payload }));
+    const finish = (cause: OutcomeCause, payload: ToolPayload, ruleDescription?: string) => {
+      resultListeners.forEach(fn => fn({ toolName: spec.name, cause, payload, ruleDescription }));
       return toolResult(payload);
     };
     const run: Exec<State, unknown> = ctx => spec.exec(input, ctx);
@@ -206,6 +220,9 @@ export function registerLadderTool(spec: LadderToolSpec) {
       // A commit that returned `denied` with no violation key is a tool that threw, not the
       // guard firing. Kept apart so the UI never reports a crash as enforcement.
       !committed ? 'tool_error' :
+      // auto is only true when a ratified policy already cleared this diff without ever
+      // showing the panel — the one case the receipt has to name, not just report.
+      auto ? 'auto_applied' :
       'applied';
 
     return finish(cause, {
@@ -229,7 +246,7 @@ export function registerLadderTool(spec: LadderToolSpec) {
       actions_dropped: out.dropped.length,
       replan_required: reportedStatus !== 'applied',
       rule_offered: draft ? describePolicy(draft) : null,
-    });
+    }, auto ? describePolicy(pol!) : undefined);
   };
 
   registrations.set(spec.name, { spec, execute });

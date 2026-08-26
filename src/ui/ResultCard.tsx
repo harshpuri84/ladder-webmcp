@@ -12,6 +12,14 @@ interface Framing {
  */
 function frame(o: ProposalOutcome): Framing {
   switch (o.cause) {
+    case 'auto_applied':
+      return {
+        tone: 'auto',
+        title: 'Applied automatically',
+        note: o.ruleDescription
+          ? `Matched the standing rule for ${o.toolName} — ${o.ruleDescription} — so this went through with no review.`
+          : `Matched the standing rule for ${o.toolName}, so this went through with no review.`,
+      };
     case 'stale':
       return {
         tone: 'moved',
@@ -66,7 +74,10 @@ export function ResultCard({ outcome, shifted, onDismiss }: ResultCardProps) {
   return (
     <aside className={`rc rc--${tone}${shifted ? ' rc--shifted' : ''}`} role="status">
       <div className="rc-head">
-        <span className="rc-title">{title}</span>
+        <span className="rc-title">
+          {title}
+          {outcome.cause === 'auto_applied' && <span className="badge">Auto</span>}
+        </span>
         <button className="rc-dismiss" type="button" onClick={onDismiss} aria-label="Dismiss">
           ×
         </button>
