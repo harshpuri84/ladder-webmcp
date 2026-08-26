@@ -356,7 +356,10 @@ export function registerLadderTool(spec: LadderToolSpec) {
                    approved: appliedTotal,
                    valueDelta: shadow.diff.totals.valueDelta });
 
-    const draft = reportedStatus === 'applied'
+    // F10: a tool that already carries an active ratified policy has nothing new to offer —
+    // without this guard, the very next clean run under that rule (auto-applied or not) still
+    // re-fired draftPolicy() and re-offered the same capability the tool already has.
+    const draft = reportedStatus === 'applied' && !activePolicy(spec.name)
       ? draftPolicy(spec.name, history, new Date(), NEVER_ELIGIBLE)
       : null;
     if (draft) draftListeners.forEach(fn => fn(draft));

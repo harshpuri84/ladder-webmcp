@@ -7,6 +7,7 @@ import type {
 import type {
   onProposal as OnProposal,
   onResult as OnResult,
+  onDraft as OnDraft,
   registerLadderTool as RegisterLadderTool,
   ratify as Ratify,
   revoke as Revoke,
@@ -23,6 +24,7 @@ describe('domain tools', () => {
   let setBuggyToolEnabled: typeof SetBuggyToolEnabled;
   let onProposal: typeof OnProposal;
   let onResult: typeof OnResult;
+  let onDraft: typeof OnDraft;
   let registerLadderTool: typeof RegisterLadderTool;
   let ratify: typeof Ratify;
   let revoke: typeof Revoke;
@@ -38,7 +40,7 @@ describe('domain tools', () => {
     };
     ({ store } = await import('../store'));
     ({ registerDomainTools, setBuggyToolEnabled } = await import('../tools'));
-    ({ onProposal, onResult, registerLadderTool, ratify, revoke, activePolicy } = await import('../../webmcp/adapter'));
+    ({ onProposal, onResult, onDraft, registerLadderTool, ratify, revoke, activePolicy } = await import('../../webmcp/adapter'));
     registerDomainTools();
   });
 
@@ -648,6 +650,49 @@ describe('domain tools', () => {
     for (const u of unheld) {
       expect(store.state.shipments[u.id].status).toBe('Cancelled');
     }
+  });
+
+  // F10: after ratifying, the next clean auto-applied run re-fired draftPolicy and offered the
+  // same rule again — describing capability the tool already has. A tool with an active
+  // ratified policy must not be drafted for again.
+  it('does not re-offer a draft for a tool that already carries an active ratified policy', async () => {
+    registerLadderTool({
+      name: 'draft_reoffer_test_tool', description: 'Test-only: draft re-offer check.',
+      inputSchema: { type: 'object', properties: {} },
+      // Toggles rather than assigning a fixed value: a write that lands the same value it
+      // already held never reaches the recorder (see the "Edit a row" test's own note on
+      // this), which would make every call after the first look like nothing to decide.
+      async exec(_input: any, ctx: any) {
+        const [firstId] = Object.keys(ctx.db.shipments);
+        const s = ctx.db.shipments[firstId];
+        s.status = s.status === 'Booked' ? 'In transit' : 'Booked';
+        return { matched: 1 };
+      },
+    });
+
+    let latestDraft: any = null;
+    const offDraft = onDraft(p => { latestDraft = p; });
+
+    // Three clean, fully-approved runs earn a draft offer.
+    for (let i = 0; i < 3; i++) {
+      const proposal = await captureProposal('draft_reoffer_test_tool', {});
+      proposal.resolve({ groups: proposal.diff.groups.map((g: any) => g.group), actions: [] });
+      await proposal.result;
+    }
+
+    expect(latestDraft).not.toBeNull();
+    expect(latestDraft.tool).toBe('draft_reoffer_test_tool');
+
+    ratify(latestDraft);
+    latestDraft = null; // ratify() itself broadcasts onDraft(null); reset before the next run.
+
+    // A further clean run now auto-applies under the just-ratified policy. It must not draft
+    // again — the tool already carries an active rule offering exactly this.
+    const payload = await callTool('draft_reoffer_test_tool', {});
+    expect(payload.status).toBe('applied');
+
+    offDraft();
+    expect(latestDraft).toBeNull();
   });
 
   // Placed last: ratifying a policy here makes update_shipments auto-approve for the rest of
