@@ -12,6 +12,21 @@ interface Framing {
  */
 function frame(o: ProposalOutcome): Framing {
   switch (o.cause) {
+    // A clean, fully approved run and a partially-approved one share this cause — `auto_applied`,
+    // `refused`, `nothing_to_decide`, `stale`, `blocked` and `tool_error` all cover the ways
+    // nothing (or not everything) got approved. Before this case existed, both fell through to
+    // the generic default below, so this product's ordinary success receipt announced itself in
+    // the same language as a refusal.
+    case 'applied': {
+      const partial = o.payload.status === 'partially_applied';
+      return {
+        tone: partial ? 'partial' : 'applied',
+        title: partial ? 'Applied, partly' : 'Applied',
+        note: partial
+          ? `${o.payload.applied} of ${o.payload.requested} went through as approved. The rest is accounted for above, and ${o.toolName} has been told to replan around it.`
+          : `${o.toolName} did exactly what you approved — ${o.payload.applied} of ${o.payload.requested}, nothing left over.`,
+      };
+    }
     case 'auto_applied':
       return {
         tone: 'auto',
