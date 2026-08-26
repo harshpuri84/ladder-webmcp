@@ -14,6 +14,12 @@ export interface BlastRadiusProps {
   datasetSize: number;
   valueDelta: number;
   irreversible: number;
+  /**
+   * True when the proposal writes no rows at all and exists only to send irreversible
+   * messages. The record count and the money are both zero there and always will be, so the
+   * held count takes the hero slot rather than letting the scariest state be the quietest.
+   */
+  actionsOnly: boolean;
 }
 
 /** Width in percent, with a sliver floor so one record out of two hundred is still visible. */
@@ -23,7 +29,25 @@ function share(n: number, total: number) {
 }
 
 export function BlastRadius(props: BlastRadiusProps) {
-  const { records, requested, datasetSize, valueDelta, irreversible } = props;
+  const { records, requested, datasetSize, valueDelta, irreversible, actionsOnly } = props;
+
+  if (actionsOnly) {
+    return (
+      <section className="br" aria-label="Blast radius">
+        <div className="br-figures">
+          <div className="br-figure">
+            <span key={irreversible} className="br-count mono">{irreversible}</span>
+            <span className="br-label">
+              {irreversible === 1 ? 'message held' : 'messages held'}
+            </span>
+          </div>
+        </div>
+        <p className="br-caption">
+          No records change. Each one leaves for a customer and cannot be recalled.
+        </p>
+      </section>
+    );
+  }
 
   return (
     <section className="br" aria-label="Blast radius">

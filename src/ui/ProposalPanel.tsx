@@ -163,6 +163,7 @@ export function ProposalPanel() {
             datasetSize={Object.keys(store.state.shipments).length}
             valueDelta={valueDelta}
             irreversible={selectedActions.length}
+            actionsOnly={diff.totals.records === 0 && diff.actions.length > 0}
           />
 
           {notes.length > 0 && (
