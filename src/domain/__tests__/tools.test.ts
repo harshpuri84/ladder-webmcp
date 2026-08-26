@@ -141,10 +141,66 @@ describe('domain tools', () => {
     proposal.resolve({ groups: proposal.diff.groups.map((g: any) => g.group), actions: [] });
     const payload = await proposal.result;
 
-    expect(payload.status).toBe('applied');
+    // Every unheld row landed, but the held ones the tool skipped for a domain reason did not —
+    // that is a mix, not a clean 'applied', and the agent has to be told there is still
+    // something left to replan around.
+    expect(payload.status).toBe('partially_applied');
+    expect(payload.replan_required).toBe(true);
     expect(payload.applied).toBe(unheldCount);
     const rejectedTotal = payload.rejected.reduce((n: number, r: any) => n + r.count, 0);
     expect(rejectedTotal).toBe(heldCount);
+    expect(payload.applied + rejectedTotal).toBe(payload.requested);
+  });
+
+  // Reproduces the exact false-success report: a filter matching only customs-hold rows.
+  // The tool skips every one of them for a domain reason before a single write is attempted,
+  // so commit.ts's own machinery never sees a violation or a narrowing to report — nothing
+  // here touches `out.status` at all. Without accounting for shadow.notes, the adapter would
+  // hand the agent `status: 'applied'`, `applied: 0`, `replan_required: false`: a job it never
+  // did, reported as done.
+  it('reports refused, not applied, when every matching row is held for a domain reason', async () => {
+    const matches = Object.values(store.state.shipments).filter(
+      s => s.customer === 'Belmont Foods' && s.origin === 'Busan',
+    );
+    expect(matches.length).toBeGreaterThan(0);
+    expect(matches.every(s => s.customsHold)).toBe(true);
+
+    const proposal = await captureProposal('update_shipments', { customer: 'Belmont Foods', origin: 'Busan', setEta: '2099-03-03' });
+    expect(proposal.diff.totals.records).toBe(0);
+    expect(proposal.notes).toHaveLength(matches.length);
+
+    proposal.resolve({ groups: [], actions: [] });
+    const payload = await proposal.result;
+
+    expect(payload.applied).toBe(0);
+    expect(payload.replan_required).toBe(true);
+    expect(payload.status).not.toBe('applied');
+    const rejectedTotal = payload.rejected.reduce((n: number, r: any) => n + r.count, 0);
+    expect(rejectedTotal).toBe(matches.length);
+    expect(payload.applied + rejectedTotal).toBe(payload.requested);
+  });
+
+  // The mixed case named in the report: some rows on the lane are held, some are not.
+  it('reports partially_applied, not applied, when some matching rows are held and some are not', async () => {
+    const matches = Object.values(store.state.shipments).filter(
+      s => s.customer === 'Halden Chemicals' && s.origin === 'Colombo',
+    );
+    const held = matches.filter(s => s.customsHold);
+    const unheld = matches.filter(s => !s.customsHold);
+    expect(held.length).toBeGreaterThan(0);
+    expect(unheld.length).toBeGreaterThan(0);
+
+    const proposal = await captureProposal('update_shipments', { customer: 'Halden Chemicals', origin: 'Colombo', setEta: '2099-04-04' });
+    expect(proposal.diff.totals.records).toBe(unheld.length);
+
+    proposal.resolve({ groups: proposal.diff.groups.map((g: any) => g.group), actions: [] });
+    const payload = await proposal.result;
+
+    expect(payload.status).toBe('partially_applied');
+    expect(payload.replan_required).toBe(true);
+    expect(payload.applied).toBe(unheld.length);
+    const rejectedTotal = payload.rejected.reduce((n: number, r: any) => n + r.count, 0);
+    expect(rejectedTotal).toBe(held.length);
     expect(payload.applied + rejectedTotal).toBe(payload.requested);
   });
 
@@ -208,7 +264,10 @@ describe('domain tools', () => {
 
     const payload = await callTool('update_shipments', { customer: 'Northwind Retail', setEta: '2094-07-07' });
 
-    expect(payload.status).toBe('applied');
+    // Same reconciliation fix applies whether the approval came from a human or from a
+    // ratified standing rule: a held row that never got written is still something left over.
+    expect(payload.status).toBe('partially_applied');
+    expect(payload.replan_required).toBe(true);
     expect(payload.applied).toBe(unheldCount);
     const rejectedTotal = payload.rejected.reduce((n: number, r: any) => n + r.count, 0);
     expect(rejectedTotal).toBe(heldCount);

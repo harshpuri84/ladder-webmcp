@@ -197,15 +197,39 @@ export function registerLadderTool(spec: LadderToolSpec) {
     const committed = out.status === 'applied' || out.status === 'partially_applied';
     const narrowedOut = committed ? shadow.diff.totals.records - appliedRows : 0;
     const droppedActions = committed ? out.dropped.length : 0;
-    // commit.ts's own status only tracks db-write narrowing — it has no notion of an action
-    // the human approved that the tool then declined to send. A run that dropped even one
-    // action isn't fully applied no matter what commit.ts reports, so the status sent to the
-    // agent must draw from the same population as `requested`, or applied + rejected won't
-    // reconcile against it.
-    const reportedStatus = out.status === 'applied' && droppedActions > 0 ? 'partially_applied' : out.status;
+    const appliedTotal = appliedRows + out.released.length;
+
+    // shadow.notes — not out.notes — is the domain-skip account here: it is always complete
+    // (drawn from a full preview run), where out.notes can be empty (the commit aborted before
+    // the tool ran at all) or partial (the tool stopped mid-way on a violation). Merging both
+    // would double-count the same rows when a deterministic tool re-derives the identical
+    // skips during the real commit.
+    const rejected = [
+      ...rejectedFrom(shadow.notes),
+      ...(narrowedOut > 0 ? [{ count: narrowedOut, reason: 'the operator removed these from the change', ids: [] }] : []),
+      ...(droppedActions > 0 ? [{ count: droppedActions, reason: 'the operator did not approve these messages', ids: [] }] : []),
+      ...(out.status === 'aborted_stale' ? [{ count: diffRequested, reason: 'a record changed after the preview; nothing was applied', ids: [] }] : []),
+      ...(out.status === 'aborted_diverged' ? [{ count: diffRequested, reason: `an approved field would have received a value the preview never showed (${out.violation}); nothing was applied`, ids: [] }] : []),
+      ...(!committed && out.violation && out.status !== 'aborted_diverged' ? [{ count: diffRequested, reason: `the tool tried to write outside the approved set (${out.violation}); everything was rolled back`, ids: [] }] : []),
+    ];
+    const rejectedTotal = rejected.reduce((n, r) => n + r.count, 0);
+
+    // A domain skip (e.g. a customs hold) never touches commit.ts's own narrowing machinery —
+    // the tool excludes those rows before a single write is attempted, so `out.status` alone
+    // would still read 'applied' even when every requested row was actually held. Anything
+    // above means the agent asked about something that did not happen, so the status sent back
+    // has to be driven off that full account, not off `out.status` in isolation: nothing landed
+    // is 'denied' (matches the full-refusal case's own value), a mix is 'partially_applied'
+    // (already the right shape, just not one commit.ts alone can detect here), and only a truly
+    // clean run stays 'applied'.
+    const reportedStatus =
+      out.status !== 'applied' ? out.status :
+      rejectedTotal === 0 ? 'applied' :
+      appliedTotal === 0 ? 'denied' :
+      'partially_applied';
 
     history.push({ tool: spec.name, proposalId, proposed: requested,
-                   approved: appliedRows + out.released.length,
+                   approved: appliedTotal,
                    valueDelta: shadow.diff.totals.valueDelta });
 
     const draft = reportedStatus === 'applied'
@@ -228,23 +252,13 @@ export function registerLadderTool(spec: LadderToolSpec) {
     return finish(cause, {
       status: reportedStatus,
       requested,
-      applied: appliedRows + out.released.length,
-      rejected: [
-        // shadow.notes — not out.notes — is the domain-skip account here: it is always
-        // complete (drawn from a full preview run), where out.notes can be empty (the commit
-        // aborted before the tool ran at all) or partial (the tool stopped mid-way on a
-        // violation). Merging both would double-count the same rows when a deterministic tool
-        // re-derives the identical skips during the real commit.
-        ...rejectedFrom(shadow.notes),
-        ...(narrowedOut > 0 ? [{ count: narrowedOut, reason: 'the operator removed these from the change', ids: [] }] : []),
-        ...(droppedActions > 0 ? [{ count: droppedActions, reason: 'the operator did not approve these messages', ids: [] }] : []),
-        ...(out.status === 'aborted_stale' ? [{ count: diffRequested, reason: 'a record changed after the preview; nothing was applied', ids: [] }] : []),
-        ...(out.status === 'aborted_diverged' ? [{ count: diffRequested, reason: `an approved field would have received a value the preview never showed (${out.violation}); nothing was applied`, ids: [] }] : []),
-        ...(!committed && out.violation && out.status !== 'aborted_diverged' ? [{ count: diffRequested, reason: `the tool tried to write outside the approved set (${out.violation}); everything was rolled back`, ids: [] }] : []),
-      ],
+      applied: appliedTotal,
+      rejected,
       actions_released: out.released.length,
       actions_dropped: out.dropped.length,
-      replan_required: reportedStatus !== 'applied',
+      // Anything rejected, for any reason, is something the agent asked about that did not
+      // happen — that always means a replan, whether or not it moved `out.status` at all.
+      replan_required: rejectedTotal > 0,
       rule_offered: draft ? describePolicy(draft) : null,
     }, auto ? describePolicy(pol!) : undefined);
   };
