@@ -46,12 +46,18 @@ export function Console() {
 
   const all = Object.values(store.state.shipments);
   const q = filter.trim().toLowerCase();
+  // F8: receipts and panel notes hand the operator ids ("SHP-10003 skipped, customs hold
+  // open") and status text, and a lane reads as "Shanghai → Rotterdam" — origin and destination
+  // matched separately before, so pasting any of those back in here found nothing.
   const shipments = q
     ? all.filter(
         s =>
+          s.id.toLowerCase().includes(q) ||
           s.customer.toLowerCase().includes(q) ||
           s.origin.toLowerCase().includes(q) ||
-          s.destination.toLowerCase().includes(q),
+          s.destination.toLowerCase().includes(q) ||
+          s.status.toLowerCase().includes(q) ||
+          `${s.origin} → ${s.destination}`.toLowerCase().includes(q),
       )
     : all;
 
