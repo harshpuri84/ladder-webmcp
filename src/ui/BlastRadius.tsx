@@ -13,6 +13,12 @@ export interface BlastRadiusProps {
   /** Rows in the whole console, so the bar reads as a proportion of everything. */
   datasetSize: number;
   valueDelta: number;
+  /**
+   * False when nothing in the diff touches a priced field. A status-only change has a net of
+   * zero and always will, and a 32px "EUR 0" competing with the record count for hero space
+   * says nothing — so the figure appears only when it carries information.
+   */
+  showMoney: boolean;
   irreversible: number;
   /**
    * True when the proposal writes no rows at all and exists only to send irreversible
@@ -29,7 +35,7 @@ function share(n: number, total: number) {
 }
 
 export function BlastRadius(props: BlastRadiusProps) {
-  const { records, requested, datasetSize, valueDelta, irreversible, actionsOnly } = props;
+  const { records, requested, datasetSize, valueDelta, showMoney, irreversible, actionsOnly } = props;
 
   if (actionsOnly) {
     return (
@@ -57,10 +63,12 @@ export function BlastRadius(props: BlastRadiusProps) {
           <span key={records} className="br-count mono">{records}</span>
           <span className="br-label">records</span>
         </div>
-        <div className="br-figure br-figure--money">
-          <span key={valueDelta} className="br-money mono">{money.format(valueDelta)}</span>
-          <span className="br-label">net change</span>
-        </div>
+        {showMoney && (
+          <div className="br-figure br-figure--money">
+            <span key={valueDelta} className="br-money mono">{money.format(valueDelta)}</span>
+            <span className="br-label">net change</span>
+          </div>
+        )}
       </div>
 
       {irreversible > 0 && (

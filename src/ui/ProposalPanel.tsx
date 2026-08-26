@@ -122,6 +122,9 @@ export function ProposalPanel() {
   const selectedGroups = diff.groups.filter(g => groups.has(g.group));
   const selectedActions = diff.actions.filter(a => actions.has(a.actionId));
   const valueDelta = selectedGroups.reduce((n, g) => n + g.valueDelta, 0);
+  // Read from the whole diff, not the selection, so the figure does not vanish the moment the
+  // human unticks the last priced row — that is exactly when the zero is worth seeing.
+  const touchesPrice = diff.groups.some(g => g.writes.some(w => w.field === 'price'));
   const waiting = queue.length - 1;
   const nothingPicked = selectedGroups.length === 0 && selectedActions.length === 0;
 
@@ -162,6 +165,7 @@ export function ProposalPanel() {
             requested={diff.totals.records}
             datasetSize={Object.keys(store.state.shipments).length}
             valueDelta={valueDelta}
+            showMoney={touchesPrice}
             irreversible={selectedActions.length}
             actionsOnly={diff.totals.records === 0 && diff.actions.length > 0}
           />
