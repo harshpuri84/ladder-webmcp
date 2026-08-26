@@ -40,10 +40,15 @@ happened and why the rest did not:
   "status": "partially_applied",
   "requested": 47,
   "applied": 12,
-  "rejected": [{ "reason": "customs hold open", "count": 35, "ids": ["SHP-10231", "..."] }],
+  "rejected": [{ "reason": "the operator removed these from the change", "count": 35, "ids": [] }],
   "replan_required": true
 }
 ```
+
+Different refusals carry different reasons, and the agent can tell them apart. A row the tool
+itself declined comes back as `customs hold open` with the exact ids. A message the person did
+not approve comes back as its own bucket. A record that changed while they were deciding says
+so. The agent is never left guessing which kind of no it received.
 
 The agent now knows something it did not know before, in a form it can act on, and nobody typed
 an explanation. That figure is not decoration either: `applied` plus every rejected count equals

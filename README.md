@@ -21,7 +21,7 @@ Two ways to run it with a real WebMCP runtime:
 - **ChatGPT desktop.** Open the live URL in its built-in browser. No setup, no flags.
 - **Chrome 149+.** Enable `chrome://flags/#enable-webmcp-testing` and restart the browser, then open the live URL.
 
-Open the same URL in any other browser and a banner explains that the agent half needs WebMCP and names both runtimes above. The console underneath the banner still works by hand: search and filter shipments, click into a proposal, sculpt it, approve or reject it. Only the tools are unreachable from an agent; the diff, sculpting, and commit paths are the same code either way.
+Open the same URL in any other browser and a banner explains that the agent half needs WebMCP and names both runtimes above. The console underneath still works by hand: you can search and filter the shipments. There is nothing to approve there, because without a WebMCP runtime no agent can propose anything. The diff, sculpting and commit paths are the same code either way.
 
 ## How it works
 
