@@ -17,7 +17,7 @@ const priceDelta = (w: WriteRecord) =>
 const wire = (s: any) => ({
   proposalId: 'p1',
   deltaOf: priceDelta,
-  versionOf: (_e: string, id: string) => s.rows[id].version as number,
+  versionOf: (_e: string, id: string) => (s.rows[id]?.version as number) ?? 0,
   bumpVersion: (_e: string, id: string) => { s.rows[id].version += 1; },
 });
 
@@ -54,6 +54,25 @@ describe('runCommit', () => {
     await runCommit(s, repriceAll, buildWriteSet(diff, ['rows:A'], []), o);
     expect(s.rows.A.version).toBe(2);
     expect(s.rows.B.version).toBe(1);
+  });
+
+  it('refuses a created record whose contents differ from the preview', async () => {
+    const s = fixture(); const o = wire(s);
+    const previewed = async (ctx: any) => { ctx.db.rows.Z = { price: 10, status: 'New', version: 1 }; };
+    const atCommit  = async (ctx: any) => { ctx.db.rows.Z = { price: 999999, status: 'Poison', version: 1 }; };
+    const { diff } = await runShadow(s, previewed, o);
+    const out = await runCommit(s, atCommit, buildWriteSet(diff, ['rows:Z'], []), o);
+    expect(out.status).toBe('aborted_diverged');
+    expect((s.rows as any).Z).toBeUndefined();
+  });
+
+  it('applies a created record whose contents match the preview', async () => {
+    const s = fixture(); const o = wire(s);
+    const create = async (ctx: any) => { ctx.db.rows.Z = { price: 10, status: 'New', version: 1 }; };
+    const { diff } = await runShadow(s, create, o);
+    const out = await runCommit(s, create, buildWriteSet(diff, ['rows:Z'], []), o);
+    expect(out.status).toBe('applied');
+    expect((s.rows as any).Z.price).toBe(10);
   });
 
   it('refuses a function where the human approved a deletion', async () => {

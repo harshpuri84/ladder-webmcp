@@ -88,8 +88,11 @@ export async function runCommit<S extends object, R>(
     for (const [key, want] of ws.expected) {
       if (!ws.allowed.has(key)) continue;
       const [entity, id, field] = key.split(':');
-      if (field === '*') continue;
-      const got = (state as Record<string, Record<string, Record<string, unknown>>>)[entity]?.[id]?.[field];
+      const root = state as Record<string, Record<string, Record<string, unknown>>>;
+      const got =
+        id === '*'    ? root[entity] :          // whole entity replaced
+        field === '*' ? root[entity]?.[id] :    // whole record created or replaced
+                        root[entity]?.[id]?.[field];
       if (!same(want, got)) { divergence = key; break; }
     }
 
