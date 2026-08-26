@@ -158,26 +158,41 @@ describe('domain tools', () => {
   // here touches `out.status` at all. Without accounting for shadow.notes, the adapter would
   // hand the agent `status: 'applied'`, `applied: 0`, `replan_required: false`: a job it never
   // did, reported as done.
-  it('reports refused, not applied, when every matching row is held for a domain reason', async () => {
+  // T8-1: a diff with nothing to decide (no record groups, no actions) must never reach a
+  // human at all — no PendingProposal, no panel. Before this fix, this exact case opened a
+  // panel showing "0 RECORDS" and a disabled "Apply 0 of 0" button: a modal with nothing for
+  // the human to decide, in a product whose whole pitch is that the human decides something.
+  it('never opens a panel when every matching row is held for a domain reason, and reports refused', async () => {
     const matches = Object.values(store.state.shipments).filter(
       s => s.customer === 'Belmont Foods' && s.origin === 'Busan',
     );
     expect(matches.length).toBeGreaterThan(0);
     expect(matches.every(s => s.customsHold)).toBe(true);
 
-    const proposal = await captureProposal('update_shipments', { customer: 'Belmont Foods', origin: 'Busan', setEta: '2099-03-03' });
-    expect(proposal.diff.totals.records).toBe(0);
-    expect(proposal.notes).toHaveLength(matches.length);
+    let sawProposal = false;
+    const off = onProposal(p => { if (p && p.toolName === 'update_shipments') sawProposal = true; });
+    const payload = await callTool('update_shipments', { customer: 'Belmont Foods', origin: 'Busan', setEta: '2099-03-03' });
+    off();
 
-    proposal.resolve({ groups: [], actions: [] });
-    const payload = await proposal.result;
-
+    expect(sawProposal).toBe(false);
     expect(payload.applied).toBe(0);
     expect(payload.replan_required).toBe(true);
     expect(payload.status).not.toBe('applied');
     const rejectedTotal = payload.rejected.reduce((n: number, r: any) => n + r.count, 0);
     expect(rejectedTotal).toBe(matches.length);
     expect(payload.applied + rejectedTotal).toBe(payload.requested);
+  });
+
+  // The other half of the T8-1 guard: zero records is not by itself a reason to skip the
+  // panel — an action-only proposal (nothing writes a row, everything is a held message) is
+  // exactly the case where the human is genuinely deciding something, so it must still open.
+  it('still opens a panel when there are zero records but held actions', async () => {
+    const proposal = await captureProposal('notify_customers', { message: 'still something to decide' });
+    expect(proposal.diff.totals.records).toBe(0);
+    expect(proposal.diff.actions.length).toBeGreaterThan(0);
+
+    proposal.resolve(null);
+    await proposal.result;
   });
 
   // The mixed case named in the report: some rows on the lane are held, some are not.

@@ -169,8 +169,20 @@ export function registerLadderTool(spec: LadderToolSpec) {
     const pol = activePolicy(spec.name);
     const auto = pol ? policyMatches(pol, shadow.diff, new Date()) : false;
 
+    // T8-1: nothing for a human to decide — every matching row was skipped for a domain
+    // reason before the diff was even built, so there is no record group and no action to
+    // show. Opening a panel there produces "0 RECORDS" and a disabled "Apply 0 of 0" button:
+    // a modal with nothing to decide, in a product whose whole pitch is that the human
+    // decides something meaningful. Resolve straight to the same refused outcome a human
+    // declining would produce and let the receipt, not a panel, carry the news. Guarded on
+    // both groups and actions: a proposal with zero records but held actions still needs a
+    // human, because there they genuinely are deciding something.
+    const nothingToDecide = shadow.diff.groups.length === 0 && shadow.diff.actions.length === 0;
+
     const approved: Decision | null = auto
       ? { groups: shadow.diff.groups.map(g => g.group), actions: [] }
+      : nothingToDecide
+      ? null
       : await decide(spec.name, input, shadow.diff, shadow.notes, agent, options?.signal);
 
     if (!approved) {
