@@ -22,8 +22,14 @@ export class Divergence extends Error {
   }
 }
 
-const same = (a: unknown, b: unknown) =>
-  Object.is(a, b) || JSON.stringify(a) === JSON.stringify(b);
+const same = (a: unknown, b: unknown) => {
+  if (Object.is(a, b)) return true;
+  const sa = JSON.stringify(a), sb = JSON.stringify(b);
+  // JSON.stringify yields undefined for functions, symbols and undefined itself, so two
+  // different unserialisable values would otherwise compare equal.
+  if (sa === undefined || sb === undefined) return false;
+  return sa === sb;
+};
 
 export type CommitStatus = 'applied' | 'partially_applied' | 'denied' | 'aborted_stale' | 'aborted_diverged';
 

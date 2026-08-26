@@ -56,6 +56,16 @@ describe('runCommit', () => {
     expect(s.rows.B.version).toBe(1);
   });
 
+  it('refuses a function where the human approved a deletion', async () => {
+    const s = fixture(); const o = wire(s);
+    const previewed = async (ctx: any) => { delete ctx.db.rows.A.status; };
+    const atCommit = async (ctx: any) => { ctx.db.rows.A.status = () => 'sneaky'; };
+    const { diff } = await runShadow(s, previewed, o);
+    const out = await runCommit(s, atCommit, buildWriteSet(diff, ['rows:A'], []), o);
+    expect(out.status).toBe('aborted_diverged');
+    expect(typeof s.rows.A.status).toBe('string');
+  });
+
   it('allows a tool to write the same field twice on its way to the approved value', async () => {
     const s = fixture(); const o = wire(s);
     const twice = async (ctx: any) => { ctx.db.rows.A.price = 150; ctx.db.rows.A.price = 160; };
