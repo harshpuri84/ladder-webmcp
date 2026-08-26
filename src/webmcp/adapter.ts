@@ -145,9 +145,13 @@ export function registerLadderTool(spec: LadderToolSpec) {
 
   const execute = async (input: any, agent?: any, options?: { signal?: AbortSignal }) => {
     const proposalId = `prop-${++seq}`;
+    // T8-2: a bucket reporting zero is noise, not information, in the one structured account
+    // this product sells as truthful — suppress it here, once, so every branch that builds a
+    // `rejected` array is covered without each call site having to remember the guard itself.
     const finish = (cause: OutcomeCause, payload: ToolPayload, ruleDescription?: string) => {
-      resultListeners.forEach(fn => fn({ toolName: spec.name, cause, payload, ruleDescription }));
-      return toolResult(payload);
+      const cleaned: ToolPayload = { ...payload, rejected: payload.rejected.filter(r => r.count > 0) };
+      resultListeners.forEach(fn => fn({ toolName: spec.name, cause, payload: cleaned, ruleDescription }));
+      return toolResult(cleaned);
     };
     const run: Exec<State, unknown> = ctx => spec.exec(input, ctx);
 

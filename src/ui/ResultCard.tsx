@@ -63,12 +63,10 @@ export interface ResultCardProps {
 export function ResultCard({ outcome, shifted, onDismiss }: ResultCardProps) {
   const { tone, title, note } = frame(outcome);
   const p = outcome.payload;
-  const refused = p.rejected.filter(r => r.count > 0);
-  // A reason with no count attached — a tool that threw before it touched a single row. It
-  // still has to be readable, or the one case where nothing was blocked reads as blank.
-  const remarks = p.rejected.filter(r => r.count === 0);
-  // A tool that threw before it touched a row reports nothing but zeros. Three zero rows above
-  // the remark say less than nothing — the remark is the whole content — so the block goes.
+  // Every entry here already has count > 0 — the adapter's finish() strips zero-count
+  // entries before this component ever sees them, so there is no separate "remark with no
+  // count" case left to render.
+  const refused = p.rejected;
   const hasCounts = p.requested > 0;
 
   return (
@@ -112,9 +110,6 @@ export function ResultCard({ outcome, shifted, onDismiss }: ResultCardProps) {
           </div>
         </dl>
       )}
-      {remarks.map(r => (
-        <p className="rc-remark" key={r.reason}>{r.reason}</p>
-      ))}
       <p className="rc-note">{note}</p>
     </aside>
   );

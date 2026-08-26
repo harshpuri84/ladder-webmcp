@@ -178,6 +178,13 @@ describe('domain tools', () => {
     expect(payload.applied).toBe(0);
     expect(payload.replan_required).toBe(true);
     expect(payload.status).not.toBe('applied');
+
+    // T8-2: a bucket reporting nothing should not appear in the one structured account sold
+    // as truthful — not "the operator refused this change" at count 0 (nobody refused
+    // anything; nobody was even asked), and not anywhere else a count can come out empty.
+    expect(payload.rejected.every((r: any) => r.count > 0)).toBe(true);
+    expect(payload.rejected.some((r: any) => r.reason === 'the operator refused this change')).toBe(false);
+
     const rejectedTotal = payload.rejected.reduce((n: number, r: any) => n + r.count, 0);
     expect(rejectedTotal).toBe(matches.length);
     expect(payload.applied + rejectedTotal).toBe(payload.requested);
@@ -214,6 +221,7 @@ describe('domain tools', () => {
     expect(payload.status).toBe('partially_applied');
     expect(payload.replan_required).toBe(true);
     expect(payload.applied).toBe(unheld.length);
+    expect(payload.rejected.every((r: any) => r.count > 0)).toBe(true);
     const rejectedTotal = payload.rejected.reduce((n: number, r: any) => n + r.count, 0);
     expect(rejectedTotal).toBe(held.length);
     expect(payload.applied + rejectedTotal).toBe(payload.requested);
