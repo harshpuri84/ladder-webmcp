@@ -56,6 +56,15 @@ describe('runCommit', () => {
     expect(s.rows.B.version).toBe(1);
   });
 
+  it('allows a tool to write the same field twice on its way to the approved value', async () => {
+    const s = fixture(); const o = wire(s);
+    const twice = async (ctx: any) => { ctx.db.rows.A.price = 150; ctx.db.rows.A.price = 160; };
+    const { diff } = await runShadow(s, twice, o);
+    const out = await runCommit(s, twice, buildWriteSet(diff, ['rows:A'], []), o);
+    expect(out.status).toBe('applied');
+    expect(s.rows.A.price).toBe(160);
+  });
+
   it('blocks a write the preview never saw and rolls everything back', async () => {
     const s = fixture(); const o = wire(s);
     const { diff } = await runShadow(s, repriceAll, o);

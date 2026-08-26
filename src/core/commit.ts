@@ -60,11 +60,7 @@ export async function runCommit<S extends object, R>(
     onWrite: w => applied.push(w),
     guard: k => {
       const key = fieldKey(k.entity, k.id, k.field);
-      if (ws.allowed.has(key)) {
-        const want = ws.expected.get(key);
-        if (!same(want, k.after)) { divergence = key; throw new Divergence(key); }
-        return 'allow';
-      }
+      if (ws.allowed.has(key)) return 'allow';
       if (ws.previewed.has(key)) { skipped++; return 'skip'; }
       violation = key;
       throw new ScopeViolation(key);
@@ -82,6 +78,14 @@ export async function runCommit<S extends object, R>(
 
   try {
     await exec({ db, effects, notes } as Ctx<S>);
+
+    for (const [key, want] of ws.expected) {
+      if (!ws.allowed.has(key)) continue;
+      const [entity, id, field] = key.split(':');
+      if (field === '*') continue;
+      const got = (state as Record<string, Record<string, Record<string, unknown>>>)[entity]?.[id]?.[field];
+      if (!same(want, got)) { divergence = key; break; }
+    }
 
     if (violation !== undefined || divergence !== undefined) {
       rollback();
