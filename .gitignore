@@ -3,3 +3,5 @@ dist/
 .netlify/
 .DS_Store
 .vercel
+.impeccable/questions/
+.impeccable/direction-payload.json
