@@ -79,6 +79,25 @@ spec-conformant; neither is exercised in the runtime a judge will open.
 We also measured that a pending `execute` survives 96 seconds and returns its structured result
 intact, which is why the approval can take as long as a person needs.
 
+## What the reference material does not do
+
+This is worth stating precisely rather than as a claim about other entries.
+
+In the Chrome team's own conference talk on WebMCP (Tara Agyemang, AI Engineer Europe, June
+2026), both live demos run the agent straight through to a completed action. The second ends
+with a real ticket purchase, money spent, no intermediate confirmation. The guidance given for
+gating a consequential step is manual and generic: do not register the tool for that step, and
+let the user do it by hand.
+
+That is a reasonable answer, and it is the only one on offer. It means an action is either fully
+automatic or fully manual, with nothing in between, and it puts the decision at tool-registration
+time rather than at the moment the change is actually understood.
+
+Ladder is the in-between. The tool stays registered, the agent still calls it, and the human
+decides against consequences at the moment they exist. The same talk states as best practice that
+the UI should stay in sync with the tool calls happening; this is that principle with the
+approval step added.
+
 ## What it does not do
 
 **Ladder is not a sandbox.** It governs writes and effects that pass through the tool context it
