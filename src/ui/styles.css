@@ -316,6 +316,16 @@ body {
   transition: width 220ms cubic-bezier(0.2, 0.7, 0.3, 1);
 }
 
+.br-bar-tick {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  margin-left: -1px;
+  background: var(--accent);
+  transition: left 220ms cubic-bezier(0.2, 0.7, 0.3, 1);
+}
+
 .br-bar-requested {
   background: rgba(193, 95, 60, 0.22);
 }

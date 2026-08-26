@@ -85,6 +85,10 @@ export function BlastRadius(props: BlastRadiusProps) {
       >
         <div className="br-bar-requested" style={{ width: `${share(requested, datasetSize)}%` }} />
         <div className="br-bar-fill" style={{ width: `${share(records, datasetSize)}%` }} />
+        {/* At 11 of 200 the ghost is a sliver and its 22% alpha all but vanishes against the
+            track, so the fill retreating inside the ask would read only in the caption. This
+            tick marks where the ask ended, and stays legible at any fill. */}
+        <div className="br-bar-tick" style={{ left: `${share(requested, datasetSize)}%` }} />
       </div>
 
       <p className="br-caption">
