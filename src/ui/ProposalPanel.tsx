@@ -107,6 +107,18 @@ export function ProposalPanel() {
 
   const head = queue[0] ?? null;
 
+  // Task 9's "Edit a row" beat needs the console reachable while a decision is pending, but
+  // the panel is `position: fixed` over the right side of the viewport and would otherwise sit
+  // on top of it. This flag on <body> lets styles.css narrow the console for exactly as long
+  // as something is actually on screen. Driven off `head`, not `queue.length` or the raw
+  // onProposal events, so a second queued proposal keeps the flag set through the gap between
+  // the first one resolving and the next one appearing — the console must not spring back to
+  // full width for a frame in between.
+  useEffect(() => {
+    document.body.classList.toggle('pp-active', Boolean(head));
+    return () => { document.body.classList.remove('pp-active'); };
+  }, [head]);
+
   // Everything the agent asked for starts ticked: narrowing is the human act, and starting
   // from nothing would make "Apply 0 of 47" the resting state.
   if (head && head.diff.proposalId !== selectedFor) {

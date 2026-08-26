@@ -36,6 +36,32 @@ body {
   max-width: 1100px;
 }
 
+/*
+ * While a proposal is open (see the `pp-active` class ProposalPanel.tsx puts on <body>), the
+ * whole main-content row gives way to the panel instead of being centered under it. The panel
+ * itself is `position: fixed; right: 0; width: var(--panel-width)`, glued to the true viewport
+ * edge regardless of how `.app-shell` is centered — so the fix has to shrink from the right by
+ * exactly that width, not just cap `.app-shell`'s own max-width (a narrower box centered in the
+ * viewport still bleeds into the right-hand panel zone; only an explicit right margin clears
+ * it). This is what lets the "Edit a row" control stay both visible and clickable during a
+ * decision without the z-index workaround this replaced.
+ */
+body.pp-active .app-shell {
+  margin-left: 0;
+  margin-right: var(--panel-width);
+}
+
+/*
+ * The activity list is a log of what already happened — nothing in it is needed while a human
+ * is mid-decision, and it reappears the moment the panel closes. Hiding it while a proposal is
+ * open hands its ~260px straight back to the console, which is where a judge actually needs to
+ * be looking during the stale beat. `display: none` (not visibility/opacity) so it stops
+ * competing for flex space entirely.
+ */
+body.pp-active .al {
+  display: none;
+}
+
 .app-header {
   margin-bottom: 24px;
 }
@@ -164,9 +190,11 @@ body {
 }
 
 .console-edit-row {
-  /* Deliberately above the proposal panel's scrim (z-index 10): this is the one control that
-     has to stay reachable while a decision is pending, because the beat it demonstrates is
-     data moving *outside* that decision, not inside it. */
+  /* Above the proposal panel's scrim (z-index 10), which covers the full viewport regardless
+     of layout and would otherwise swallow every click here. Safe now in a way it wasn't
+     before: the layout fix above (body.pp-active .app-shell) guarantees this button's rect
+     never coincides with the panel's own rect (z-index 11), so there is nothing left for this
+     elevation to visually collide with — it only ever needs to clear the scrim. */
   position: relative;
   z-index: 12;
   padding: 4px 10px;
