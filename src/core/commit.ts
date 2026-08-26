@@ -14,14 +14,6 @@ export class ScopeViolation extends Error {
   }
 }
 
-export class Divergence extends Error {
-  readonly key: string;
-  constructor(key: string) {
-    super(`approved field would receive a value the preview never showed: ${key}`);
-    this.key = key;
-  }
-}
-
 const same = (a: unknown, b: unknown) => {
   if (Object.is(a, b)) return true;
   const sa = JSON.stringify(a), sb = JSON.stringify(b);
@@ -119,9 +111,9 @@ export async function runCommit<S extends object, R>(
   } catch (e) {
     rollback();
     return {
-      status: e instanceof Divergence ? 'aborted_diverged' : 'denied',
+      status: 'denied',
       applied: [], skipped: 0, released: [], dropped: [], notes,
-      violation: (e instanceof ScopeViolation || e instanceof Divergence) ? e.key : undefined,
+      violation: e instanceof ScopeViolation ? e.key : undefined,
     };
   }
 }
