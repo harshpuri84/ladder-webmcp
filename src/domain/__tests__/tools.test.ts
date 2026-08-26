@@ -456,6 +456,40 @@ describe('domain tools', () => {
     expect(payload.applied + rejectedTotal).toBe(payload.requested);
   });
 
+  // The case the crash-on-commit test above doesn't cover: a tool that pushes a domain-skip
+  // note *and then* crashes for real on the commit re-run. `rejected` was still built from
+  // shadow.notes regardless of out.error, so this tool would report a nonzero rejected total
+  // against a requested forced down to 0 — breaking the reconciliation invariant the same way
+  // a false "applied" report would.
+  it('keeps the reconciliation invariant when a tool pushes a note and then crashes on commit', async () => {
+    const crashSeenInputs = new WeakSet<object>();
+    registerLadderTool({
+      name: 'crash_after_note_test',
+      description: 'Test-only: notes a domain skip on every run, then throws for real on the commit re-run.',
+      inputSchema: { type: 'object', properties: {} },
+      async exec(input: any, ctx: any) {
+        ctx.notes.push({ id: 'SHP-NOTE', reason: 'a domain skip noted before the crash' });
+        const [firstId] = Object.keys(ctx.db.shipments);
+        ctx.db.shipments[firstId].status = 'Delivered';
+        if (crashSeenInputs.has(input)) throw new Error('crash after notes');
+        crashSeenInputs.add(input);
+        return { matched: 1 };
+      },
+    });
+
+    const proposal = await captureProposal('crash_after_note_test', {});
+    proposal.resolve({ groups: proposal.diff.groups.map((g: any) => g.group), actions: [] });
+    const payload = await proposal.result;
+
+    expect(payload.error).toBe('the tool failed during commit: crash after notes');
+    expect(payload.applied).toBe(0);
+    // A crash reports nothing in `rejected` (see the `error` field's doc comment) — even when
+    // the tool had already pushed a note before it crashed.
+    expect(payload.rejected).toEqual([]);
+    const rejectedTotal = payload.rejected.reduce((n: number, r: any) => n + r.count, 0);
+    expect(payload.applied + rejectedTotal).toBe(payload.requested);
+  });
+
   // Placed last: ratifying a policy here makes update_shipments auto-approve for the rest of
   // this file's run, which would starve captureProposal (no PendingProposal ever fires) in
   // any test that runs after it.

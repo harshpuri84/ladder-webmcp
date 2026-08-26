@@ -274,7 +274,13 @@ export function registerLadderTool(spec: LadderToolSpec) {
     // the tool ran at all) or partial (the tool stopped mid-way on a violation). Merging both
     // would double-count the same rows when a deterministic tool re-derives the identical
     // skips during the real commit.
-    const rejected = [
+    //
+    // A commit crash (out.error set, see its doc comment in core/commit.ts) is kept out of this
+    // array entirely, even when the tool had pushed notes before it crashed: `requested` is
+    // forced down to `appliedTotal` below on that same path, and a rejected total drawn from
+    // shadow.notes would then be nonzero against a requested of zero — breaking
+    // applied + Σrejected.count === requested. A crash is not rejected work either way.
+    const rejected = out.error !== undefined ? [] : [
       ...rejectedFrom(shadow.notes),
       ...(narrowedOut > 0 ? [{ count: narrowedOut, reason: 'the operator removed these from the change', ids: [] }] : []),
       ...(droppedActions > 0 ? [{ count: droppedActions, reason: 'the operator did not approve these messages', ids: [] }] : []),
@@ -322,9 +328,10 @@ export function registerLadderTool(spec: LadderToolSpec) {
     return finish(cause, {
       status: reportedStatus,
       // A commit crash (not a ScopeViolation, see out.error's doc comment in core/commit.ts)
-      // reports nothing in `rejected` — a crash is not rejected work — so `requested` has to
-      // match `applied` here too, the same way the preview-crash path above reports 0/0/[];
-      // otherwise the applied + Σrejected.count === requested invariant breaks.
+      // reports nothing in `rejected` (built above), even when the tool had already pushed
+      // notes before it crashed — so `requested` has to match `applied` here too, the same way
+      // the preview-crash path above reports 0/0/[]; otherwise the applied +
+      // Σrejected.count === requested invariant breaks.
       requested: out.error !== undefined ? appliedTotal : requested,
       applied: appliedTotal,
       rejected,
