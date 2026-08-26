@@ -177,7 +177,7 @@ export function registerLadderTool(spec: LadderToolSpec) {
                    approved: appliedRows + out.released.length,
                    valueDelta: shadow.diff.totals.valueDelta });
 
-    const draft = out.status === 'applied'
+    const draft = reportedStatus === 'applied'
       ? draftPolicy(spec.name, history, new Date(), NEVER_ELIGIBLE)
       : null;
     if (draft) draftListeners.forEach(fn => fn(draft));
