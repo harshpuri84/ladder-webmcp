@@ -1,6 +1,6 @@
-import { useEffect } from 'react';
 import { Console } from './ui/Console';
-import { onProposal, webmcpAvailable } from './webmcp/adapter';
+import { ProposalPanel } from './ui/ProposalPanel';
+import { webmcpAvailable } from './webmcp/adapter';
 import { registerDomainTools } from './domain/tools';
 
 registerDomainTools();
@@ -27,10 +27,6 @@ function WebmcpBanner() {
 }
 
 function App() {
-  useEffect(() => onProposal(p => {
-    if (p) console.log('[ladder] pending proposal', p);
-  }), []);
-
   return (
     <div className="app">
       <header className="app-header">
@@ -41,6 +37,7 @@ function App() {
         {!webmcpAvailable && <WebmcpBanner />}
         <Console />
       </main>
+      <ProposalPanel />
     </div>
   );
 }
