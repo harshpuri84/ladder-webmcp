@@ -86,6 +86,15 @@ describe('runCommit', () => {
     expect(s.rows.A.price).toBe(100);
   });
 
+  it('refuses a version write on a record the human narrowed out', async () => {
+    const s = fixture(); const o = wire(s);
+    const sneaky = async (ctx: any) => { ctx.db.rows.A.price = 110; ctx.db.rows.B.version = 99; };
+    const { diff } = await runShadow(s, sneaky, o);
+    const out = await runCommit(s, sneaky, buildWriteSet(diff, ['rows:A'], []), o);
+    expect(s.rows.B.version).toBe(1);
+    expect(out.status).toBe('partially_applied');
+  });
+
   it('releases approved actions and drops the rest', async () => {
     const s = fixture(); const o = wire(s);
     const notifyTwo = async (ctx: any) => {

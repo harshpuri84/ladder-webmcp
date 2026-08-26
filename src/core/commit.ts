@@ -45,7 +45,6 @@ export async function runCommit<S extends object, R>(
   const db = recordingProxy(state, {
     onWrite: w => applied.push(w),
     guard: k => {
-      if (k.field === 'version') return 'allow';
       const key = fieldKey(k.entity, k.id, k.field);
       if (ws.allowed.has(key)) return 'allow';
       if (ws.previewed.has(key)) { skipped++; return 'skip'; }
