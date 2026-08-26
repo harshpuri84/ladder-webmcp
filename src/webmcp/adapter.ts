@@ -9,12 +9,84 @@ import type { Note, WriteRecord } from '../core/types';
 import { toolResult, type ToolPayload } from './result';
 import { store } from '../domain/store';
 
-const mc: any = (document as any).modelContext ?? (navigator as any).modelContext;
+/**
+ * Reads the namespace fresh, never caches a falsy answer. A Chrome flag build injects
+ * `document.modelContext` before page scripts run, so a one-time read at module load used to
+ * work there — but a host is free to inject a moment later (ChatGPT desktop's built-in browser
+ * does exactly this), and a one-time read that landed `undefined` never looked again. See
+ * `checkForWebmcp` and `registerWhenReady` below for the retry this enables.
+ */
+function resolveMc(): any {
+  return (document as any).modelContext ?? (navigator as any).modelContext;
+}
 
-/** False when the page is open in a browser without WebMCP. The app still works by hand. */
-export const webmcpAvailable = Boolean(mc);
-if (!webmcpAvailable) {
+let mc: any = resolveMc();
+
+const availabilityListeners = new Set<() => void>();
+export function onAvailabilityChange(fn: () => void) {
+  availabilityListeners.add(fn); return () => { availabilityListeners.delete(fn); };
+}
+
+/** True once the namespace has been found — read fresh, not a value frozen at module load. */
+export function isWebmcpAvailable(): boolean {
+  return Boolean(mc);
+}
+
+if (!mc) {
   console.info('[ladder] WebMCP unavailable: use ChatGPT desktop, or Chrome 149+ with chrome://flags/#enable-webmcp-testing. The console below still works by hand.');
+}
+
+/**
+ * Re-reads the namespace. A no-op once `mc` is already set — an existing reference is never
+ * swapped out from under live registrations, and this never re-fires availability listeners
+ * for a host that was already known available. Returns whether the namespace is available
+ * after this check, so a caller can act on the result immediately.
+ */
+export function checkForWebmcp(): boolean {
+  if (mc) return true;
+  const found = resolveMc();
+  if (!found) return false;
+  mc = found;
+  availabilityListeners.forEach(fn => fn());
+  return true;
+}
+
+const POLL_INTERVAL_MS = 300;
+// ~10s of polling: generous enough for a host that injects the namespace a little after boot
+// (the actual failure this fixes), short enough that a browser with no WebMCP at all — the
+// ordinary case for anyone just browsing the app by hand — isn't polled forever.
+const POLL_CEILING_MS = 10_000;
+
+/**
+ * Registers immediately if the namespace is already there (unchanged behaviour for the Chrome
+ * flag build). Otherwise polls for it — and re-checks the moment the tab becomes visible again,
+ * since a host may inject on activation rather than at load — calling `register` the instant it
+ * appears, and stops polling once it lands or the ceiling passes. `register` is guaranteed to
+ * run at most once no matter which of those paths gets there first.
+ */
+export function registerWhenReady(register: () => void): () => void {
+  if (checkForWebmcp()) { register(); return () => {}; }
+
+  let done = false;
+  const cleanup = () => {
+    clearInterval(intervalId);
+    clearTimeout(ceilingId);
+    document.removeEventListener('visibilitychange', onVisible);
+  };
+  const tryNow = () => {
+    if (done) return;
+    if (!checkForWebmcp()) return;
+    done = true;
+    register();
+    cleanup();
+  };
+  const onVisible = () => { if (document.visibilityState === 'visible') tryNow(); };
+
+  const intervalId = setInterval(tryNow, POLL_INTERVAL_MS);
+  const ceilingId = setTimeout(() => { done = true; cleanup(); }, POLL_CEILING_MS);
+  document.addEventListener('visibilitychange', onVisible);
+
+  return cleanup;
 }
 
 type State = typeof store.state;
@@ -89,6 +161,12 @@ export function onPolicyChange(fn: () => void) {
 const history: Disposition[] = [];
 const policies = new Map<string, Policy>();
 const registrations = new Map<string, { spec: LadderToolSpec; execute: Function }>();
+// Covers read-only tools too, which never enter `registrations` above. registerWhenReady()
+// guarantees its own callback runs once, but this is the guard that actually matters at the
+// tool level: whatever path calls registerLadderTool for a name that's already registered
+// (a retry racing a caller who registered by hand, a host re-announcing itself) is a no-op
+// rather than a second mc.registerTool() for the same name.
+const registeredToolNames = new Set<string>();
 
 const isLapsed = (p: Policy, now: Date) => p.ratified && new Date(p.expiresAt) <= now;
 
@@ -210,6 +288,8 @@ async function decide(toolName: string, input: unknown, diff: Diff, notes: Note[
 
 export function registerLadderTool(spec: LadderToolSpec) {
   if (!mc) return;
+  if (registeredToolNames.has(spec.name)) return;
+  registeredToolNames.add(spec.name);
 
   if (spec.readOnly) {
     mc.registerTool({
