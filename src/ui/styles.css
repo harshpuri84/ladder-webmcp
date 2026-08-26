@@ -21,10 +21,19 @@ body {
   font-family: Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
 }
 
-.app {
-  max-width: 1100px;
+.app-shell {
+  display: flex;
+  align-items: flex-start;
+  gap: 24px;
+  max-width: 1400px;
   margin: 0 auto;
   padding: 32px 24px 64px;
+}
+
+.app {
+  flex: 1;
+  min-width: 0;
+  max-width: 1100px;
 }
 
 .app-header {
@@ -117,6 +126,63 @@ body {
   color: var(--text-muted);
   font-size: 0.85rem;
   white-space: nowrap;
+}
+
+.console-demo-row {
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg);
+}
+
+.console-buggy-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.85rem;
+  font-weight: 500;
+}
+
+.console-buggy-toggle input {
+  accent-color: var(--accent);
+}
+
+.console-demo-note {
+  margin: 4px 0 0;
+  font-size: 0.76rem;
+  line-height: 1.4;
+  color: var(--text-muted);
+}
+
+.console-demo-note code {
+  font-family: 'Geist Mono', ui-monospace, monospace;
+}
+
+.console-version {
+  margin-left: 6px;
+  font-size: 0.7rem;
+  color: var(--text-muted);
+}
+
+.console-edit-row {
+  /* Deliberately above the proposal panel's scrim (z-index 10): this is the one control that
+     has to stay reachable while a decision is pending, because the beat it demonstrates is
+     data moving *outside* that decision, not inside it. */
+  position: relative;
+  z-index: 12;
+  padding: 4px 10px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--surface);
+  color: var(--text-muted);
+  font-family: inherit;
+  font-size: 0.76rem;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.console-edit-row:hover {
+  border-color: var(--accent);
+  color: var(--accent);
 }
 
 .console-table {
@@ -870,5 +936,91 @@ body {
   margin: 10px 0 0;
   font-size: 0.78rem;
   line-height: 1.5;
+  color: var(--text-muted);
+}
+
+/* ---------- activity list ---------- */
+
+.al {
+  flex: none;
+  width: 260px;
+  position: sticky;
+  top: 32px;
+  max-height: calc(100vh - 64px);
+  overflow-y: auto;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 16px 16px 18px;
+}
+
+.al-heading {
+  margin: 0 0 12px;
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
+}
+
+.al-empty {
+  margin: 0;
+  font-size: 0.82rem;
+  color: var(--text-muted);
+}
+
+.al-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.al-row {
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg);
+}
+
+.al-row--blocked { border-left-color: var(--before); }
+.al-row--stale { border-left-color: var(--text-muted); }
+.al-row--tool_error { border-left-color: var(--text-muted); border-style: dashed; }
+.al-row--auto_applied { border-left-color: var(--accent); }
+.al-row--applied { border-left-color: var(--after); }
+
+.al-row-top {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.al-tool {
+  font-size: 0.76rem;
+  font-weight: 600;
+}
+
+.al-outcome {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  text-transform: capitalize;
+  white-space: nowrap;
+}
+
+.al-row-figures {
+  display: flex;
+  gap: 8px;
+  margin-top: 4px;
+  font-size: 0.7rem;
+  color: var(--text-muted);
+}
+
+.al-time {
+  display: block;
+  margin-top: 4px;
+  font-size: 0.68rem;
   color: var(--text-muted);
 }

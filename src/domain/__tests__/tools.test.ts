@@ -1,6 +1,9 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import type { store as StoreModule } from '../store';
-import type { registerDomainTools as RegisterDomainTools } from '../tools';
+import type {
+  registerDomainTools as RegisterDomainTools,
+  setBuggyToolEnabled as SetBuggyToolEnabled,
+} from '../tools';
 import type {
   onProposal as OnProposal,
   onResult as OnResult,
@@ -15,6 +18,7 @@ import type {
 describe('domain tools', () => {
   let store: typeof StoreModule;
   let registerDomainTools: typeof RegisterDomainTools;
+  let setBuggyToolEnabled: typeof SetBuggyToolEnabled;
   let onProposal: typeof OnProposal;
   let onResult: typeof OnResult;
   let registerLadderTool: typeof RegisterLadderTool;
@@ -29,7 +33,7 @@ describe('domain tools', () => {
       },
     };
     ({ store } = await import('../store'));
-    ({ registerDomainTools } = await import('../tools'));
+    ({ registerDomainTools, setBuggyToolEnabled } = await import('../tools'));
     ({ onProposal, onResult, registerLadderTool, ratify } = await import('../../webmcp/adapter'));
     registerDomainTools();
   });
@@ -327,6 +331,72 @@ describe('domain tools', () => {
     expect(payload.applied + rejectedTotal).toBe(payload.requested);
     expect(payload.actions_dropped).toBeGreaterThan(0);
     expect(payload.status).not.toBe('applied');
+  });
+
+  // Task 9, beat one: the "Simulate a buggy tool" switch in the console header. The tool
+  // previews exactly what it describes (status only, here), then reaches past that on the real
+  // commit and flips a field nobody was shown. The guard in core/commit.ts is what has to
+  // refuse it — everything rolls back, including the write the human did approve.
+  it('blocks and rolls back the whole commit when the buggy-tool switch makes a tool write outside the approved set', async () => {
+    const matches = Object.values(store.state.shipments).filter(
+      s => s.customer === 'Northwind Retail' && !s.customsHold,
+    );
+    expect(matches.length).toBeGreaterThan(0);
+    const target = matches[0];
+    const beforeStatus = target.status;
+    const beforePriority = target.priority;
+
+    setBuggyToolEnabled(true);
+    try {
+      const proposal = await captureProposal('update_shipments', { customer: 'Northwind Retail', setStatus: 'Delivered' });
+      // The preview never touches `priority` — the buggy write only happens on the commit
+      // re-run, so it must be absent from what the human was shown.
+      expect(proposal.diff.groups.every((g: any) => g.writes.every((w: any) => w.field !== 'priority'))).toBe(true);
+
+      let cause: string | undefined;
+      const off = onResult(o => { if (o.toolName === 'update_shipments') cause = o.cause; });
+      proposal.resolve({ groups: proposal.diff.groups.map((g: any) => g.group), actions: [] });
+      const payload = await proposal.result;
+      off();
+
+      expect(cause).toBe('blocked');
+      expect(payload.status).toBe('denied');
+      expect(payload.applied).toBe(0);
+      expect(payload.rejected.some((r: any) => r.reason.includes('priority'))).toBe(true);
+      // Rolled back cleanly: not just the extra field, but the write the human did approve.
+      expect(store.state.shipments[target.id].status).toBe(beforeStatus);
+      expect(store.state.shipments[target.id].priority).toBe(beforePriority);
+    } finally {
+      setBuggyToolEnabled(false);
+    }
+  });
+
+  // Task 9, beat two: the "Edit a row" control. It writes straight to the live store, outside
+  // any tool and outside Ladder, bumping `version` the same way a second operator or system
+  // would. A commit still holding the old version has to abort rather than apply against a
+  // world that already moved.
+  it('aborts a commit as stale when a row it touches is edited outside the proposal', async () => {
+    const matches = Object.values(store.state.shipments).filter(
+      s => s.customer === 'Northwind Retail' && !s.customsHold,
+    );
+    expect(matches.length).toBeGreaterThan(0);
+    const target = matches[0];
+    const beforeEta = target.eta;
+
+    // A date guaranteed to differ from the seed, so this row's write is guaranteed to enter
+    // the diff (a no-op write — same value in, same value out — never reaches the recorder).
+    const proposal = await captureProposal('update_shipments', { customer: 'Northwind Retail', setEta: '2098-06-06' });
+    expect(proposal.diff.groups.some((g: any) => g.id === target.id)).toBe(true);
+
+    // Simulates pressing "Edit a row" on this exact record while the proposal is still open.
+    store.state.shipments[target.id].version += 1;
+    store.state.shipments[target.id].price += 25;
+
+    proposal.resolve({ groups: proposal.diff.groups.map((g: any) => g.group), actions: [] });
+    const payload = await proposal.result;
+
+    expect(payload.status).toBe('aborted_stale');
+    expect(store.state.shipments[target.id].eta).toBe(beforeEta);
   });
 
   // Placed last: ratifying a policy here makes update_shipments auto-approve for the rest of

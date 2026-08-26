@@ -1,6 +1,7 @@
 import { Console } from './ui/Console';
 import { ProposalPanel } from './ui/ProposalPanel';
 import { RungStrip } from './ui/RungStrip';
+import { ActivityList } from './ui/ActivityList';
 import { webmcpAvailable } from './webmcp/adapter';
 import { registerDomainTools } from './domain/tools';
 
@@ -29,16 +30,19 @@ function WebmcpBanner() {
 
 function App() {
   return (
-    <div className="app">
-      <header className="app-header">
-        <h1>Ladder</h1>
-        <p className="app-subtitle">Shipment console</p>
-      </header>
-      <main>
-        {!webmcpAvailable && <WebmcpBanner />}
-        <RungStrip />
-        <Console />
-      </main>
+    <div className="app-shell">
+      <div className="app">
+        <header className="app-header">
+          <h1>Ladder</h1>
+          <p className="app-subtitle">Shipment console</p>
+        </header>
+        <main>
+          {!webmcpAvailable && <WebmcpBanner />}
+          <RungStrip />
+          <Console />
+        </main>
+      </div>
+      <ActivityList />
       <ProposalPanel />
     </div>
   );
