@@ -1,33 +1,164 @@
+/*
+ * The Printer's Proof.
+ *
+ * A change arrives as a proof sheet the operator marks up and stamps. That lineage was chosen
+ * for one reason above taste: the proof tradition is the only common artifact with *graded*
+ * consent — OK to run, OK with changes, revise — which is exactly this product's interaction,
+ * a human cutting a change down rather than taking or leaving it whole.
+ *
+ * ── The binding constraint ────────────────────────────────────────────────────────────────
+ * The operator this is built for has red-green colour vision deficiency (PRODUCT.md,
+ * "Accessibility & Inclusion"). The build this replaces used a red before-value, a green
+ * after-value and an amber hold badge; simulated under deuteranopia and protanopia all three
+ * collapsed to one olive. Three meanings, one colour.
+ *
+ * So: exactly two hues carry meaning anywhere in this file — a blue (the operator's mark) and
+ * an amber (held, declined, set apart). They stay separable under both deficiencies by hue and
+ * by luminance. Neither ever carries a meaning on its own: every state is already said by a
+ * mark, a rule form, a strikethrough, a position or a weight, and the hue only agrees with it.
+ * Take the colour out entirely and nothing in this interface becomes ambiguous.
+ *
+ * That is also why the ground is paper. With red-green deficiency, luminance does the work hue
+ * cannot, so the widest luminance range available is load-bearing — a light sheet gives it.
+ */
+
 :root {
-  --bg: #FAF9F5;
-  --surface: #FFFFFF;
-  --border: #E5E4DF;
-  --accent: #C15F3C;
-  --text: #2A2A28;
-  --text-muted: #6B6A66;
-  --before: #B4453A;
-  --after: #4A7C59;
-  --panel-width: 520px;
+  /* Ground and stock. Three steps of paper, so a sheet reads as a sheet on a surface. */
+  --desk: #E3DED0;
+  --paper: #F5F2EA;
+  --paper-raised: #FBF9F3;
+  --paper-sunk: #EEEADF;
+
+  /* Ink. 16.2:1, 7.0:1 and a non-text tint. */
+  --ink: #17150F;
+  --ink-muted: #56514A;
+  --ink-faint: #8C8677;
+
+  /* Rules, in the two weights a proof sheet actually uses. */
+  --rule: #CFC8B5;
+  --rule-strong: #A79E88;
+
+  /* The operator's mark. 7.4:1 on paper, 8.3:1 reversed out. */
+  --mark: #1B4B9E;
+  --mark-wash: rgba(27, 75, 158, 0.09);
+  --mark-tint: rgba(27, 75, 158, 0.22);
+
+  /* Held, declined, set apart from the run. 5.3:1 on paper. */
+  --hold: #8A5A00;
+  --hold-wash: rgba(138, 90, 0, 0.08);
+
+  /*
+   * Neither face is a package: both resolve from what the machine already has. Charter was cut
+   * by Matthew Carter for exactly this problem — text that has to survive being proofed on bad
+   * paper at low resolution — which is the right voice here and, unlike the house sans this
+   * replaces, an actual decision. Cambria and Sitka carry the same brief on Windows.
+   */
+  --face: Charter, 'Bitstream Charter', 'Sitka Text', Cambria, Constantia, 'Source Serif 4',
+    Georgia, ui-serif, serif;
+  --face-mono: Menlo, 'Cascadia Mono', 'DejaVu Sans Mono', Consolas, ui-monospace, monospace;
+
+  --panel-width: 560px;
+  --ease: cubic-bezier(0.16, 0.84, 0.28, 1);
 }
 
 * {
   box-sizing: border-box;
 }
 
+html {
+  /* The scrollbar is a surface we did not draw but still ship. */
+  scrollbar-color: var(--rule-strong) var(--desk);
+}
+
 body {
   margin: 0;
-  background: var(--bg);
-  color: var(--text);
-  font-family: Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  background: var(--desk);
+  color: var(--ink);
+  font-family: var(--face);
+  font-size: 15px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
 }
+
+::selection {
+  background: var(--mark-tint);
+  color: var(--ink);
+}
+
+:focus-visible {
+  outline: 2px solid var(--mark);
+  outline-offset: 2px;
+  border-radius: 1px;
+}
+
+input,
+select,
+button,
+textarea {
+  caret-color: var(--mark);
+}
+
+/* Figures line up column-wise or they cannot be compared at a glance. */
+.mono {
+  font-family: var(--face-mono);
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: 'tnum' 1;
+  letter-spacing: -0.01em;
+}
+
+/*
+ * The printed rule. A double rule is how a sheet separates its imprint from its body, and it
+ * is a rule in its own right — so it is drawn as one, not borrowed from the edge of a box next
+ * to it. A thick accent hanging off one side of a container is a different thing entirely, and
+ * a tell; this is not that.
+ */
+hr.rule {
+  flex: none;
+  height: 0;
+  margin: 0;
+  border: none;
+  border-top: 3px double var(--rule-strong);
+}
+
+/* Marks sit on the baseline of the words they annotate, not floating beside them. */
+.pm {
+  flex: none;
+  vertical-align: -0.16em;
+}
+
+/*
+ * Small caps by hand: the proof-sheet voice for anything that is an instruction about the
+ * work rather than the work itself — captions, field names, stamp words, flags.
+ */
+.rs-heading,
+.al-heading,
+.br-label,
+.dg-field,
+.ac-flag,
+.ac-payload dt,
+.console-table th,
+.pp-slug-caps,
+.pp-notes-caption-caps,
+.rs-draft-caption,
+.dg-struck-note,
+.ac-struck-note {
+  text-transform: uppercase;
+  /* 11.5px, not 10.5px: below an 11px floor a letterspaced caps label stops being
+     legible on a small viewport, and every one of these is functional text. */
+  font-size: 0.72rem;
+  letter-spacing: 0.09em;
+  font-weight: 600;
+}
+
+/* ---------- sheet layout ---------- */
 
 .app-shell {
   display: flex;
   align-items: flex-start;
-  gap: 24px;
-  max-width: 1400px;
+  gap: 22px;
+  max-width: 1420px;
   margin: 0 auto;
-  padding: 32px 24px 64px;
+  padding: 34px 26px 72px;
 }
 
 .app {
@@ -44,7 +175,7 @@ body {
  * exactly that width, not just cap `.app-shell`'s own max-width (a narrower box centered in the
  * viewport still bleeds into the right-hand panel zone; only an explicit right margin clears
  * it). This is what lets the "Edit a row" control stay both visible and clickable during a
- * decision without the z-index workaround this replaced.
+ * decision.
  */
 body.pp-active .app-shell {
   margin-left: 0;
@@ -52,54 +183,63 @@ body.pp-active .app-shell {
 }
 
 /*
- * The activity list is a log of what already happened — nothing in it is needed while a human
- * is mid-decision, and it reappears the moment the panel closes. Hiding it while a proposal is
- * open hands its ~260px straight back to the console, which is where a judge actually needs to
- * be looking during the stale beat. `display: none` (not visibility/opacity) so it stops
- * competing for flex space entirely.
+ * The returned-proofs log is a record of what already happened — nothing in it is needed while
+ * a human is mid-decision, and it reappears the moment the panel closes. Hiding it hands its
+ * ~270px straight back to the register, which is where a judge needs to be looking during the
+ * stale beat. `display: none` so it stops competing for flex space entirely.
  */
 body.pp-active .al {
   display: none;
 }
 
 .app-header {
-  margin-bottom: 24px;
+  margin-bottom: 26px;
+}
+
+.app-header hr.rule {
+  margin-top: 12px;
 }
 
 .app-header h1 {
-  margin: 0 0 4px;
-  font-size: 1.5rem;
+  margin: 0;
+  font-size: 2.1rem;
+  font-weight: 600;
+  letter-spacing: -0.015em;
+  line-height: 1.1;
 }
 
 .app-subtitle {
-  margin: 0;
-  color: var(--text-muted);
+  margin: 5px 0 0;
+  color: var(--ink-muted);
+  font-size: 0.92rem;
 }
 
+/* Ruled above and below rather than tabbed down one edge — matter set apart from the sheet. */
 .webmcp-banner {
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  padding: 16px 20px;
-  margin-bottom: 20px;
+  background: var(--paper);
+  border-top: 3px double var(--rule-strong);
+  border-bottom: 3px double var(--rule-strong);
+  padding: 16px 0 18px;
+  margin-bottom: 22px;
 }
 
 .webmcp-banner-heading {
   margin: 0 0 8px;
   font-size: 1rem;
-  color: var(--accent);
+  font-weight: 600;
 }
 
 .webmcp-banner p {
   margin: 0 0 8px;
-  color: var(--text);
   font-size: 0.9rem;
+  max-width: 68ch;
 }
 
 .webmcp-banner-list {
   margin: 0;
   padding-left: 20px;
   font-size: 0.9rem;
+  max-width: 68ch;
 }
 
 .webmcp-banner-list li + li {
@@ -107,19 +247,20 @@ body.pp-active .al {
 }
 
 .webmcp-banner-code {
-  font-family: 'Geist Mono', ui-monospace, monospace;
-  background: var(--bg);
-  border: 1px solid var(--border);
-  border-radius: 4px;
+  font-family: var(--face-mono);
+  font-size: 0.86em;
+  background: var(--paper-sunk);
+  border: 1px solid var(--rule);
   padding: 1px 6px;
   user-select: all;
 }
 
+/* ---------- the register ---------- */
+
 .console {
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  overflow: hidden;
+  background: var(--paper);
+  border: 1px solid var(--rule-strong);
+  box-shadow: 0 1px 0 var(--paper-raised) inset;
 }
 
 .console-toolbar {
@@ -127,157 +268,175 @@ body.pp-active .al {
   align-items: center;
   justify-content: space-between;
   gap: 16px;
-  padding: 12px 16px;
-  border-bottom: 1px solid var(--border);
+  padding: 12px 18px;
+  border-bottom: 1px solid var(--rule);
 }
 
 .console-filter {
   flex: 1;
-  max-width: 320px;
-  padding: 8px 12px;
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  font-size: 0.9rem;
+  max-width: 340px;
+  padding: 7px 11px;
+  border: 1px solid var(--rule-strong);
+  background: var(--paper-raised);
+  color: var(--ink);
   font-family: inherit;
-  background: var(--bg);
-  color: var(--text);
+  font-size: 0.9rem;
+}
+
+.console-filter::placeholder {
+  color: var(--ink-muted);
 }
 
 .console-filter:focus {
-  outline: none;
-  border-color: var(--accent);
+  outline: 2px solid var(--mark);
+  outline-offset: -1px;
+  border-color: var(--mark);
 }
 
 .console-count {
-  color: var(--text-muted);
-  font-size: 0.85rem;
+  color: var(--ink-muted);
+  font-family: var(--face-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: 0.78rem;
   white-space: nowrap;
 }
 
 .console-demo-row {
-  padding: 10px 16px;
-  border-bottom: 1px solid var(--border);
-  background: var(--bg);
+  padding: 10px 18px;
+  border-bottom: 1px solid var(--rule);
+  background: var(--paper-sunk);
 }
 
 .console-buggy-toggle {
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  font-size: 0.85rem;
-  font-weight: 500;
+  font-size: 0.86rem;
+  font-weight: 600;
 }
 
 .console-buggy-toggle input {
-  accent-color: var(--accent);
+  accent-color: var(--mark);
+  width: 15px;
+  height: 15px;
 }
 
 .console-demo-note {
   margin: 4px 0 0;
-  font-size: 0.76rem;
-  line-height: 1.4;
-  color: var(--text-muted);
+  max-width: 74ch;
+  font-size: 0.78rem;
+  line-height: 1.45;
+  color: var(--ink-muted);
 }
 
 .console-demo-note code {
-  font-family: 'Geist Mono', ui-monospace, monospace;
+  font-family: var(--face-mono);
+  font-size: 0.9em;
 }
 
 .console-version {
   margin-left: 6px;
-  font-size: 0.7rem;
-  color: var(--text-muted);
+  color: var(--ink-faint);
+  font-size: 0.72rem;
 }
 
 .console-edit-row {
   /* Above the proposal panel's scrim (z-index 10), which covers the full viewport regardless
-     of layout and would otherwise swallow every click here. Safe now in a way it wasn't
-     before: the layout fix above (body.pp-active .app-shell) guarantees this button's rect
-     never coincides with the panel's own rect (z-index 11), so there is nothing left for this
-     elevation to visually collide with — it only ever needs to clear the scrim. */
+     of layout and would otherwise swallow every click here. Safe in a way it wasn't before:
+     the layout rule above (body.pp-active .app-shell) guarantees this button's rect never
+     coincides with the panel's own rect (z-index 11), so it only needs to clear the scrim. */
   position: relative;
   z-index: 12;
-  padding: 4px 10px;
-  border: 1px solid var(--border);
-  border-radius: 4px;
-  background: var(--surface);
-  color: var(--text-muted);
+  padding: 3px 10px;
+  border: 1px solid var(--rule-strong);
+  background: var(--paper-raised);
+  color: var(--ink-muted);
   font-family: inherit;
-  font-size: 0.76rem;
+  font-size: 0.78rem;
   cursor: pointer;
   white-space: nowrap;
 }
 
 .console-edit-row:hover {
-  border-color: var(--accent);
-  color: var(--accent);
+  border-color: var(--mark);
+  color: var(--mark);
+}
+
+/* The register is wider than a phone. It scrolls inside its own frame; the page never does. */
+.console-scroll {
+  overflow-x: auto;
+  scrollbar-color: var(--rule-strong) var(--paper);
 }
 
 .console-table {
   width: 100%;
+  min-width: 720px;
   border-collapse: collapse;
-  font-size: 0.9rem;
+  font-size: 0.88rem;
 }
 
 .console-table th,
 .console-table td {
-  padding: 8px 16px;
+  padding: 7px 18px;
   text-align: left;
-  border-bottom: 1px solid var(--border);
+  border-bottom: 1px solid var(--rule);
 }
 
 .console-table th {
-  color: var(--text-muted);
-  font-weight: 500;
-  font-size: 0.8rem;
-  text-transform: uppercase;
-  letter-spacing: 0.02em;
+  color: var(--ink-muted);
+  border-bottom: 1px solid var(--rule-strong);
+}
+
+.console-table td.mono {
+  font-size: 0.82rem;
 }
 
 .console-table tbody tr:hover {
-  background: var(--bg);
+  background: var(--paper-raised);
 }
 
-.mono {
-  font-family: 'Geist Mono', ui-monospace, monospace;
+.console-table tbody tr:last-child td {
+  border-bottom: none;
 }
 
+/*
+ * The customs-hold flag. Amber, but the dagger in front of it is what actually says
+ * "set apart from the run" — the colour is the second reading, never the first.
+ */
 .badge {
-  display: inline-block;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
   margin-left: 8px;
-  padding: 2px 8px;
-  border-radius: 999px;
-  background: var(--accent);
-  color: var(--surface);
-  font-size: 0.7rem;
+  padding: 1px 7px 1px 5px;
+  background: var(--hold-wash);
+  border: 1px solid var(--hold);
+  color: var(--hold);
+  font-size: 0.72rem;
   font-weight: 600;
   text-transform: uppercase;
-  letter-spacing: 0.02em;
-  vertical-align: middle;
+  letter-spacing: 0.07em;
+  white-space: nowrap;
 }
 
-/* ---------- rung strip ---------- */
+/* ---------- the imprint: standing rules ---------- */
 
 .rs {
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  padding: 16px 20px;
-  margin-bottom: 20px;
+  background: var(--paper);
+  border: 1px solid var(--rule-strong);
+  padding: 15px 18px 17px;
+  margin-bottom: 22px;
 }
 
 .rs-heading {
-  margin: 0 0 12px;
-  font-size: 0.68rem;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  color: var(--text-muted);
+  margin: 0 0 11px;
+  color: var(--ink-muted);
 }
 
 .rs-chips {
   display: flex;
   flex-wrap: wrap;
-  gap: 10px;
+  gap: 9px;
   align-items: stretch;
 }
 
@@ -285,20 +444,28 @@ body.pp-active .al {
   display: flex;
   flex-direction: column;
   gap: 3px;
-  min-width: 200px;
-  padding: 8px 12px;
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  background: var(--bg);
+  min-width: 214px;
+  padding: 8px 11px;
+  border: 1px solid var(--rule);
+  background: var(--paper-raised);
 }
 
+/*
+ * A ratified rule is stamped in: the box is double-ruled all the way round, the way a printer
+ * boxes matter that has been signed off. Not a coloured edge on one side — that would be a hue
+ * carrying meaning alone, which is the thing this design cannot do.
+ */
 .rs-chip--rung1 {
-  border-color: var(--accent);
-  background: rgba(193, 95, 60, 0.06);
+  border: 3px double var(--mark);
+  background: var(--mark-wash);
+  padding: 6px 9px;
 }
 
+/* Never eligible: a broken rule, because the box will never be closed. */
 .rs-chip--never {
   border-style: dashed;
+  border-color: var(--hold);
+  background: var(--hold-wash);
 }
 
 .rs-chip-tool {
@@ -307,73 +474,103 @@ body.pp-active .al {
 }
 
 .rs-chip-state {
-  font-size: 0.72rem;
+  display: flex;
+  align-items: baseline;
+  gap: 5px;
+  font-size: 0.75rem;
   line-height: 1.4;
-  color: var(--text-muted);
+  color: var(--ink-muted);
 }
 
 .rs-chip-state--rung1 {
-  color: var(--accent);
+  color: var(--mark);
+  font-weight: 600;
 }
 
 .rs-chip-state--never {
-  color: var(--before);
+  color: var(--hold);
+}
+
+.rs-revoke {
+  align-self: flex-start;
+  margin-top: 3px;
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--ink-muted);
+  font-family: inherit;
+  font-size: 0.72rem;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  text-decoration-thickness: 1px;
+  cursor: pointer;
+}
+
+.rs-revoke:hover {
+  color: var(--mark);
 }
 
 .rs-add {
   align-self: center;
   padding: 8px 14px;
-  border: 1px dashed var(--accent);
-  border-radius: 6px;
+  border: 1px dashed var(--rule-strong);
   background: none;
-  color: var(--accent);
+  color: var(--ink-muted);
   font-family: inherit;
-  font-size: 0.8rem;
+  font-size: 0.82rem;
   font-weight: 600;
   cursor: pointer;
   white-space: nowrap;
 }
 
 .rs-add:hover {
-  background: rgba(193, 95, 60, 0.06);
+  border-color: var(--mark);
+  color: var(--mark);
 }
 
 .rs-form {
   display: flex;
   flex-wrap: wrap;
   align-items: flex-end;
-  gap: 14px;
+  gap: 13px;
   margin-top: 14px;
   padding: 14px 16px;
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  background: var(--bg);
+  border: 1px solid var(--rule);
+  background: var(--paper-sunk);
 }
 
 .rs-field {
   display: flex;
   flex-direction: column;
   gap: 4px;
-  font-size: 0.72rem;
-  color: var(--text-muted);
+  font-size: 0.74rem;
+  color: var(--ink-muted);
 }
 
 .rs-field select,
 .rs-field input {
-  min-width: 130px;
+  min-width: 136px;
   padding: 6px 8px;
-  border: 1px solid var(--border);
-  border-radius: 4px;
-  background: var(--surface);
-  color: var(--text);
+  border: 1px solid var(--rule-strong);
+  background: var(--paper-raised);
+  color: var(--ink);
   font-family: inherit;
-  font-size: 0.85rem;
+  font-size: 0.86rem;
 }
 
 .rs-field select:focus,
 .rs-field input:focus {
-  outline: none;
-  border-color: var(--accent);
+  outline: 2px solid var(--mark);
+  outline-offset: -1px;
+  border-color: var(--mark);
+}
+
+.rs-field-error {
+  flex-basis: 100%;
+  margin: 0;
+  color: var(--hold);
+  font-size: 0.8rem;
+  font-weight: 600;
 }
 
 .rs-form-actions {
@@ -382,66 +579,72 @@ body.pp-active .al {
 }
 
 .rs-ratify {
-  padding: 8px 16px;
-  border: 1px solid var(--accent);
-  border-radius: 6px;
-  background: var(--accent);
-  color: var(--surface);
+  padding: 8px 17px;
+  border: 3px double var(--paper-raised);
+  background: var(--mark);
+  color: var(--paper-raised);
   font-family: inherit;
-  font-size: 0.85rem;
+  font-size: 0.86rem;
   font-weight: 600;
+  letter-spacing: 0.03em;
   cursor: pointer;
 }
 
 .rs-ratify:hover:not(:disabled) {
-  background: #A9512F;
+  background: #143A7B;
 }
 
 .rs-ratify:disabled {
-  background: var(--bg);
-  border-color: var(--border);
-  color: var(--text-muted);
+  background: var(--paper-sunk);
+  border-color: var(--rule);
+  color: var(--ink-muted);
   cursor: not-allowed;
 }
 
 .rs-form-cancel {
   padding: 8px 14px;
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  background: var(--surface);
-  color: var(--text);
+  border: 1px solid var(--rule-strong);
+  background: var(--paper-raised);
+  color: var(--ink);
   font-family: inherit;
-  font-size: 0.85rem;
+  font-size: 0.86rem;
   cursor: pointer;
 }
 
 .rs-form-cancel:hover {
-  border-color: var(--before);
-  color: var(--before);
+  border-color: var(--ink);
 }
 
 .rs-draft {
   margin-top: 14px;
-  padding: 14px 16px;
-  border: 1px solid var(--border);
-  border-left: 3px solid var(--accent);
-  border-radius: 6px;
-  background: rgba(193, 95, 60, 0.05);
+  padding: 12px 16px 14px;
+  border-top: 3px double var(--mark);
+  border-bottom: 3px double var(--mark);
+  background: var(--mark-wash);
+}
+
+.rs-draft-caption {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  margin: 0 0 6px;
+  color: var(--mark);
 }
 
 .rs-draft-text {
   margin: 0 0 10px;
-  font-size: 0.88rem;
+  max-width: 72ch;
+  font-size: 0.92rem;
   line-height: 1.5;
 }
 
-/* ---------- proposal panel ---------- */
+/* ---------- the proof sheet ---------- */
 
 .pp-scrim {
   position: fixed;
   inset: 0;
-  background: rgba(42, 42, 40, 0.32);
-  animation: pp-fade 160ms ease-out;
+  background: rgba(23, 21, 15, 0.34);
+  animation: pp-fade 180ms var(--ease);
   z-index: 10;
 }
 
@@ -458,10 +661,15 @@ body.pp-active .al {
   max-width: 100vw;
   display: flex;
   flex-direction: column;
-  background: var(--surface);
-  border-left: 1px solid var(--border);
-  box-shadow: -12px 0 32px rgba(42, 42, 40, 0.12);
-  animation: pp-slide 180ms cubic-bezier(0.2, 0.7, 0.3, 1);
+  background: var(--paper);
+  border-left: 1px solid var(--rule-strong);
+  /* Real offset, real blur: the sheet is lying on the desk, not glowing at it. */
+  box-shadow: -14px 0 44px -8px rgba(23, 21, 15, 0.26);
+  /*
+   * The one authored moment in this interface: the proof arrives. Exponential ease-out from
+   * off-stage, and nothing else in the product enters this way.
+   */
+  animation: pp-slide 260ms var(--ease);
   z-index: 11;
 }
 
@@ -469,9 +677,32 @@ body.pp-active .al {
   from { transform: translateX(100%); }
 }
 
+/* Registration targets, printed outside the trim the way they are on a real proof. */
+.reg {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 0;
+  color: var(--rule-strong);
+  pointer-events: none;
+}
+
+.reg-tl,
+.reg-tr {
+  position: absolute;
+  top: 9px;
+}
+
+.reg-tl { left: 9px; }
+.reg-tr { right: 9px; }
+
 .pp-head {
-  padding: 20px 24px 16px;
-  border-bottom: 1px solid var(--border);
+  padding: 26px 26px 15px;
+}
+
+.pp-head hr.rule {
+  margin-top: 15px;
 }
 
 .pp-head-top {
@@ -482,183 +713,231 @@ body.pp-active .al {
 }
 
 .pp-tool {
-  font-size: 0.75rem;
-  color: var(--text-muted);
-  letter-spacing: 0.02em;
+  font-size: 0.76rem;
+  color: var(--ink-muted);
 }
 
+/* A second proof waiting is a fact about the queue, so it is set as a queue note. */
 .pp-waiting {
-  font-size: 0.7rem;
+  font-size: 0.72rem;
   font-weight: 600;
   text-transform: uppercase;
-  letter-spacing: 0.04em;
-  color: var(--accent);
-  border: 1px solid var(--accent);
-  border-radius: 999px;
-  padding: 2px 10px;
+  letter-spacing: 0.08em;
+  color: var(--hold);
+  border: 1px dashed var(--hold);
+  padding: 2px 9px;
   white-space: nowrap;
 }
 
 .pp-request {
-  margin: 8px 0 0;
-  font-size: 0.95rem;
+  margin: 9px 0 0;
+  max-width: 60ch;
+  font-size: 1.06rem;
   line-height: 1.4;
-  color: var(--text-muted);
+  color: var(--ink);
+}
+
+.pp-slug {
+  margin: 9px 0 0;
+  color: var(--ink-muted);
+}
+
+/*
+ * Past about thirty characters a caps run stops being a label and becomes body text set in
+ * capitals, which is measurably slower to read: we recognise words by ascender and descender
+ * shape, and caps flattens both. So the caps sit on the opening phrase only and the rest of
+ * the line drops back into sentence case.
+ */
+.pp-slug-tail,
+.pp-notes-caption-tail {
+  font-size: 0.86rem;
 }
 
 .pp-scroll {
   flex: 1;
   overflow-y: auto;
-  padding: 20px 24px 24px;
+  padding: 20px 26px 26px;
+  scrollbar-color: var(--rule-strong) var(--paper);
 }
 
-/* ---------- blast radius ---------- */
+/* ---------- extent ---------- */
 
 .br-figures {
   display: flex;
   align-items: flex-end;
-  gap: 32px;
+  gap: 34px;
 }
 
 .br-figure {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 3px;
   min-width: 0;
 }
 
 .br-figure--money {
-  padding-bottom: 6px;
+  padding-bottom: 5px;
+}
+
+.br-count-line {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
 }
 
 .br-count {
-  font-size: 48px;
+  font-size: 50px;
   line-height: 1;
-  font-weight: 500;
-  color: var(--accent);
-  animation: br-pulse 220ms ease-out;
+  font-weight: 600;
+  color: var(--ink);
+  animation: br-pulse 220ms var(--ease);
+}
+
+/*
+ * The ask, struck. This is what keeps the count's change from being carried by the pulse
+ * alone: the number it came down from is still on the sheet with a line through it, which is
+ * how a proof records a figure that was cut.
+ */
+.br-count-was {
+  font-size: 22px;
+  line-height: 1;
+  color: var(--ink-muted);
+  text-decoration: line-through;
+  text-decoration-thickness: 1.5px;
 }
 
 .br-money {
-  font-size: 32px;
+  font-size: 31px;
   line-height: 1;
-  font-weight: 500;
-  color: var(--text);
-  animation: br-pulse 220ms ease-out;
+  font-weight: 600;
+  color: var(--ink);
+  animation: br-pulse 220ms var(--ease);
 }
 
 @keyframes br-pulse {
-  from { opacity: 0.35; transform: translateY(-2px); }
+  from { opacity: 0.3; transform: translateY(-2px); }
 }
 
 .br-label {
-  font-size: 0.7rem;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  color: var(--text-muted);
+  color: var(--ink-muted);
 }
 
-.br-irreversible {
-  margin: 12px 0 0;
-  display: inline-block;
-  padding: 4px 10px;
-  border-radius: 4px;
-  background: rgba(180, 69, 58, 0.09);
-  border: 1px solid rgba(180, 69, 58, 0.35);
-  color: var(--before);
-  font-size: 0.78rem;
-  font-weight: 500;
+/*
+ * Held matter, set apart above and below rather than tabbed down one edge. The dagger is the
+ * first reading, the double rules the second, the amber a distant third.
+ */
+.br-held {
+  display: flex;
+  align-items: baseline;
+  gap: 7px;
+  margin: 14px 0 0;
+  padding: 7px 0;
+  border-top: 3px double var(--hold);
+  border-bottom: 3px double var(--hold);
+  color: var(--hold);
+  font-size: 0.84rem;
+  font-weight: 600;
+  max-width: 58ch;
 }
 
 .br-bar {
   position: relative;
-  height: 14px;
-  margin-top: 16px;
-  border-radius: 3px;
-  background: var(--bg);
-  border: 1px solid var(--border);
+  height: 15px;
+  margin-top: 18px;
+  background: var(--paper-sunk);
+  border: 1px solid var(--rule-strong);
   overflow: hidden;
 }
 
-.br-bar-requested,
-.br-bar-fill {
+/*
+ * Both extents are full-width elements scaled from the left edge, never widths being animated:
+ * this is the most-watched motion in the product, and animating width would force layout on
+ * every frame of it. Nothing is nested inside either one, so nothing needs counter-scaling.
+ */
+.br-bar-ask,
+.br-bar-take {
   position: absolute;
-  top: 0;
-  bottom: 0;
-  left: 0;
-  transition: width 220ms cubic-bezier(0.2, 0.7, 0.3, 1);
+  inset: 0;
+  transform-origin: left center;
+  transition: transform 240ms var(--ease);
+  will-change: transform;
 }
 
+/*
+ * What the agent asked for. A tint against the solid marked extent is a luminance step of
+ * roughly 0.72 against 0.08 — the difference greyscale actually reads, and the one this
+ * operator can rely on. The tick below marks where the ask ended, which is the third signal.
+ */
+.br-bar-ask {
+  background: var(--mark-tint);
+}
+
+.br-bar-take {
+  background: var(--mark);
+}
+
+/* Where the ask ended. Legible at any fill, including a one-record sliver. */
 .br-bar-tick {
   position: absolute;
   top: 0;
   bottom: 0;
   width: 1px;
   margin-left: -1px;
-  background: var(--accent);
-  transition: left 220ms cubic-bezier(0.2, 0.7, 0.3, 1);
-}
-
-.br-bar-requested {
-  background: rgba(193, 95, 60, 0.22);
-}
-
-.br-bar-fill {
-  background: var(--accent);
+  background: var(--ink);
+  transition: left 240ms var(--ease);
 }
 
 .br-caption {
-  margin: 8px 0 0;
-  font-size: 0.8rem;
-  color: var(--text-muted);
+  margin: 9px 0 0;
+  font-size: 0.82rem;
+  color: var(--ink-muted);
 }
 
 .br-caption-narrowed {
-  color: var(--accent);
+  color: var(--ink);
+  font-weight: 600;
 }
 
-/* ---------- refusal notes ---------- */
+/* ---------- what the tool skipped ---------- */
 
 .pp-notes {
-  margin-top: 20px;
-  padding: 12px 14px;
-  background: var(--bg);
-  border: 1px solid var(--border);
-  border-radius: 6px;
+  margin-top: 22px;
+  padding: 11px 13px 12px;
+  background: var(--paper-sunk);
+  border: 1px dashed var(--rule-strong);
 }
 
 .pp-notes-caption {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
   margin: 0 0 6px;
-  font-size: 0.68rem;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  color: var(--text-muted);
+  color: var(--ink-muted);
 }
 
 .pp-note {
   margin: 0;
-  font-size: 0.85rem;
-  color: var(--text-muted);
+  font-size: 0.86rem;
+  color: var(--ink-muted);
 }
 
 .pp-note + .pp-note {
   margin-top: 3px;
 }
 
-/* ---------- diff rows ---------- */
+/* ---------- the change set ---------- */
 
 .pp-list {
-  margin-top: 20px;
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  overflow: hidden;
+  margin-top: 22px;
+  border-top: 1px solid var(--rule-strong);
+  border-bottom: 1px solid var(--rule-strong);
 }
 
 .dg,
 .ac {
   display: flex;
-  gap: 12px;
-  padding: 12px 14px;
+  gap: 10px;
+  padding: 12px 4px;
   cursor: pointer;
 }
 
@@ -666,17 +945,12 @@ body.pp-active .al {
 .dg + .ac,
 .ac + .ac,
 .ac + .dg {
-  border-top: 1px solid var(--border);
+  border-top: 1px solid var(--rule);
 }
 
 .dg:hover,
 .ac:hover {
-  background: var(--bg);
-}
-
-.dg--off,
-.ac--off {
-  opacity: 0.45;
+  background: var(--paper-raised);
 }
 
 .dg-check,
@@ -684,8 +958,25 @@ body.pp-active .al {
   margin: 2px 0 0;
   width: 16px;
   height: 16px;
-  accent-color: var(--accent);
+  accent-color: var(--mark);
   flex: none;
+}
+
+/* The mark gutter. Fixed width so every mark on the sheet aligns down one axis. */
+.dg-mark,
+.ac-mark {
+  flex: none;
+  width: 16px;
+  padding-top: 2px;
+  color: var(--mark);
+}
+
+.ac-mark {
+  color: var(--hold);
+}
+
+.dg--struck .dg-mark {
+  color: var(--hold);
 }
 
 .dg-body,
@@ -702,22 +993,26 @@ body.pp-active .al {
 }
 
 .dg-id {
-  font-size: 0.85rem;
-  font-weight: 500;
+  font-size: 0.86rem;
+  font-weight: 600;
 }
 
+/*
+ * The delta carries no hue at all. Its sign is already in the glyph and its digits are
+ * tabular, so a rise and a fall are told apart by the character, which is the one signal that
+ * cannot collapse. The old build coloured these green and red — the exact pair that became one
+ * olive under both simulations.
+ */
 .dg-delta {
-  font-size: 0.85rem;
+  font-size: 0.86rem;
   white-space: nowrap;
+  color: var(--ink);
 }
-
-.dg-delta.is-up { color: var(--after); }
-.dg-delta.is-down { color: var(--before); }
 
 .dg-sub {
   margin-top: 1px;
-  font-size: 0.75rem;
-  color: var(--text-muted);
+  font-size: 0.78rem;
+  color: var(--ink-muted);
 }
 
 .dg-changes {
@@ -729,37 +1024,85 @@ body.pp-active .al {
 .dg-change {
   display: flex;
   align-items: baseline;
-  gap: 6px;
-  font-size: 0.82rem;
-  line-height: 1.6;
+  gap: 8px;
+  font-size: 0.86rem;
+  line-height: 1.65;
 }
 
 .dg-field {
-  min-width: 52px;
-  font-size: 0.68rem;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  color: var(--text-muted);
+  min-width: 56px;
+  color: var(--ink-muted);
 }
 
+/*
+ * The substitution, set the way a compositor sets one: what comes out is struck, what goes in
+ * follows it in a heavier weight. No arrow between them and no colour on either — the
+ * strikethrough and the weight step are the whole signal, and both survive greyscale.
+ */
 .dg-before {
-  color: var(--before);
+  color: var(--ink-muted);
   text-decoration: line-through;
-}
-
-.dg-arrow {
-  color: var(--text-muted);
+  text-decoration-thickness: 1.5px;
 }
 
 .dg-after {
-  color: var(--after);
+  color: var(--ink);
+  font-weight: 700;
+}
+
+/*
+ * Struck out by the operator. A rule is drawn through the whole correction and the record
+ * stands as it is — which is what `stet` means, and why the mark in the gutter changes to it.
+ */
+.dg--struck .dg-changes {
+  text-decoration: line-through;
+  text-decoration-thickness: 1.5px;
+  text-decoration-color: var(--hold);
+  color: var(--ink-muted);
+}
+
+.dg--struck .dg-after {
+  font-weight: 400;
+}
+
+.dg--struck .dg-id,
+.dg--struck .dg-delta {
+  color: var(--ink-muted);
+  text-decoration: line-through;
+  text-decoration-thickness: 1.5px;
+}
+
+.dg-struck-note,
+.ac-struck-note {
+  display: none;
+  margin-top: 5px;
+  color: var(--hold);
+}
+
+.dg--struck .dg-struck-note,
+.ac--struck .ac-struck-note {
+  display: block;
 }
 
 /* ---------- held actions ---------- */
 
+/*
+ * Matter that is not part of the run: double-ruled top and bottom, daggered, and never counted
+ * in the record or money figures above. A message that has left cannot be pulled back, so this
+ * is the one element on the sheet that must not be mistakable for a diff row.
+ */
 .ac {
-  border-left: 3px solid var(--before);
-  background: rgba(180, 69, 58, 0.04);
+  margin: -1px 0;
+  padding: 12px 8px;
+  border-top: 3px double var(--hold);
+  border-bottom: 3px double var(--hold);
+  background: var(--hold-wash);
+}
+
+.dg + .ac,
+.ac + .ac,
+.ac + .dg {
+  border-top: 3px double var(--hold);
 }
 
 .ac-head {
@@ -770,32 +1113,25 @@ body.pp-active .al {
 }
 
 .ac-flag {
-  font-size: 0.72rem;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  color: var(--before);
+  color: var(--hold);
 }
 
 .ac-kind {
-  font-size: 0.75rem;
-  color: var(--text-muted);
+  font-size: 0.76rem;
+  color: var(--ink-muted);
 }
 
 .ac-payload {
   display: grid;
-  grid-template-columns: 72px 1fr;
-  gap: 2px 10px;
+  grid-template-columns: 76px 1fr;
+  gap: 3px 10px;
   margin: 8px 0 0;
-  font-size: 0.8rem;
+  font-size: 0.84rem;
 }
 
 .ac-payload dt {
-  font-size: 0.68rem;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  color: var(--text-muted);
-  padding-top: 2px;
+  color: var(--ink-muted);
+  padding-top: 3px;
 }
 
 .ac-payload dd {
@@ -803,145 +1139,234 @@ body.pp-active .al {
   overflow-wrap: anywhere;
 }
 
-/* ---------- footer ---------- */
-
-.pp-foot {
-  display: flex;
-  gap: 12px;
-  padding: 16px 24px;
-  border-top: 1px solid var(--border);
-  background: var(--surface);
+.ac--struck .ac-payload {
+  text-decoration: line-through;
+  text-decoration-thickness: 1.5px;
+  text-decoration-color: var(--hold);
+  color: var(--ink-muted);
 }
 
-.pp-apply {
-  flex: 1;
+/* ---------- the stamp block ---------- */
+
+.pp-foot {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: 8px 14px;
+  padding: 16px 26px 20px;
+  background: var(--paper);
+}
+
+/*
+ * The stamp itself. A proof does not come back yes or no; it comes back graded, and this block
+ * is where the grade is applied. The grade word is the headline and the count is beneath it,
+ * because the count is what makes narrowing legible without reading anything else.
+ */
+.pp-stamp {
+  grid-column: 2;
+  grid-row: 1 / 3;
+  min-width: 236px;
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 2px;
-  padding: 12px 16px;
-  border: 1px solid var(--accent);
-  border-radius: 6px;
-  background: var(--accent);
-  color: var(--surface);
+  padding: 12px 20px;
+  border: 3px double var(--paper-raised);
+  background: var(--mark);
+  color: var(--paper-raised);
   font-family: inherit;
-  font-size: 0.95rem;
-  font-weight: 600;
   cursor: pointer;
 }
 
-.pp-apply:hover:not(:disabled) {
-  background: #A9512F;
+.pp-stamp-grade {
+  font-size: 0.74rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.16em;
 }
 
-.pp-apply:disabled {
-  background: var(--bg);
-  border-color: var(--border);
-  color: var(--text-muted);
+.pp-stamp-label {
+  font-size: 1.02rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.pp-stamp-sub {
+  font-size: 0.74rem;
+  font-weight: 400;
+}
+
+.pp-stamp:hover:not(:disabled) {
+  background: #143A7B;
+}
+
+/* Nothing marked: the stamp is not inked. It reads as an unusable block, not a greyed word. */
+.pp-stamp:disabled {
+  background: var(--paper-sunk);
+  border-color: var(--paper-sunk);
+  box-shadow: inset 0 0 0 1px var(--rule-strong);
+  color: var(--ink-muted);
   cursor: not-allowed;
 }
 
-.pp-apply-sub {
-  font-size: 0.72rem;
-  font-weight: 500;
-  opacity: 0.85;
-}
-
 .pp-refuse {
-  padding: 12px 18px;
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  background: var(--surface);
-  color: var(--text);
+  grid-column: 1;
+  grid-row: 1;
+  justify-self: start;
+  align-self: end;
+  padding: 9px 16px;
+  border: 1px solid var(--rule-strong);
+  background: var(--paper-raised);
+  color: var(--ink);
   font-family: inherit;
-  font-size: 0.95rem;
+  font-size: 0.92rem;
   cursor: pointer;
 }
 
-.pp-refuse:hover {
-  border-color: var(--before);
-  color: var(--before);
+.pp-refuse:hover:not(:disabled) {
+  border-color: var(--hold);
+  color: var(--hold);
 }
 
-/* ---------- result card ---------- */
+.pp-refuse:disabled {
+  color: var(--ink-faint);
+  cursor: not-allowed;
+}
+
+.pp-refuse-grade {
+  grid-column: 1;
+  grid-row: 2;
+  justify-self: start;
+  padding-left: 3px;
+  color: var(--ink-muted);
+  font-size: 0.72rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.16em;
+}
+
+/* ---------- the returned proof ---------- */
 
 .rc {
   position: fixed;
-  right: 24px;
-  bottom: 24px;
-  width: 360px;
-  max-width: calc(100vw - 48px);
-  padding: 16px 18px;
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-left: 3px solid var(--accent);
-  border-radius: 6px;
-  box-shadow: 0 8px 28px rgba(42, 42, 40, 0.14);
-  animation: rc-in 200ms ease-out;
+  right: 26px;
+  bottom: 26px;
+  width: 380px;
+  max-width: calc(100vw - 52px);
+  padding: 14px 17px 16px;
+  background: var(--paper-raised);
+  border: 1px solid var(--rule-strong);
+  /* A slip lying on the desk: a tight contact shadow under the edge and one soft layer for
+     the lift. A hairline border wrapped in a 30px halo is the shape of a card nobody drew. */
+  box-shadow:
+    0 1px 2px rgba(23, 21, 15, 0.10),
+    0 7px 14px -6px rgba(23, 21, 15, 0.24);
+  animation: rc-in 240ms var(--ease);
   z-index: 12;
 }
 
 .rc--shifted {
-  right: calc(var(--panel-width) + 24px);
+  right: calc(var(--panel-width) + 26px);
 }
 
 @keyframes rc-in {
   from { opacity: 0; transform: translateY(8px); }
 }
 
-.rc--moved { border-left-color: var(--text-muted); }
-.rc--blocked { border-left-color: var(--before); }
-.rc--fault { border-left-color: var(--text-muted); border-style: dashed; }
-/* Neither a success (no accent fill, unlike .rc--auto) nor a failure (no --before red, unlike
-   .rc--blocked) — nothing happened because there was nothing to do, so this reads as quietly
-   informational, the same weight as .rc--moved/.rc--fault. */
-.rc--skipped { border-left-color: var(--text-muted); }
-/* Opaque, not rgba: `.rc` is the one card in this app that floats `position: fixed` directly
-   over the live page rather than sitting inside an already-opaque parent (unlike `.ac`/`.pp-notes`,
-   nested inside `.pp`'s solid surface). A translucent background here let the console table
-   underneath bleed straight through the card for its entire hold, reading as an early fade when
-   it was really a legibility bug from the first frame. This is the same 5% accent-over-white mix,
-   pre-blended to a flat, fully opaque color. */
-.rc--auto { background: #FCF7F5; }
+/*
+ * Eight outcomes, told apart by the stamp word first and the rule form second. The old build
+ * distinguished them with a coloured left edge — a hue carrying meaning on its own, which is
+ * exactly what this operator cannot read.
+ */
+.rc-stamp {
+  display: inline-block;
+  margin-bottom: 5px;
+  padding: 2px 9px;
+  border: 3px double var(--ink-muted);
+  color: var(--ink-muted);
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.16em;
+}
+
+.rc--applied .rc-stamp,
+.rc--partial .rc-stamp,
+.rc--auto .rc-stamp {
+  border-color: var(--mark);
+  color: var(--mark);
+}
+
+.rc--blocked .rc-stamp,
+.rc--sent .rc-stamp,
+.rc--moved .rc-stamp,
+.rc--fault .rc-stamp {
+  border-color: var(--hold);
+  color: var(--hold);
+}
+
+/* Rule form carries the same distinction a second time, above the stamp. */
+.rc--applied,
+.rc--partial { border-top: 3px double var(--mark); }
+.rc--auto { border-top: 3px double var(--mark); background: #F2F4FA; }
+.rc--blocked { border-top: 3px double var(--hold); border-bottom: 3px double var(--hold); }
+.rc--sent { border-top: 3px solid var(--hold); }
+.rc--moved { border-top: 3px dashed var(--rule-strong); }
+.rc--fault { border-top: 3px dotted var(--hold); }
+.rc--skipped { border-top: 1px solid var(--rule-strong); }
 
 .rc-head {
   display: flex;
-  align-items: baseline;
+  align-items: flex-start;
   justify-content: space-between;
   gap: 12px;
 }
 
+.rc-head-text {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  min-width: 0;
+}
+
 .rc-title {
-  font-size: 0.9rem;
+  font-size: 1rem;
   font-weight: 600;
 }
 
 .rc-dismiss {
+  flex: none;
+  display: inline-flex;
   border: none;
   background: none;
-  color: var(--text-muted);
-  font-size: 1.1rem;
+  color: var(--ink-muted);
   line-height: 1;
   cursor: pointer;
-  padding: 0 2px;
+  padding: 2px;
+}
+
+.rc-dismiss:hover {
+  color: var(--ink);
 }
 
 .rc-rows {
   margin: 10px 0 0;
+  padding-top: 8px;
+  border-top: 1px solid var(--rule);
 }
 
 .rc-row {
   display: flex;
   align-items: baseline;
   gap: 8px;
-  font-size: 0.85rem;
-  line-height: 1.9;
+  font-size: 0.86rem;
+  line-height: 1.85;
 }
 
 .rc-row dt {
-  width: 108px;
+  width: 112px;
   flex: none;
-  color: var(--text-muted);
+  color: var(--ink-muted);
   font-size: 0.78rem;
 }
 
@@ -951,104 +1376,202 @@ body.pp-active .al {
   text-align: right;
   /* The counts have to survive a paused video frame, so they carry a step over the labels. */
   font-size: 1rem;
-  font-weight: 600;
+  font-weight: 700;
 }
 
 .rc-reason {
-  color: var(--text-muted);
+  color: var(--ink-muted);
   font-size: 0.78rem;
   overflow-wrap: anywhere;
 }
 
 .rc-note {
   margin: 10px 0 0;
-  font-size: 0.78rem;
+  max-width: 56ch;
+  font-size: 0.82rem;
   line-height: 1.5;
-  color: var(--text-muted);
+  color: var(--ink-muted);
 }
 
-/* ---------- activity list ---------- */
+/* ---------- proofs returned ---------- */
 
 .al {
   flex: none;
-  width: 260px;
+  width: 272px;
   position: sticky;
-  top: 32px;
-  max-height: calc(100vh - 64px);
+  top: 34px;
+  max-height: calc(100vh - 68px);
   overflow-y: auto;
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  padding: 16px 16px 18px;
+  background: var(--paper);
+  border: 1px solid var(--rule-strong);
+  padding: 15px 16px 18px;
+  scrollbar-color: var(--rule-strong) var(--paper);
 }
 
 .al-heading {
-  margin: 0 0 12px;
-  font-size: 0.68rem;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  color: var(--text-muted);
+  margin: 0 0 8px;
+  color: var(--ink-muted);
+}
+
+.al hr.rule {
+  margin-bottom: 11px;
 }
 
 .al-empty {
   margin: 0;
-  font-size: 0.82rem;
-  color: var(--text-muted);
+  font-size: 0.84rem;
+  color: var(--ink-muted);
 }
 
 .al-list {
   list-style: none;
   margin: 0;
   padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
 }
 
 .al-row {
-  padding: 8px 10px;
-  border: 1px solid var(--border);
-  border-left: 3px solid var(--border);
-  border-radius: 6px;
-  background: var(--bg);
+  padding: 9px 0;
+  border-bottom: 1px solid var(--rule);
 }
 
-.al-row--blocked { border-left-color: var(--before); }
-.al-row--stale { border-left-color: var(--text-muted); }
-.al-row--tool_error { border-left-color: var(--text-muted); border-style: dashed; }
-.al-row--auto_applied { border-left-color: var(--accent); }
-.al-row--applied { border-left-color: var(--after); }
+.al-row:last-child {
+  border-bottom: none;
+}
+
+/* Set apart from the run, the same device the held-action card uses, for the same reason. */
+.al-row--blocked,
+.al-row--tool_error {
+  border-top: 3px double var(--hold);
+  border-bottom: 3px double var(--hold);
+  margin: -1px 0;
+  padding: 8px 0;
+}
+
+.al-mark {
+  color: var(--ink-muted);
+}
+
+.al-row--applied .al-mark,
+.al-row--auto_applied .al-mark {
+  color: var(--mark);
+}
+
+.al-row--blocked .al-mark,
+.al-row--tool_error .al-mark {
+  color: var(--hold);
+}
 
 .al-row-top {
   display: flex;
   align-items: baseline;
-  justify-content: space-between;
-  gap: 8px;
+  gap: 6px;
 }
 
 .al-tool {
-  font-size: 0.76rem;
+  flex: 1;
+  min-width: 0;
+  font-size: 0.78rem;
   font-weight: 600;
+  overflow-wrap: anywhere;
 }
 
 .al-outcome {
-  font-size: 0.7rem;
-  color: var(--text-muted);
+  font-size: 0.72rem;
+  color: var(--ink-muted);
   text-transform: capitalize;
   white-space: nowrap;
 }
 
 .al-row-figures {
   display: flex;
-  gap: 8px;
-  margin-top: 4px;
-  font-size: 0.7rem;
-  color: var(--text-muted);
+  gap: 9px;
+  margin-top: 3px;
+  padding-left: 19px;
+  font-size: 0.72rem;
+  color: var(--ink-muted);
 }
 
 .al-time {
   display: block;
-  margin-top: 4px;
-  font-size: 0.68rem;
-  color: var(--text-muted);
+  margin-top: 3px;
+  padding-left: 19px;
+  font-size: 0.72rem;
+  color: var(--ink-faint);
+}
+
+/* ---------- narrow viewports ---------- */
+
+@media (max-width: 1080px) {
+  .app-shell {
+    flex-direction: column;
+    /* Stretch, not flex-start: a column flex with flex-start sizes each child to its own
+       content, which lets the register's min-width push the whole page sideways instead of
+       scrolling inside its own frame. */
+    align-items: stretch;
+    padding: 24px 16px 56px;
+  }
+
+  .app {
+    max-width: 100%;
+  }
+
+  .al {
+    position: static;
+    width: 100%;
+    max-height: none;
+  }
+
+  body.pp-active .app-shell {
+    margin-right: 0;
+  }
+}
+
+@media (max-width: 720px) {
+  :root {
+    --panel-width: 100vw;
+  }
+
+  /* A full-width sheet covers the register anyway, so there is nothing to make room for —
+     and reserving a viewport's worth of margin would push the page into a sideways scroll. */
+  body.pp-active .app-shell {
+    margin-right: 0;
+  }
+
+  .console-table th:nth-child(2),
+  .console-table td:nth-child(2) {
+    display: none;
+  }
+
+  .pp-foot {
+    grid-template-columns: 1fr;
+  }
+
+  .pp-stamp {
+    grid-column: 1;
+    grid-row: 1;
+  }
+
+  .pp-refuse {
+    grid-column: 1;
+    grid-row: 2;
+    justify-self: stretch;
+    text-align: center;
+  }
+
+  .pp-refuse-grade {
+    grid-column: 1;
+    grid-row: 3;
+    justify-self: center;
+    padding-left: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 1ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 1ms !important;
+  }
 }

@@ -1,4 +1,5 @@
 import type { DiffGroup } from '../core/diff';
+import { ProofMark } from './ProofMark';
 
 const price = new Intl.NumberFormat('en-GB', {
   style: 'currency',
@@ -30,11 +31,20 @@ export interface DiffGroupRowProps {
   onToggle(): void;
 }
 
+/**
+ * One line of the proof. Marked up, not colour-coded.
+ *
+ * Kept: the correction is the caret and the new value's weight; the old value is struck through
+ * the way a compositor strikes what comes out. Struck out: the operator has declined the whole
+ * correction, so a rule is drawn across it and it carries the `stet` mark — let the record
+ * stand as it is. Both readings survive greyscale, because a strikethrough and a caret are
+ * shapes. The blue and the amber only ever agree with the mark that is already there.
+ */
 export function DiffGroupRow({ group, subtitle, checked, onToggle }: DiffGroupRowProps) {
   const delta = group.valueDelta;
 
   return (
-    <label className={`dg${checked ? '' : ' dg--off'}`}>
+    <label className={`dg${checked ? '' : ' dg--struck'}`}>
       {/* One checkbox for the whole record. Approving half of a two-sided change is how
           data goes incoherent, and the engine's unit of approval is the group. */}
       <input
@@ -44,13 +54,14 @@ export function DiffGroupRow({ group, subtitle, checked, onToggle }: DiffGroupRo
         onChange={onToggle}
         aria-label={`Include ${group.id}`}
       />
+      <span className="dg-mark">
+        <ProofMark name={checked ? 'insert' : 'stet'} size={15} />
+      </span>
       <div className="dg-body">
         <div className="dg-head">
           <span className="dg-id mono">{group.id}</span>
           {delta !== 0 && (
-            <span className={`dg-delta mono ${delta > 0 ? 'is-up' : 'is-down'}`}>
-              {signedPrice.format(delta)}
-            </span>
+            <span className="dg-delta mono">{signedPrice.format(delta)}</span>
           )}
         </div>
         <div className="dg-sub">{subtitle}</div>
@@ -61,13 +72,14 @@ export function DiffGroupRow({ group, subtitle, checked, onToggle }: DiffGroupRo
               <span className={`dg-before${isMono(w.field) ? ' mono' : ''}`}>
                 {formatValue(w.field, w.before)}
               </span>
-              <span className="dg-arrow" aria-hidden="true">→</span>
               <span className={`dg-after${isMono(w.field) ? ' mono' : ''}`}>
                 {formatValue(w.field, w.after)}
               </span>
             </li>
           ))}
         </ul>
+        {/* The word, not just the rule through it: a struck line has to say why it is struck. */}
+        <span className="dg-struck-note">Struck out — stands as it is</span>
       </div>
     </label>
   );

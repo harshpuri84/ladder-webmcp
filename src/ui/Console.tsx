@@ -1,6 +1,7 @@
 import { useState, useSyncExternalStore } from 'react';
 import { store } from '../domain/store';
 import { setBuggyToolEnabled } from '../domain/tools';
+import { ProofMark } from './ProofMark';
 
 const priceFormatter = new Intl.NumberFormat('en-GB', {
   style: 'currency',
@@ -68,6 +69,7 @@ export function Console() {
           className="console-filter"
           type="text"
           placeholder="Filter by customer or lane…"
+          spellCheck={false}
           value={filter}
           onChange={e => setFilter(e.target.value)}
         />
@@ -90,49 +92,59 @@ export function Console() {
           not a real bug.
         </p>
       </div>
-      <table className="console-table">
-        <thead>
-          <tr>
-            <th>ID</th>
-            <th>Customer</th>
-            <th>Lane</th>
-            <th>Status</th>
-            <th>Price</th>
-            <th>ETA</th>
-            <th>External edit</th>
-          </tr>
-        </thead>
-        <tbody>
-          {shipments.map(s => (
-            <tr key={s.id}>
-              <td className="mono">
-                {s.id}
-                <span className="console-version">v{s.version}</span>
-              </td>
-              <td>{s.customer}</td>
-              <td>
-                {s.origin} → {s.destination}
-              </td>
-              <td>
-                {s.status}
-                {s.customsHold && <span className="badge">Customs hold</span>}
-              </td>
-              <td className="mono">{priceFormatter.format(s.price)}</td>
-              <td className="mono">{s.eta}</td>
-              <td>
-                <button
-                  className="console-edit-row"
-                  type="button"
-                  title="Simulates another operator or system changing this record outside any agent proposal."
-                  onClick={() => editRowExternally(s.id)}
-                >
-                  Edit a row
-                </button>
-              </td>
+      {/* The register is wider than a phone; it scrolls in its own frame, the page never does. */}
+      <div className="console-scroll">
+        <table className="console-table">
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Customer</th>
+              <th>Lane</th>
+              <th>Status</th>
+              <th>Price</th>
+              <th>ETA</th>
+              <th>External edit</th>
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {shipments.map(s => (
+              <tr key={s.id}>
+                <td className="mono">
+                  {s.id}
+                  <span className="console-version">v{s.version}</span>
+                </td>
+                <td>{s.customer}</td>
+                <td>
+                  {s.origin} → {s.destination}
+                </td>
+                <td>
+                  {s.status}
+                  {/* The dagger says "set apart from the run" before the amber does — the
+                      colour is the second reading, never the first. */}
+                  {s.customsHold && (
+                    <span className="badge">
+                      <ProofMark name="dagger" size={11} />
+                      Customs hold
+                    </span>
+                  )}
+                </td>
+                <td className="mono">{priceFormatter.format(s.price)}</td>
+                <td className="mono">{s.eta}</td>
+                <td>
+                  <button
+                    className="console-edit-row"
+                    type="button"
+                    title="Simulates another operator or system changing this record outside any agent proposal."
+                    onClick={() => editRowExternally(s.id)}
+                  >
+                    Edit a row
+                  </button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }
