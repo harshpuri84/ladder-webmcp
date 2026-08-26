@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { runShadow } from '../shadow';
 import { collectingEffects, releasingEffects } from '../effects';
-import type { WriteRecord } from '../types';
+import type { WriteRecord, ActionRecord } from '../types';
 
 const fixture = () => ({
   rows: {
@@ -71,7 +71,10 @@ describe('runShadow', () => {
 });
 
 describe('action identity', () => {
-  it('derives the same id for the same action regardless of call order', async () => {
+  const idFor = (actions: ActionRecord[], to: string) =>
+    actions.find(a => (a.payload as any).to === to)!.actionId;
+
+  it('gives one action the same id no matter when it is called', async () => {
     const a = collectingEffects();
     await a.effects.notify('one@example.com', 'first');
     await a.effects.notify('two@example.com', 'second');
@@ -80,30 +83,28 @@ describe('action identity', () => {
     await b.effects.notify('two@example.com', 'second');   // reversed
     await b.effects.notify('one@example.com', 'first');
 
-    expect(new Set(a.actions.map(x => x.actionId)))
-      .toEqual(new Set(b.actions.map(x => x.actionId)));
+    expect(idFor(a.actions, 'one@example.com')).toBe(idFor(b.actions, 'one@example.com'));
+    expect(idFor(a.actions, 'two@example.com')).toBe(idFor(b.actions, 'two@example.com'));
   });
 
-  it('distinguishes two genuinely identical actions', async () => {
-    const a = collectingEffects();
-    await a.effects.notify('same@example.com', 'twice');
-    await a.effects.notify('same@example.com', 'twice');
-    const ids = a.actions.map(x => x.actionId);
-    expect(ids[0]).not.toBe(ids[1]);
-    expect(new Set(ids).size).toBe(2);
-  });
-
-  it('releases the approved action even when commit calls them in a different order', async () => {
+  it('sends the message the human approved, not the one called first', async () => {
     const preview = collectingEffects();
     await preview.effects.notify('keep@example.com', 'keep me');
     await preview.effects.notify('drop@example.com', 'drop me');
-    const approved = new Set([preview.actions[0].actionId]);
+    const approved = new Set([idFor(preview.actions, 'keep@example.com')]);
 
-    const commit = releasingEffects(approved);
-    await commit.effects.notify('drop@example.com', 'drop me');   // reversed order
+    const sent: Record<string, unknown>[] = [];
+    const commit = releasingEffects(approved, (_kind, payload) => sent.push(payload));
+    await commit.effects.notify('drop@example.com', 'drop me');   // reversed
     await commit.effects.notify('keep@example.com', 'keep me');
 
-    expect(commit.released).toEqual([preview.actions[0].actionId]);
-    expect(commit.dropped).toEqual([preview.actions[1].actionId]);
+    expect(sent).toEqual([{ to: 'keep@example.com', message: 'keep me' }]);
+  });
+
+  it('keeps two genuinely identical actions distinguishable', async () => {
+    const a = collectingEffects();
+    await a.effects.notify('same@example.com', 'twice');
+    await a.effects.notify('same@example.com', 'twice');
+    expect(new Set(a.actions.map(x => x.actionId)).size).toBe(2);
   });
 });

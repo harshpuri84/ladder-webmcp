@@ -2,6 +2,8 @@ import type { ActionRecord } from './types';
 
 export interface Effects { notify(to: string, message: string): Promise<void>; }
 
+export type SendFn = (kind: string, payload: Record<string, unknown>) => void;
+
 /**
  * An action's identity is its content, never its position in the call sequence.
  * Preview and commit run the same tool twice; if the id depended on call order,
@@ -29,7 +31,10 @@ export function collectingEffects(): { effects: Effects; actions: ActionRecord[]
   };
 }
 
-export function releasingEffects(allowed: Set<string>): { effects: Effects; released: string[]; dropped: string[] } {
+export function releasingEffects(
+  allowed: Set<string>,
+  send: SendFn = (kind, payload) => console.info(`[${kind}]`, payload),
+): { effects: Effects; released: string[]; dropped: string[] } {
   const released: string[] = [], dropped: string[] = [];
   const seen = new Map<string, number>();
   return {
@@ -38,7 +43,7 @@ export function releasingEffects(allowed: Set<string>): { effects: Effects; rele
       async notify(to, message) {
         const payload = { to, message };
         const id = identify('notify', payload, seen);
-        if (allowed.has(id)) { released.push(id); console.info('[notify]', to, message); }
+        if (allowed.has(id)) { released.push(id); send('notify', payload); }
         else { dropped.push(id); }
       },
     },
