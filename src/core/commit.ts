@@ -71,45 +71,44 @@ export async function runCommit<S extends object, R>(
     },
   });
 
-  try {
-    await exec({ db, effects, notes } as Ctx<S>);
-  } catch (e) {
+  const rollback = () => {
     for (const k of Object.keys(snapshot as object)) {
       (state as Record<string, unknown>)[k] = (snapshot as Record<string, unknown>)[k];
     }
     for (const k of Object.keys(state as object)) {
       if (!(k in (snapshot as object))) delete (state as Record<string, unknown>)[k];
     }
+  };
+
+  try {
+    await exec({ db, effects, notes } as Ctx<S>);
+
+    if (violation !== undefined || divergence !== undefined) {
+      rollback();
+      return {
+        status: divergence !== undefined ? 'aborted_diverged' : 'denied',
+        applied: [], skipped: 0, released: [], dropped: [], notes,
+        violation: divergence ?? violation,
+      };
+    }
+
+    for (const gk of new Set(applied.map(w => `${w.entity}:${w.id}`))) {
+      const [entity, id] = gk.split(':');
+      opts.bumpVersion(entity, id);
+    }
+
+    flush();
+
+    return {
+      status: skipped > 0 ? 'partially_applied' : 'applied',
+      applied, skipped, released, dropped, notes,
+    };
+  } catch (e) {
+    rollback();
     return {
       status: e instanceof Divergence ? 'aborted_diverged' : 'denied',
       applied: [], skipped: 0, released: [], dropped: [], notes,
       violation: (e instanceof ScopeViolation || e instanceof Divergence) ? e.key : undefined,
     };
   }
-
-  if (violation !== undefined || divergence !== undefined) {
-    for (const k of Object.keys(snapshot as object)) {
-      (state as Record<string, unknown>)[k] = (snapshot as Record<string, unknown>)[k];
-    }
-    for (const k of Object.keys(state as object)) {
-      if (!(k in (snapshot as object))) delete (state as Record<string, unknown>)[k];
-    }
-    return {
-      status: divergence !== undefined ? 'aborted_diverged' : 'denied',
-      applied: [], skipped: 0, released: [], dropped: [], notes,
-      violation: divergence ?? violation,
-    };
-  }
-
-  for (const gk of new Set(applied.map(w => `${w.entity}:${w.id}`))) {
-    const [entity, id] = gk.split(':');
-    opts.bumpVersion(entity, id);
-  }
-
-  flush();
-
-  return {
-    status: skipped > 0 ? 'partially_applied' : 'applied',
-    applied, skipped, released, dropped, notes,
-  };
 }

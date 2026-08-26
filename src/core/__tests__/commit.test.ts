@@ -170,6 +170,21 @@ describe('runCommit', () => {
     expect(out.released).toEqual([]);
   });
 
+  it('rolls back and reports when bookkeeping fails after the run', async () => {
+    const s = fixture(); const o = wire(s);
+    const reprice = async (ctx: any) => { ctx.db.rows.A.price = 110; };
+    const { diff } = await runShadow(s, reprice, o);
+    const ws = buildWriteSet(diff, ['rows:A'], []);
+
+    const out = await runCommit(s, reprice, ws, {
+      ...o,
+      bumpVersion: () => { throw new Error('bookkeeping exploded'); },
+    });
+
+    expect(out.status).toBe('denied');
+    expect(s.rows.A.price).toBe(100);        // rolled back, not left applied
+  });
+
   it('releases approved actions and drops the rest', async () => {
     const s = fixture(); const o = wire(s);
     const notifyTwo = async (ctx: any) => {
