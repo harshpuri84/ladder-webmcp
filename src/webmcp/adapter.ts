@@ -2,6 +2,7 @@ import { runShadow, type Ctx, type Exec } from '../core/shadow';
 import { runCommit } from '../core/commit';
 import { buildWriteSet } from '../core/writeset';
 import { draftPolicy, policyMatches, type Disposition, type Policy } from '../core/policy';
+import { recordingProxy } from '../core/recorder';
 import { NEVER_ELIGIBLE } from '../domain/tools';
 import type { Diff } from '../core/diff';
 import type { Note, WriteRecord } from '../core/types';
@@ -66,6 +67,12 @@ const versionOf = (_e: string, id: string) => store.state.shipments[id]?.version
 const bumpVersion = (_e: string, id: string) => { const s = store.state.shipments[id]; if (s) s.version += 1; };
 const deltaOf = (w: WriteRecord) => (w.field === 'price' ? (w.after as number) - (w.before as number) : 0);
 
+/** A read tool sees real state but cannot change it. A write from a read tool is a bug, loudly. */
+const readOnlyView = () => recordingProxy(store.state, {
+  onWrite: () => {},
+  guard: k => { throw new Error(`read-only tool attempted to write ${k.entity}.${k.id}.${k.field}`); },
+});
+
 function rejectedFrom(notes: Note[]) {
   const byReason = new Map<string, string[]>();
   for (const n of notes) {
@@ -101,7 +108,7 @@ export function registerLadderTool(spec: LadderToolSpec) {
       annotations: { readOnlyHint: true },
       execute: async (input: any) => {
         const out = await spec.exec(input, {
-          db: store.state, notes: [], effects: { async notify() {} },
+          db: readOnlyView(), notes: [], effects: { async notify() {} },
         });
         return { ...(out as object), content: [{ type: 'text', text: JSON.stringify(out) }] };
       },
