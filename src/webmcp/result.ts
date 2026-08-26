@@ -20,6 +20,18 @@ export interface ToolPayload {
    * for every other case.
    */
   error?: string;
+  /**
+   * Set only when a proposal was declined with nothing to decide (see `nothing_to_decide` in
+   * webmcp/adapter.ts) and no domain notes explained why either — i.e. the filter or request
+   * matched no records and produced no actions at all. That combination used to reach the
+   * agent as `{ requested: 0, applied: 0, rejected: [] }` with no explanation, indistinguishable
+   * from silence. Not a `rejected` bucket: the zero-count filter (see T8-2 above) would strip
+   * a `{ count: 0 }` entry anyway, and the reconciliation invariant requires the rejected total
+   * to stay 0 when `requested` is 0 — so this is a reason attached to the outcome itself, not a
+   * counted item within it. Deliberately not phrased as an operator refusal: no human ever saw
+   * this proposal.
+   */
+  reason?: string;
 }
 
 export function toolResult(p: ToolPayload) {

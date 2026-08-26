@@ -246,12 +246,20 @@ export function registerLadderTool(spec: LadderToolSpec) {
     if (!approved) {
       history.push({ tool: spec.name, proposalId, proposed: requested, approved: 0,
                      valueDelta: shadow.diff.totals.valueDelta });
+      // nothingToDecide always carries diffRequested === 0 (totals.records mirrors groups.length
+      // here), so whenever it also carries no domain notes, `requested` is 0 too: nothing at all
+      // matched the filter or request, and no human — no operator — was ever shown this
+      // proposal. Give that its own reason (see ToolPayload.reason's doc comment for why it
+      // isn't a `rejected` bucket) instead of the silent `{ requested: 0, rejected: [] }` an
+      // agent would otherwise have to guess at.
+      const noMatch = nothingToDecide && requested === 0;
       return finish(nothingToDecide ? 'nothing_to_decide' : 'refused', {
         status: 'denied', requested, applied: 0,
         rejected: [...rejectedFrom(shadow.notes),
                    { count: diffRequested, reason: 'the operator refused this change', ids: [] }],
         actions_released: 0, actions_dropped: shadow.diff.actions.length,
         replan_required: true, rule_offered: null,
+        ...(noMatch ? { reason: 'no records or actions matched this request; nothing was found to change' } : {}),
       });
     }
 

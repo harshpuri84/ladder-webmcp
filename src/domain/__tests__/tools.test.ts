@@ -228,6 +228,26 @@ describe('domain tools', () => {
     await proposal.result;
   });
 
+  // A filter matching nothing at all produces `{ rejected: [], requested: 0 }` with no
+  // explanation — the only refusal in the product carrying no structured reason, and easy to
+  // misread as "the operator declined this" when no operator was ever shown anything. Kept as
+  // a reason on the zero-count outcome, not a bucket: with requested: 0, the reconciliation
+  // invariant requires the rejected total to stay 0 too.
+  it('gives a reason when nothing matched the filter at all, not a silent zero', async () => {
+    const payload = await callTool('update_shipments', { customer: 'No Such Company At All', setStatus: 'Delivered' });
+
+    expect(payload.status).toBe('denied');
+    expect(payload.requested).toBe(0);
+    expect(payload.applied).toBe(0);
+    expect(payload.rejected).toEqual([]);
+    expect(payload.replan_required).toBe(true);
+    expect(payload.reason).toBeTruthy();
+    expect(payload.reason).not.toMatch(/operator/i);
+
+    const rejectedTotal = payload.rejected.reduce((n: number, r: any) => n + r.count, 0);
+    expect(payload.applied + rejectedTotal).toBe(payload.requested);
+  });
+
   // The mixed case named in the report: some rows on the lane are held, some are not.
   it('reports partially_applied, not applied, when some matching rows are held and some are not', async () => {
     const matches = Object.values(store.state.shipments).filter(
