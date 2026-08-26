@@ -80,6 +80,18 @@ describe('domain tools', () => {
     await proposal.result;
   });
 
+  // A read tool's `db` is a recordingProxy (readOnlyView()), so the rows it returns are read
+  // *through* that proxy — every row search_shipments hands back is itself a Proxy instance,
+  // not a plain object. structuredClone() throws DataCloneError on a Proxy; Chrome uses exactly
+  // that algorithm to serialise a tool's result across the WebMCP boundary. The dev double
+  // never clones anything, so this only ever breaks in the real runtime — reproduce it directly
+  // against structuredClone rather than trusting the dev double to catch it.
+  it('returns a structured-cloneable result from a read tool, not a live Proxy', async () => {
+    const result = await callTool('search_shipments', { customer: 'Northwind Retail' });
+    expect(result.rows.length).toBeGreaterThan(0);
+    expect(() => structuredClone(result)).not.toThrow();
+  });
+
   it('skips and notes customs-hold rows, keeping them out of the diff', async () => {
     const matches = Object.values(store.state.shipments).filter(s => s.customer === 'Northwind Retail');
     const held = matches.filter(s => s.customsHold);

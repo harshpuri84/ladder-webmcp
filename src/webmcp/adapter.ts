@@ -179,7 +179,12 @@ export function registerLadderTool(spec: LadderToolSpec) {
         const out = await spec.exec(input, {
           db: readOnlyView(), notes: [], effects: { async notify() {} },
         });
-        return { ...(out as object), content: [{ type: 'text', text: JSON.stringify(out) }] };
+        // `out` is read through readOnlyView()'s recordingProxy, so anything nested in it
+        // (e.g. search_shipments' rows) is itself a live Proxy, not plain data. Chrome
+        // serialises a tool's result with structuredClone, which throws DataCloneError on a
+        // Proxy — round-trip through JSON here so what leaves the tool boundary is inert.
+        const inert = JSON.parse(JSON.stringify(out));
+        return { ...inert, content: [{ type: 'text', text: JSON.stringify(inert) }] };
       },
     });
     return;
