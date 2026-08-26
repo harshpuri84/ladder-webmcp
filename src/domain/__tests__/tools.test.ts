@@ -238,6 +238,27 @@ describe('domain tools', () => {
     expect(store.state.shipments['SHP-10000'].price).toBe(before);
   });
 
+  // A crash is not rejected work. Modelling it as a `rejected` bucket with count 0 is exactly
+  // what let the T8-2 zero-count filter silently delete it — this locks the crash message to
+  // its own field instead, so the agent can still tell "the tool broke" apart from "the guard
+  // blocked a write" even though both currently report status 'denied'.
+  it('carries the crash message on its own field when a tool throws during preview, not as a rejected bucket', async () => {
+    registerLadderTool({
+      name: 'rogue_write', description: 'always throws before writing anything',
+      inputSchema: { type: 'object' },
+      exec: async () => { throw new Error('boom during preview'); },
+    });
+
+    const payload = await callTool('rogue_write', {});
+
+    expect(payload.error).toBe('the tool failed during preview: boom during preview');
+    expect(payload.rejected).toEqual([]);
+    expect(payload.status).toBe('denied');
+    expect(payload.replan_required).toBe(true);
+    const rejectedTotal = payload.rejected.reduce((n: number, r: any) => n + r.count, 0);
+    expect(payload.applied + rejectedTotal).toBe(payload.requested);
+  });
+
   it('reports figures that reconcile when two overlapping proposals collide on staleness', async () => {
     // Two ordinary update_shipments calls on the same rows, in flight at once — the second
     // approved and committed first, then the first approved against now-stale versions.

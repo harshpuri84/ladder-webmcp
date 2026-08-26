@@ -157,10 +157,13 @@ export function registerLadderTool(spec: LadderToolSpec) {
 
     const shadow = await runShadow(store.state, run, { proposalId, versionOf, deltaOf });
     if (!shadow.ok) {
+      // A crash is not rejected work — see the `error` field's own doc comment in
+      // src/webmcp/result.ts for why this is a dedicated field rather than a `rejected`
+      // bucket with count 0 (which the zero-count filter below would now silently remove).
       return finish('tool_error', {
-        status: 'denied', requested: 0, applied: 0,
-        rejected: [{ count: 0, reason: `the tool failed during preview: ${shadow.error!.message}`, ids: [] }],
+        status: 'denied', requested: 0, applied: 0, rejected: [],
         actions_released: 0, actions_dropped: 0, replan_required: true, rule_offered: null,
+        error: `the tool failed during preview: ${shadow.error!.message}`,
       });
     }
 
