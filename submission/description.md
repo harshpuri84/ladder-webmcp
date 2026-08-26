@@ -2,15 +2,17 @@
 
 ## Why this use case fits WebMCP
 
-WebMCP lets a page hand an agent typed tools instead of a screen to scrape. That solves how an
-agent acts. It does not solve what happens when the agent is wrong.
+An operations agent proposes changing 47 shipments. The person responsible for those shipments
+has two options today: read the function call, or approve everything and hope.
 
-Every reference app for this challenge demonstrates an agent doing something correctly. None of
-them show the moment that actually blocks agents from touching real systems: the agent proposes
-a change to forty-seven records, and a person has to decide whether to let it happen. Today that
-decision is made against a function call. You see `update_shipments({ origin: "Shanghai",
-setStatus: "Delivered" })` and you have no idea whether that is three rows or four hundred, or
-what it costs.
+`update_shipments({ origin: "Shanghai", setStatus: "Delivered" })` tells them nothing that
+matters. Is that three rows or four hundred? What does it cost? Is any of it irreversible? The
+decision that actually blocks agents from touching real systems gets made against arguments,
+because arguments are all the platform can show.
+
+WebMCP solved how an agent acts. It handed pages a way to expose typed tools instead of a screen
+to scrape. What it did not solve is what happens when the agent is wrong, and that is the part
+standing between a demo and production.
 
 Ladder is a web app where that decision is made against consequences instead of arguments.
 
@@ -78,6 +80,14 @@ We also measured that a pending `execute` survives 96 seconds and returns its st
 intact, which is why the approval can take as long as a person needs.
 
 ## What it does not do
+
+**Ladder is not a sandbox.** It governs writes and effects that pass through the tool context it
+provides. A tool that reaches around that context, by importing the real store or calling a
+server directly, is not governed by it. This is a review and transaction layer for cooperative
+tools, not containment for code you do not trust. Everything below is the same kind of statement.
+
+Nothing persists: standing rules, history and the activity log are in memory and a reload clears
+them. There is no auth and no durable audit trail. Approval is per record, not per field.
 
 The guarantee holds for records whose fields are primitives or values replaced wholesale. It
 does not extend to mutation inside a nested object, because the recorder is two levels deep by

@@ -14,7 +14,7 @@ What the platform hook cannot express even where it exists, and what Ladder adds
 
 ## Try it
 
-Live URL: **TODO (not deployed yet)**
+Live URL: **https://ladder-webmcp.vercel.app**
 
 Two ways to run it with a real WebMCP runtime:
 
@@ -64,6 +64,21 @@ const repriceShipments: LadderToolSpec = {
 ## Honest scope
 
 This is a credibility statement, not boilerplate. Read it before you wrap a store in this.
+
+- **Ladder is not a sandbox.** It governs writes and effects that go through the tool context it
+  hands you: `ctx.db` and `ctx.effects`. A tool that reaches around that context is not governed
+  by it. Importing the real store directly, calling a server API, closing over some other mutable
+  object, or causing any effect outside `ctx` will all bypass the preview and the guard entirely.
+  This is a transaction and review layer for cooperative tools, not a way to contain code you do
+  not trust. The claim it makes is worth having, but it is that narrower claim.
+- **Nothing persists.** Standing rules, the history a draft is derived from, and the activity log
+  all live in memory. Reloading the page clears them. There is no authentication, no
+  authorization model and no durable audit trail. Those are the first things a real deployment
+  would need and none of them are here.
+- **Approval is per record, not per field.** If a proposal changes both the status and the ETA of
+  one shipment, you approve or decline both together. That is deliberate, because approving half
+  of a two-sided change is how data becomes incoherent, but it does mean you cannot accept one
+  field and refuse the other on the same row.
 
 - The guarantee holds for stores whose record fields are primitives or are replaced wholesale (`db.rows.A.meta = { limit: 999 }` is seen and guarded normally). It does not hold for a mutation inside a nested object field one level past that: a write like `db.rows.A.meta.limit = 999` reaches `meta` unrecorded, because nothing traps property writes past depth 2. A store that needs guarded writes below that depth is out of scope as this recorder stands, not silently supported.
 - Tools must be deterministic. A field set from a clock or a random value will differ between the preview run and the commit run. The commit will abort every time; that is the version-mismatch guard working as intended, not a bug.
