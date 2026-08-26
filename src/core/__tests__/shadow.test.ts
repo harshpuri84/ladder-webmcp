@@ -79,6 +79,30 @@ describe('runShadow', () => {
     expect(ok).toBe(true);
     expect(diff.totals.valueDelta).toBe(0);
   });
+
+  it('rejects an entity name containing the key delimiter', async () => {
+    const bad = { 'rows:extra': { A: { price: 1, version: 1 } } };
+    await expect(runShadow(bad, async () => {}, { proposalId: 'p1', versionOf: () => 1 }))
+      .rejects.toThrow('invalid entity name: rows:extra');
+  });
+
+  it('rejects an entity name equal to the structural sentinel', async () => {
+    const bad = { '*': { A: { price: 1, version: 1 } } };
+    await expect(runShadow(bad, async () => {}, { proposalId: 'p1', versionOf: () => 1 }))
+      .rejects.toThrow('invalid entity name: *');
+  });
+
+  it('rejects a record id containing the key delimiter', async () => {
+    const bad = { rows: { 'A:extra': { price: 1, version: 1 } } };
+    await expect(runShadow(bad, async () => {}, { proposalId: 'p1', versionOf: () => 1 }))
+      .rejects.toThrow('invalid record id: rows.A:extra');
+  });
+
+  it('rejects a record id equal to the structural sentinel', async () => {
+    const bad = { rows: { '*': { price: 1, version: 1 } } };
+    await expect(runShadow(bad, async () => {}, { proposalId: 'p1', versionOf: () => 1 }))
+      .rejects.toThrow('invalid record id: rows.*');
+  });
 });
 
 describe('action identity', () => {

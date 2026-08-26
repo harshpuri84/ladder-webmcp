@@ -15,6 +15,13 @@ export interface ShadowOpts {
 export async function runShadow<S extends object, R>(
   state: S, exec: Exec<S, R>, opts: ShadowOpts,
 ): Promise<{ ok: boolean; diff: Diff; notes: Note[]; error?: Error }> {
+  for (const [entity, records] of Object.entries(state as Record<string, object>)) {
+    if (entity.includes(':') || entity === '*') throw new Error(`invalid entity name: ${entity}`);
+    for (const id of Object.keys(records ?? {})) {
+      if (id.includes(':') || id === '*') throw new Error(`invalid record id: ${entity}.${id}`);
+    }
+  }
+
   const fork = structuredClone(state);
   const writes: WriteRecord[] = [];
   const notes: Note[] = [];
