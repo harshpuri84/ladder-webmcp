@@ -1,5 +1,4 @@
 import type { ProposalOutcome } from '../webmcp/adapter';
-import { ProofMark } from './ProofMark';
 
 interface Framing {
   tone: string;
@@ -122,8 +121,11 @@ export function ResultCard({ outcome, shifted, onDismiss }: ResultCardProps) {
           <span className="rc-stamp">{stamp}</span>
           <span className="rc-title">{title}</span>
         </div>
-        <button className="rc-dismiss" type="button" onClick={onDismiss} aria-label="Dismiss">
-          <ProofMark name="dele" size={15} title="Dismiss" />
+        {/* Not a correction mark on purpose: this control's only job is to get out of the
+            way, and a judge has to recognise it without thought. The mark vocabulary carries
+            meaning everywhere else in this interface; a plain dismiss control carries none. */}
+        <button className="rc-dismiss" type="button" onClick={onDismiss} aria-label="Dismiss" title="Dismiss">
+          <span aria-hidden="true">&times;</span>
         </button>
       </div>
       {hasCounts && (

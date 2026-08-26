@@ -382,6 +382,25 @@ body.pp-active .al {
   border-bottom: 1px solid var(--rule);
 }
 
+/*
+ * Layout, not stacking, again: while a proposal is open the console has already given the
+ * panel its margin (body.pp-active .app-shell, above) and the activity list has already
+ * stepped aside — but the table's ordinary padding and its phone-floor min-width still ask
+ * for more than that narrowed content box has. That is what pushed the External-edit column's
+ * centre into the gap behind the scrim (measured 26 Aug 2026 at 1280px: table 746px inside a
+ * 668px console). Nothing here is scrolled or stacked above the panel; the table's own numbers
+ * make way for exactly as long as the panel is open, and both rules lift the instant it isn't.
+ */
+body.pp-active .console-table {
+  min-width: 0;
+}
+
+body.pp-active .console-table th,
+body.pp-active .console-table td {
+  padding-left: 9px;
+  padding-right: 9px;
+}
+
 .console-table th {
   color: var(--ink-muted);
   border-bottom: 1px solid var(--rule-strong);
@@ -1337,12 +1356,15 @@ body.pp-active .al {
 .rc-dismiss {
   flex: none;
   display: inline-flex;
+  align-items: center;
+  justify-content: center;
   border: none;
   background: none;
   color: var(--ink-muted);
+  font-size: 1.15rem;
   line-height: 1;
   cursor: pointer;
-  padding: 2px;
+  padding: 2px 4px;
 }
 
 .rc-dismiss:hover {
