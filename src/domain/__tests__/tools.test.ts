@@ -17,7 +17,7 @@ describe('domain tools', () => {
   let onProposal: typeof OnProposal;
   let registerLadderTool: typeof RegisterLadderTool;
   let ratify: typeof Ratify;
-  const registered = new Map<string, { execute: (...args: any[]) => Promise<any> }>();
+  const registered = new Map<string, { description: string; execute: (...args: any[]) => Promise<any> }>();
 
   beforeAll(async () => {
     (globalThis as any).document = {
@@ -257,6 +257,33 @@ describe('domain tools', () => {
     expect(payload.replan_required).toBe(true);
     const rejectedTotal = payload.rejected.reduce((n: number, r: any) => n + r.count, 0);
     expect(payload.applied + rejectedTotal).toBe(payload.requested);
+  });
+
+  // Finding #1: policyMatches() already refuses to auto-apply a lapsed policy, so nothing
+  // unsafe can happen — but the interface must not keep *claiming* a grant that has lapsed.
+  // Checked at call time (no timer, since a timer would not survive a reload): the tool's
+  // registered description has to fall back to its base text the moment the policy is next
+  // read as expired, not linger until someone remembers to clean it up.
+  it('reverts the registered description once a ratified policy expires', async () => {
+    const baseDescription = registered.get('reprice_shipments')!.description;
+
+    ratify({
+      id: 'test-policy-expired-reprice', tool: 'reprice_shipments',
+      maxRecords: 1000, maxValue: 1_000_000,
+      // 25 days in the past, matching the reviewer's repro.
+      expiresAt: new Date(Date.now() - 25 * 86_400_000).toISOString(),
+      draftedFrom: 'test', ratified: false,
+    });
+
+    // Ratifying always writes the "applied without review" clause immediately — confirm the
+    // setup actually produced a stale description before checking that it reverts.
+    expect(registered.get('reprice_shipments')!.description).not.toBe(baseDescription);
+
+    // A filter matching nothing is enough to exercise call time without opening a panel or
+    // needing a resolve() — the expiry check runs before any of that.
+    await callTool('reprice_shipments', { customer: 'No Such Customer', pct: 1 });
+
+    expect(registered.get('reprice_shipments')!.description).toBe(baseDescription);
   });
 
   it('reports figures that reconcile when two overlapping proposals collide on staleness', async () => {

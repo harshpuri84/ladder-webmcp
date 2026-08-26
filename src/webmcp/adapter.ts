@@ -72,7 +72,37 @@ const history: Disposition[] = [];
 const policies = new Map<string, Policy>();
 const registrations = new Map<string, { spec: LadderToolSpec; execute: Function }>();
 
-export const activePolicy = (tool: string) => policies.get(tool);
+const isLapsed = (p: Policy, now: Date) => p.ratified && new Date(p.expiresAt) <= now;
+
+/**
+ * A pure read: an expired ratified policy is treated as though none exists, so every caller —
+ * the rung chip at render, execute() at call time — sees "no active policy" without a
+ * background timer. policyMatches() already refuses to auto-apply a lapsed policy on its own,
+ * so this alone keeps every write path safe; it does not, by itself, correct the tool's
+ * registered description (see revertIfExpired for that half — descriptions are push-based via
+ * reregister(), not derived at read time like this).
+ */
+export function activePolicy(tool: string): Policy | undefined {
+  const p = policies.get(tool);
+  return p && !isLapsed(p, new Date()) ? p : undefined;
+}
+
+/**
+ * The tool's registered description keeps the "applied without review" clause until something
+ * says otherwise — ratify() is push-based (reregister() is only ever called from ratify() and
+ * here). Checked at call time, right as a tool runs, rather than on a timer that a reload would
+ * drop anyway: the interface must not keep claiming a grant that has lapsed, in either
+ * direction (the agent's own description, or the human's rung chip), so the moment either is
+ * next read after expiry, both correct themselves.
+ */
+function revertIfExpired(tool: string, now: Date) {
+  const p = policies.get(tool);
+  if (!p || !isLapsed(p, now)) return;
+  policies.delete(tool);
+  reregister(tool, registrations.get(tool)!.spec.description);
+  policyListeners.forEach(fn => fn());
+}
+
 export function ratify(p: Policy) {
   policies.set(p.tool, { ...p, ratified: true });
   reregister(p.tool, `${registrations.get(p.tool)!.spec.description} Changes within the standing rule (${describePolicy(p)}) are applied without review.`);
@@ -166,6 +196,10 @@ export function registerLadderTool(spec: LadderToolSpec) {
         error: `the tool failed during preview: ${shadow.error!.message}`,
       });
     }
+
+    // Finding #1: an expired standing rule must stop claiming autonomy it no longer has —
+    // checked here, at call time, before anything else looks at this tool's policy.
+    revertIfExpired(spec.name, new Date());
 
     // diffRequested is what the human is actually shown and decides on. Rows the tool
     // skipped for a domain reason (e.g. a customs hold) never enter the diff, but the agent
