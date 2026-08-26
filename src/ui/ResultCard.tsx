@@ -59,6 +59,9 @@ export function ResultCard({ outcome, shifted, onDismiss }: ResultCardProps) {
   // A reason with no count attached — a tool that threw before it touched a single row. It
   // still has to be readable, or the one case where nothing was blocked reads as blank.
   const remarks = p.rejected.filter(r => r.count === 0);
+  // A tool that threw before it touched a row reports nothing but zeros. Three zero rows above
+  // the remark say less than nothing — the remark is the whole content — so the block goes.
+  const hasCounts = p.requested > 0;
 
   return (
     <aside className={`rc rc--${tone}${shifted ? ' rc--shifted' : ''}`} role="status">
@@ -68,34 +71,36 @@ export function ResultCard({ outcome, shifted, onDismiss }: ResultCardProps) {
           ×
         </button>
       </div>
-      <dl className="rc-rows">
-        <div className="rc-row">
-          <dt>requested</dt>
-          <dd className="mono">{p.requested}</dd>
-        </div>
-        <div className="rc-row">
-          <dt>applied</dt>
-          <dd className="mono">{p.applied}</dd>
-        </div>
-        {refused.length === 0 ? (
+      {hasCounts && (
+        <dl className="rc-rows">
           <div className="rc-row">
-            <dt>refused</dt>
-            <dd className="mono">0</dd>
+            <dt>requested</dt>
+            <dd className="mono">{p.requested}</dd>
           </div>
-        ) : (
-          refused.map(r => (
-            <div className="rc-row" key={r.reason}>
+          <div className="rc-row">
+            <dt>applied</dt>
+            <dd className="mono">{p.applied}</dd>
+          </div>
+          {refused.length === 0 ? (
+            <div className="rc-row">
               <dt>refused</dt>
-              <dd className="mono">{r.count}</dd>
-              <span className="rc-reason">— {r.reason}</span>
+              <dd className="mono">0</dd>
             </div>
-          ))
-        )}
-        <div className="rc-row">
-          <dt>replan required</dt>
-          <dd className="mono">{p.replan_required ? 'yes' : 'no'}</dd>
-        </div>
-      </dl>
+          ) : (
+            refused.map(r => (
+              <div className="rc-row" key={r.reason}>
+                <dt>refused</dt>
+                <dd className="mono">{r.count}</dd>
+                <span className="rc-reason">— {r.reason}</span>
+              </div>
+            ))
+          )}
+          <div className="rc-row">
+            <dt>replan required</dt>
+            <dd className="mono">{p.replan_required ? 'yes' : 'no'}</dd>
+          </div>
+        </dl>
+      )}
       {remarks.map(r => (
         <p className="rc-remark" key={r.reason}>{r.reason}</p>
       ))}
