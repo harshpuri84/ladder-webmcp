@@ -223,6 +223,27 @@ describe('runCommit', () => {
     expect(s.rows.A.price).toBe(100);        // rolled back, not left applied
   });
 
+  it('reports what really went out when the transport fails mid-flush', async () => {
+    const s = fixture(); const o = wire(s);
+    const two = async (ctx: any) => {
+      ctx.db.rows.A.price = 110;
+      await ctx.effects.notify('first@example.com', 'one');
+      await ctx.effects.notify('second@example.com', 'two');
+    };
+    const { diff } = await runShadow(s, two, o);
+    const ws = buildWriteSet(diff, ['rows:A'], diff.actions.map(a => a.actionId));
+
+    let n = 0;
+    const out = await runCommit(s, two, ws, {
+      ...o,
+      send: () => { if (++n === 2) throw new Error('transport down'); },
+    });
+
+    expect(s.rows.A.price).toBe(110);        // approved writes stay applied
+    expect(out.released).toHaveLength(1);    // exactly what actually went out
+    expect(out.status).toBe('applied');
+  });
+
   it('releases approved actions and drops the rest', async () => {
     const s = fixture(); const o = wire(s);
     const notifyTwo = async (ctx: any) => {

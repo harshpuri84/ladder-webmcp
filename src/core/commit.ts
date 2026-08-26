@@ -52,7 +52,7 @@ export async function runCommit<S extends object, R>(
   let skipped = 0;
   let violation: string | undefined;
   let divergence: string | undefined;
-  const { effects, released, dropped, flush } = releasingEffects(ws.actions, opts.send);
+  const { effects, dropped, flush } = releasingEffects(ws.actions, opts.send);
 
   const db = recordingProxy(state, {
     onWrite: w => applied.push(w),
@@ -102,11 +102,11 @@ export async function runCommit<S extends object, R>(
       opts.bumpVersion(entity, id);
     }
 
-    flush();
+    const actuallySent = flush();
 
     return {
       status: skipped > 0 ? 'partially_applied' : 'applied',
-      applied, skipped, released, dropped, notes,
+      applied, skipped, released: actuallySent, dropped, notes,
     };
   } catch (e) {
     rollback();
