@@ -60,8 +60,21 @@ const draftListeners = new Set<(p: Policy | null) => void>();
 // Fires whenever a policy is ratified — from a drafted proposal or from the up-front form —
 // so any UI showing rungs can re-read activePolicy() instead of tracking policy state itself.
 const policyListeners = new Set<() => void>();
+
+// Tools register at module evaluation, before React ever mounts — the panel's subscriber
+// attaches later, in an effect. A write call fired the instant the page loads (a plausible
+// thing for an agent to do) can publish a proposal into an empty `proposalListeners` set:
+// `forEach` over nothing does nothing, and with no queue of its own here, the proposal was
+// gone for good and its promise never settled. Held here, independent of which component ever
+// mounts, and replayed to the first subscriber that attaches.
+const bufferedProposals: PendingProposal[] = [];
+
 export function onProposal(fn: (p: PendingProposal | null) => void) {
-  proposalListeners.add(fn); return () => { proposalListeners.delete(fn); };
+  proposalListeners.add(fn);
+  if (bufferedProposals.length > 0) {
+    for (const p of bufferedProposals.splice(0, bufferedProposals.length)) fn(p);
+  }
+  return () => { proposalListeners.delete(fn); };
 }
 export function onResult(fn: (o: ProposalOutcome) => void) {
   resultListeners.add(fn); return () => { resultListeners.delete(fn); };
@@ -157,8 +170,14 @@ async function decide(toolName: string, input: unknown, diff: Diff, notes: Note[
   const pending: PendingProposal = { toolName, input, diff, notes, resolve: resolveFn };
 
   const show = async () => {
-    proposalListeners.forEach(fn => fn(pending));
+    // No subscriber yet (e.g. a write call fired before React mounted its effect): hold this
+    // proposal rather than broadcast it into an empty set, so the subscriber that eventually
+    // attaches still gets it instead of the promise below waiting forever.
+    if (proposalListeners.size === 0) bufferedProposals.push(pending);
+    else proposalListeners.forEach(fn => fn(pending));
     const d = await decision;
+    const stillBuffered = bufferedProposals.indexOf(pending);
+    if (stillBuffered !== -1) bufferedProposals.splice(stillBuffered, 1);
     proposalListeners.forEach(fn => fn(null));
     return d;
   };
