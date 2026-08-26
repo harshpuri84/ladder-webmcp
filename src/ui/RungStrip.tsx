@@ -18,6 +18,20 @@ function todayPlusDays(days: number): string {
 }
 
 /**
+ * F6/F7: an empty `expiresOn` made `new Date("T23:59:59.999Z")` throw an uncaught RangeError —
+ * the form did nothing, showed nothing. A past date was accepted silently: the form closed, the
+ * chip correctly still read "reviewed every time", but the tool's own description claimed the
+ * rule was active until a date already gone. Both are refused here, inline, before a Date is
+ * even constructed — "today" is allowed, since the rule expires at the end of that day, not
+ * before it.
+ */
+function validateExpiry(expiresOn: string): string | null {
+  if (!expiresOn) return 'pick an expiry date';
+  if (expiresOn < todayPlusDays(0)) return "expiry can't be in the past";
+  return null;
+}
+
+/**
  * Builds an unratified Policy the same shape draftPolicy() would hand back, so the up-front
  * door and the drafted-from-history door ratify through the exact same object — the point of
  * having two doors at all.
@@ -46,10 +60,13 @@ function RuleForm({ onSubmit, onCancel }: RuleFormProps) {
   const [maxRecords, setMaxRecords] = useState(20);
   const [maxValue, setMaxValue] = useState(500);
   const [expiresOn, setExpiresOn] = useState(() => todayPlusDays(DEFAULT_EXPIRY_DAYS));
+  const [expiryError, setExpiryError] = useState<string | null>(null);
 
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!tool) return;
+    const error = validateExpiry(expiresOn);
+    if (error) { setExpiryError(error); return; }
     onSubmit(draftFromForm(tool, maxRecords, maxValue, expiresOn));
   };
 
@@ -79,8 +96,12 @@ function RuleForm({ onSubmit, onCancel }: RuleFormProps) {
       </label>
       <label className="rs-field">
         Expires
-        <input type="date" value={expiresOn} onChange={e => setExpiresOn(e.target.value)} />
+        <input
+          type="date" value={expiresOn}
+          onChange={e => { setExpiresOn(e.target.value); setExpiryError(null); }}
+        />
       </label>
+      {expiryError && <p className="rs-field-error">{expiryError}</p>}
       <div className="rs-form-actions">
         <button className="rs-ratify" type="submit" disabled={!tool}>Ratify</button>
         <button className="rs-form-cancel" type="button" onClick={onCancel}>Cancel</button>
