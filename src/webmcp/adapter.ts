@@ -3,7 +3,7 @@ import { runCommit } from '../core/commit';
 import { buildWriteSet } from '../core/writeset';
 import { draftPolicy, policyMatches, type Disposition, type Policy } from '../core/policy';
 import { recordingProxy } from '../core/recorder';
-import { NEVER_ELIGIBLE } from '../domain/tools';
+import { NEVER_ELIGIBLE } from '../domain/policy-eligibility';
 import type { Diff } from '../core/diff';
 import type { Note, WriteRecord } from '../core/types';
 import { toolResult } from './result';

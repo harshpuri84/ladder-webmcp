@@ -3,8 +3,10 @@ import type { AppState, Shipment, ShipmentStatus } from './types';
 import { registerLadderTool, type LadderToolSpec } from '../webmcp/adapter';
 
 /** Destructive or externally-visible tools never get a standing rule, no matter how many
- *  clean approvals accumulate. Core takes this list as an argument; it never authors it. */
-export const NEVER_ELIGIBLE: string[] = ['cancel_shipments', 'notify_customers'];
+ *  clean approvals accumulate. Core takes this list as an argument; it never authors it.
+ *  Re-exported here (its canonical export point) from its own module — see
+ *  policy-eligibility.ts for why the constant itself doesn't live in this file. */
+export { NEVER_ELIGIBLE } from './policy-eligibility';
 
 interface Filter {
   customer?: string;
@@ -139,12 +141,10 @@ const notifyCustomers: LadderToolSpec = {
 
 /**
  * Registration is deliberately deferred behind this function rather than run as a module
- * top-level side effect. adapter.ts imports NEVER_ELIGIBLE from this file, and this file
- * imports registerLadderTool from adapter.ts — a genuine circular import. Whichever of the
- * two modules the runtime happens to enter first, calling registerLadderTool eagerly at
- * this module's top level can observe the adapter's binding before its own module body has
- * run (a TDZ ReferenceError), depending on import order. Calling registerDomainTools()
- * later, once both modules have finished loading, sidesteps that ordering hazard entirely.
+ * top-level side effect, and called explicitly once from App.tsx after both this module and
+ * adapter.ts have finished loading. (This file and adapter.ts no longer import from one
+ * another at all — NEVER_ELIGIBLE moved to policy-eligibility.ts precisely to remove that
+ * cycle — but the explicit call site is still the clearer, more testable shape, so it stays.)
  */
 export function registerDomainTools(): void {
   registerLadderTool(searchShipments);
