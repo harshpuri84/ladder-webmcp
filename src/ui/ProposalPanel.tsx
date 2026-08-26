@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { onProposal, onResult } from '../webmcp/adapter';
 import type { Decision, PendingProposal, ProposalOutcome } from '../webmcp/adapter';
 import { store } from '../domain/store';
@@ -93,6 +93,15 @@ export function ProposalPanel() {
   const [groups, setGroups] = useState<ReadonlySet<string>>(new Set());
   const [actions, setActions] = useState<ReadonlySet<string>>(new Set());
 
+  // A double-click (or Escape racing a button) fires two decisions before React ever gets to
+  // re-render between them — both land in the same batch, both closing over the same `head`.
+  // `setQueue(q => q.slice(1))` alone can't tell those two calls apart: applied twice in one
+  // batch, it drops two proposals instead of one, and the second's `resolve` is never called —
+  // an agent left waiting forever. A ref is the only thing both calls see consistently within
+  // that single batch (state reads inside it are still the pre-batch value), so it's what
+  // guards against deciding the same head twice.
+  const resolvedIds = useRef<Set<string>>(new Set());
+
   useEffect(() => onProposal(p => {
     if (p) setQueue(q => (q.includes(p) ? q : [...q, p]));
   }), []);
@@ -150,9 +159,15 @@ export function ProposalPanel() {
   };
 
   const decide = (d: Decision | null) => {
+    const id = diff.proposalId;
+    // A no-op on an already-resolved head: the second of two decisions dispatched in the same
+    // batch must neither resolve `head` again nor remove a second proposal from the queue.
+    if (resolvedIds.current.has(id)) return;
+    resolvedIds.current.add(id);
     head.resolve(d);
-    setQueue(q => q.slice(1));
+    setQueue(q => q.filter(p => p !== head));
   };
+  const decided = resolvedIds.current.has(diff.proposalId);
 
   return (
     <>
@@ -221,7 +236,7 @@ export function ProposalPanel() {
           <button
             className="pp-apply"
             type="button"
-            disabled={nothingPicked}
+            disabled={nothingPicked || decided}
             onClick={() => decide({ groups: [...groups], actions: [...actions] })}
           >
             {/* The label counts, so narrowing is legible without reading anything else. */}
@@ -240,7 +255,7 @@ export function ProposalPanel() {
               </span>
             )}
           </button>
-          <button className="pp-refuse" type="button" onClick={() => decide(null)}>
+          <button className="pp-refuse" type="button" disabled={decided} onClick={() => decide(null)}>
             Refuse all
           </button>
         </footer>
