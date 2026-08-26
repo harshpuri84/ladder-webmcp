@@ -53,12 +53,20 @@ function frame(o: ProposalOutcome): Framing {
         title: 'The tool errored',
         note: `${o.toolName} threw while it ran. Nothing was blocked and nothing was written — this is a fault in the tool, not the guard stopping it.`,
       };
-    case 'nothing_to_decide':
+    case 'nothing_to_decide': {
+      // F12: `payload.reason` is only ever set on the zero-match case (see its own doc comment
+      // in webmcp/result.ts) — nothing at all matched the filter or request, as opposed to rows
+      // matching and every one being held for a domain reason. The agent-side reason field
+      // already told these apart; this note didn't.
+      const noMatch = Boolean(o.payload.reason);
       return {
         tone: 'skipped',
         title: 'Nothing to change',
-        note: `${o.toolName} found nothing it could change, so no panel was needed — every matching row was already accounted for. The agent has been told why.`,
+        note: noMatch
+          ? `${o.toolName} found nothing that matched this request, so no panel was needed. The agent has been told why.`
+          : `${o.toolName} found nothing it could change, so no panel was needed — every matching row was already accounted for. The agent has been told why.`,
       };
+    }
     case 'refused':
       return {
         tone: 'sent',

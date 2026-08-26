@@ -50,3 +50,35 @@ describe('ResultCard framing for a successful run (F4)', () => {
     expect(partialTitle).not.toBe(fullTitle);
   });
 });
+
+function nothingToDecideOutcome(reason?: string): ProposalOutcome {
+  return {
+    toolName: 'update_shipments',
+    cause: 'nothing_to_decide',
+    payload: {
+      status: 'denied', requested: reason ? 0 : 4, applied: 0,
+      rejected: reason ? [] : [{ count: 4, reason: 'customs hold open', ids: [] }],
+      actions_released: 0, actions_dropped: 0,
+      replan_required: true, rule_offered: null,
+      ...(reason ? { reason } : {}),
+    },
+  };
+}
+
+/**
+ * F12: the same note — "every matching row was already accounted for" — ran for both the
+ * zero-match case (nothing at all matched the filter) and the everything-held case (rows
+ * matched but every one was skipped for a domain reason). The agent-side `reason` field
+ * already distinguishes them; the human-facing line didn't.
+ */
+describe('ResultCard framing distinguishes zero-match from everything-held (F12)', () => {
+  it('says nothing matched, not "already accounted for", when the filter matched no records at all', () => {
+    render(<ResultCard outcome={nothingToDecideOutcome('no records or actions matched this request; nothing was found to change')} shifted={false} onDismiss={() => {}} />);
+    expect(screen.queryByText(/already accounted for/)).toBeNull();
+  });
+
+  it('keeps the "already accounted for" note when rows matched but all were held', () => {
+    render(<ResultCard outcome={nothingToDecideOutcome()} shifted={false} onDismiss={() => {}} />);
+    expect(screen.getByText(/already accounted for/)).toBeTruthy();
+  });
+});
