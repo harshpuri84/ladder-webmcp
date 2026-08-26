@@ -16,7 +16,7 @@ const priceDelta = (w: WriteRecord) =>
 
 const wire = (s: any) => ({
   proposalId: 'p1',
-  valueOf: priceDelta,
+  deltaOf: priceDelta,
   versionOf: (_e: string, id: string) => s.rows[id].version as number,
   bumpVersion: (_e: string, id: string) => { s.rows[id].version += 1; },
 });

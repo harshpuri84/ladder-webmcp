@@ -9,7 +9,7 @@ export type Exec<S, R> = (ctx: Ctx<S>) => Promise<R>;
 export interface ShadowOpts {
   proposalId: string;
   versionOf(entity: string, id: string): number;
-  valueOf?(w: WriteRecord): number;
+  deltaOf?(w: WriteRecord): number;
 }
 
 export async function runShadow<S extends object, R>(
@@ -28,5 +28,5 @@ export async function runShadow<S extends object, R>(
              diff: buildDiff(opts.proposalId, [], [], () => 0, opts.versionOf) };
   }
   return { ok: true, notes,
-           diff: buildDiff(opts.proposalId, writes, actions, opts.valueOf ?? (() => 0), opts.versionOf) };
+           diff: buildDiff(opts.proposalId, writes, actions, opts.deltaOf ?? (() => 0), opts.versionOf) };
 }

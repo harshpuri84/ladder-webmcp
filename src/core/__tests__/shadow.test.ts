@@ -15,7 +15,7 @@ const priceDelta = (w: WriteRecord) =>
 
 const opts = (s: ReturnType<typeof fixture>) => ({
   proposalId: 'p1',
-  valueOf: priceDelta,
+  deltaOf: priceDelta,
   versionOf: (_e: string, id: string) => (s.rows as any)[id].version as number,
 });
 
@@ -67,6 +67,17 @@ describe('runShadow', () => {
     expect(r.ok).toBe(false);
     expect(r.error!.message).toBe('boom');
     expect(s.rows.A.price).toBe(100);
+  });
+
+  it('treats a missing delta function as zero rather than throwing', async () => {
+    const s = fixture();
+    const { ok, diff } = await runShadow(
+      s,
+      async ctx => { (ctx.db as any).rows.A.price = 150; },
+      { proposalId: 'p1', versionOf: (_e, id) => (s.rows as any)[id].version },
+    );
+    expect(ok).toBe(true);
+    expect(diff.totals.valueDelta).toBe(0);
   });
 });
 
