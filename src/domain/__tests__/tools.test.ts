@@ -178,6 +178,20 @@ describe('domain tools', () => {
     expect(payload.applied + rejectedTotal).toBe(payload.requested);
   });
 
+  it('accounts for approved actions the human dropped', async () => {
+    const proposal = await captureProposal('notify_customers', { message: 'reminder' });
+    expect(proposal.diff.actions.length).toBeGreaterThan(1);
+    const keep = proposal.diff.actions[0].actionId;
+
+    proposal.resolve({ groups: proposal.diff.groups.map((g: any) => g.group), actions: [keep] });
+    const payload = await proposal.result;
+
+    const rejectedTotal = payload.rejected.reduce((n: number, r: any) => n + r.count, 0);
+    expect(payload.applied + rejectedTotal).toBe(payload.requested);
+    expect(payload.actions_dropped).toBeGreaterThan(0);
+    expect(payload.status).not.toBe('applied');
+  });
+
   // Placed last: ratifying a policy here makes update_shipments auto-approve for the rest of
   // this file's run, which would starve captureProposal (no PendingProposal ever fires) in
   // any test that runs after it.

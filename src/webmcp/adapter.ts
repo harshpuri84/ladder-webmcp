@@ -159,12 +159,19 @@ export function registerLadderTool(spec: LadderToolSpec) {
     store.notify();
 
     const appliedRows = new Set(out.applied.map(w => `${w.entity}:${w.id}`)).size;
-    // narrowedOut only means anything once the commit actually ran: for an abort (stale,
-    // diverged, or a scope violation) nothing was applied for a wholly different reason, and
-    // counting the whole diff as "narrowed" there would double it against the abort's own
-    // bucket below.
+    // narrowedOut and droppedActions only mean anything once the commit actually ran: for an
+    // abort (stale, diverged, or a scope violation) nothing was applied or released for a
+    // wholly different reason, and counting the whole diff (or every approved action) as
+    // "narrowed"/"dropped" there would double it against the abort's own bucket below.
     const committed = out.status === 'applied' || out.status === 'partially_applied';
     const narrowedOut = committed ? shadow.diff.totals.records - appliedRows : 0;
+    const droppedActions = committed ? out.dropped.length : 0;
+    // commit.ts's own status only tracks db-write narrowing — it has no notion of an action
+    // the human approved that the tool then declined to send. A run that dropped even one
+    // action isn't fully applied no matter what commit.ts reports, so the status sent to the
+    // agent must draw from the same population as `requested`, or applied + rejected won't
+    // reconcile against it.
+    const reportedStatus = out.status === 'applied' && droppedActions > 0 ? 'partially_applied' : out.status;
 
     history.push({ tool: spec.name, proposalId, proposed: requested,
                    approved: appliedRows + out.released.length,
@@ -176,7 +183,7 @@ export function registerLadderTool(spec: LadderToolSpec) {
     if (draft) draftListeners.forEach(fn => fn(draft));
 
     return toolResult({
-      status: out.status,
+      status: reportedStatus,
       requested,
       applied: appliedRows + out.released.length,
       rejected: [
@@ -187,13 +194,14 @@ export function registerLadderTool(spec: LadderToolSpec) {
         // re-derives the identical skips during the real commit.
         ...rejectedFrom(shadow.notes),
         ...(narrowedOut > 0 ? [{ count: narrowedOut, reason: 'the operator removed these from the change', ids: [] }] : []),
+        ...(droppedActions > 0 ? [{ count: droppedActions, reason: 'the operator did not approve these messages', ids: [] }] : []),
         ...(out.status === 'aborted_stale' ? [{ count: diffRequested, reason: 'a record changed after the preview; nothing was applied', ids: [] }] : []),
         ...(out.status === 'aborted_diverged' ? [{ count: diffRequested, reason: `an approved field would have received a value the preview never showed (${out.violation}); nothing was applied`, ids: [] }] : []),
         ...(!committed && out.violation && out.status !== 'aborted_diverged' ? [{ count: diffRequested, reason: `the tool tried to write outside the approved set (${out.violation}); everything was rolled back`, ids: [] }] : []),
       ],
       actions_released: out.released.length,
       actions_dropped: out.dropped.length,
-      replan_required: out.status !== 'applied',
+      replan_required: reportedStatus !== 'applied',
       rule_offered: draft ? describePolicy(draft) : null,
     });
   };
