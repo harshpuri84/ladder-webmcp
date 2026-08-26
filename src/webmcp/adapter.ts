@@ -319,8 +319,13 @@ export function registerLadderTool(spec: LadderToolSpec) {
       actions_released: out.released.length,
       actions_dropped: out.dropped.length,
       // Anything rejected, for any reason, is something the agent asked about that did not
-      // happen — that always means a replan, whether or not it moved `out.status` at all.
-      replan_required: rejectedTotal > 0,
+      // happen — that always means a replan, whether or not it moved `out.status` at all. A
+      // commit crash is the same case even though `rejected` stays empty for it (see above):
+      // the work still did not happen, so saying otherwise would be the same false
+      // reassurance already fixed twice elsewhere (a domain-skip tool reporting `applied`,
+      // dropped messages reporting a clean success) — on the path with the least information
+      // for the agent to catch it itself.
+      replan_required: rejectedTotal > 0 || out.error !== undefined,
       rule_offered: draft ? describePolicy(draft) : null,
       ...(out.error !== undefined ? { error: `the tool failed during commit: ${out.error}` } : {}),
     }, auto ? describePolicy(pol!) : undefined);

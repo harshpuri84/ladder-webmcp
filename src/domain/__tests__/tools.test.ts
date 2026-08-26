@@ -403,7 +403,10 @@ describe('domain tools', () => {
   // ScopeViolation — used to reach the agent as a bare "denied" with no specifics. This
   // registers a small test-only tool straight through the real registerLadderTool() (domain/
   // tools.ts stays untouched) so the fix is exercised through the actual adapter wiring rather
-  // than reimplemented here.
+  // than reimplemented here. Locked to the same shape as the preview-crash test above
+  // ('carries the crash message on its own field...') on every field a caller can observe:
+  // status, rejected, applied, replan_required and the reconciliation invariant all have to
+  // agree between the two crash sites, not just the wording of `error`.
   it('reports the real message when a tool crashes during commit, not a scope violation', async () => {
     const crashSeenInputs = new WeakSet<object>();
     registerLadderTool({
@@ -431,6 +434,10 @@ describe('domain tools', () => {
     expect(payload.applied).toBe(0);
     expect(payload.rejected).toEqual([]);
     expect(payload.error).toBe('the tool failed during commit: divide by zero in the real run');
+    // The work did not happen — same false-reassurance class this project has already fixed
+    // twice (a domain-skip tool reporting `applied`; dropped messages reporting a clean
+    // success). Locked to `true` here, the same value the preview-crash test asserts.
+    expect(payload.replan_required).toBe(true);
     // Same reconciliation invariant as every other path — a crash reports nothing rejected
     // (see the `error` field's own doc comment), so `requested` has to match `applied` here.
     const rejectedTotal = payload.rejected.reduce((n: number, r: any) => n + r.count, 0);
