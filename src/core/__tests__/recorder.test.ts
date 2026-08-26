@@ -87,4 +87,31 @@ describe('recordingProxy', () => {
     });
     expect(() => { delete (p.rows.A as any).status; }).toThrow('nope');
   });
+
+  it('records and guards a whole new record', () => {
+    const writes: WriteRecord[] = [];
+    const s = fixture();
+    const p = recordingProxy(s, { onWrite: w => writes.push(w) });
+    (p.rows as any).Z = { price: 10, status: 'new', version: 1 };
+    expect(writes).toEqual([
+      { entity: 'rows', id: 'Z', field: '*', before: undefined,
+        after: { price: 10, status: 'new', version: 1 }, group: 'rows:Z' },
+    ]);
+  });
+
+  it('records and guards a brand-new root key', () => {
+    const writes: WriteRecord[] = [];
+    const p = recordingProxy(fixture(), { onWrite: w => writes.push(w) });
+    (p as any).audit = ['something'];
+    expect(writes).toEqual([
+      { entity: 'audit', id: '*', field: '*', before: undefined, after: ['something'], group: 'audit:*' },
+    ]);
+  });
+
+  it('lets the guard refuse a structural write', () => {
+    const s = fixture();
+    const p = recordingProxy(s, { onWrite: () => {}, guard: () => 'skip' });
+    (p.rows as any).Z = { price: 10 };
+    expect('Z' in s.rows).toBe(false);
+  });
 });
