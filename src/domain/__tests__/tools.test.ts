@@ -1,7 +1,11 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import type { store as StoreModule } from '../store';
 import type { registerDomainTools as RegisterDomainTools } from '../tools';
-import type { onProposal as OnProposal, registerLadderTool as RegisterLadderTool } from '../../webmcp/adapter';
+import type {
+  onProposal as OnProposal,
+  registerLadderTool as RegisterLadderTool,
+  ratify as Ratify,
+} from '../../webmcp/adapter';
 
 // This suite exercises the *real* registration and preview path — the actual
 // registerLadderTool()/runShadow()/runCommit() wiring in src/webmcp/adapter.ts — rather than
@@ -12,6 +16,7 @@ describe('domain tools', () => {
   let registerDomainTools: typeof RegisterDomainTools;
   let onProposal: typeof OnProposal;
   let registerLadderTool: typeof RegisterLadderTool;
+  let ratify: typeof Ratify;
   const registered = new Map<string, { execute: (...args: any[]) => Promise<any> }>();
 
   beforeAll(async () => {
@@ -23,7 +28,7 @@ describe('domain tools', () => {
     };
     ({ store } = await import('../store'));
     ({ registerDomainTools } = await import('../tools'));
-    ({ onProposal, registerLadderTool } = await import('../../webmcp/adapter'));
+    ({ onProposal, registerLadderTool, ratify } = await import('../../webmcp/adapter'));
     registerDomainTools();
   });
 
@@ -127,6 +132,22 @@ describe('domain tools', () => {
     expect(payload.applied + rejectedTotal).toBe(payload.requested);
   });
 
+  it('reports figures that reconcile on full approval', async () => {
+    const matches = Object.values(store.state.shipments).filter(s => s.customer === 'Northwind Retail');
+    const heldCount = matches.filter(s => s.customsHold).length;
+    const unheldCount = matches.filter(s => !s.customsHold).length;
+
+    const proposal = await captureProposal('update_shipments', { customer: 'Northwind Retail', setEta: '2095-11-11' });
+    proposal.resolve({ groups: proposal.diff.groups.map((g: any) => g.group), actions: [] });
+    const payload = await proposal.result;
+
+    expect(payload.status).toBe('applied');
+    expect(payload.applied).toBe(unheldCount);
+    const rejectedTotal = payload.rejected.reduce((n: number, r: any) => n + r.count, 0);
+    expect(rejectedTotal).toBe(heldCount);
+    expect(payload.applied + rejectedTotal).toBe(payload.requested);
+  });
+
   it('stops a read tool from mutating real state', async () => {
     const before = store.state.shipments['SHP-10000'].price;
     registerLadderTool({
@@ -136,5 +157,47 @@ describe('domain tools', () => {
     });
     await expect(callTool('rogue_read', {})).rejects.toThrow();
     expect(store.state.shipments['SHP-10000'].price).toBe(before);
+  });
+
+  it('reports figures that reconcile when two overlapping proposals collide on staleness', async () => {
+    // Two ordinary update_shipments calls on the same rows, in flight at once — the second
+    // approved and committed first, then the first approved against now-stale versions.
+    // No rogue tool, no test hook: this is what clicking around normally produces.
+    const filter = { customer: 'Northwind Retail', setEta: '2097-03-03' };
+    const first = await captureProposal('update_shipments', filter);
+    const second = await captureProposal('update_shipments', filter);
+
+    second.resolve({ groups: second.diff.groups.map((g: any) => g.group), actions: [] });
+    await second.result;
+
+    first.resolve({ groups: first.diff.groups.map((g: any) => g.group), actions: [] });
+    const payload = await first.result;
+
+    expect(payload.status).toBe('aborted_stale');
+    const rejectedTotal = payload.rejected.reduce((n: number, r: any) => n + r.count, 0);
+    expect(payload.applied + rejectedTotal).toBe(payload.requested);
+  });
+
+  // Placed last: ratifying a policy here makes update_shipments auto-approve for the rest of
+  // this file's run, which would starve captureProposal (no PendingProposal ever fires) in
+  // any test that runs after it.
+  it('reports figures that reconcile on the auto-approved policy path', async () => {
+    const matches = Object.values(store.state.shipments).filter(s => s.customer === 'Northwind Retail');
+    const heldCount = matches.filter(s => s.customsHold).length;
+    const unheldCount = matches.filter(s => !s.customsHold).length;
+
+    ratify({
+      id: 'test-policy-update_shipments', tool: 'update_shipments',
+      maxRecords: unheldCount + 10, maxValue: 0,
+      expiresAt: '2099-01-01T00:00:00Z', draftedFrom: 'test', ratified: false,
+    });
+
+    const payload = await callTool('update_shipments', { customer: 'Northwind Retail', setEta: '2094-07-07' });
+
+    expect(payload.status).toBe('applied');
+    expect(payload.applied).toBe(unheldCount);
+    const rejectedTotal = payload.rejected.reduce((n: number, r: any) => n + r.count, 0);
+    expect(rejectedTotal).toBe(heldCount);
+    expect(payload.applied + rejectedTotal).toBe(payload.requested);
   });
 });
