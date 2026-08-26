@@ -9,7 +9,12 @@ import { toolResult } from './result';
 import { store } from '../domain/store';
 
 const mc: any = (document as any).modelContext ?? (navigator as any).modelContext;
-if (!mc) throw new Error('WebMCP unavailable: use Chrome 149+ with chrome://flags/#enable-webmcp-testing, or ChatGPT desktop.');
+
+/** False when the page is open in a browser without WebMCP. The app still works by hand. */
+export const webmcpAvailable = Boolean(mc);
+if (!webmcpAvailable) {
+  console.info('[ladder] WebMCP unavailable: use ChatGPT desktop, or Chrome 149+ with chrome://flags/#enable-webmcp-testing. The console below still works by hand.');
+}
 
 type State = typeof store.state;
 
@@ -88,6 +93,8 @@ async function decide(toolName: string, diff: Diff, notes: Note[], agent: any, s
 }
 
 export function registerLadderTool(spec: LadderToolSpec) {
+  if (!mc) return;
+
   if (spec.readOnly) {
     mc.registerTool({
       name: spec.name, description: spec.description, inputSchema: spec.inputSchema,

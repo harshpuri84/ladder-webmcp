@@ -38,6 +38,45 @@ body {
   color: var(--text-muted);
 }
 
+.webmcp-banner {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 16px 20px;
+  margin-bottom: 20px;
+}
+
+.webmcp-banner-heading {
+  margin: 0 0 8px;
+  font-size: 1rem;
+  color: var(--accent);
+}
+
+.webmcp-banner p {
+  margin: 0 0 8px;
+  color: var(--text);
+  font-size: 0.9rem;
+}
+
+.webmcp-banner-list {
+  margin: 0;
+  padding-left: 20px;
+  font-size: 0.9rem;
+}
+
+.webmcp-banner-list li + li {
+  margin-top: 6px;
+}
+
+.webmcp-banner-code {
+  font-family: 'Geist Mono', ui-monospace, monospace;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 1px 6px;
+  user-select: all;
+}
+
 .console {
   background: var(--surface);
   border: 1px solid var(--border);
