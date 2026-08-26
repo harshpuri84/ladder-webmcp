@@ -103,14 +103,21 @@ export function activePolicy(tool: string): Policy | undefined {
 function revertIfExpired(tool: string, now: Date) {
   const p = policies.get(tool);
   if (!p || !isLapsed(p, now)) return;
+  const r = registrations.get(tool);
   policies.delete(tool);
-  reregister(tool, registrations.get(tool)!.spec.description);
+  if (r) reregister(tool, r.spec.description);
   policyListeners.forEach(fn => fn());
 }
 
+// Guarded the same way reregister() already is: in a browser with no WebMCP,
+// registerLadderTool() returns early and `registrations` never gets an entry for any tool, so
+// ratifying anything (the up-front form, or a drafted proposal) must be a safe no-op rather
+// than a crash mid-write — the policies.set() below must not run before this check.
 export function ratify(p: Policy) {
+  const r = registrations.get(p.tool);
+  if (!r) return;
   policies.set(p.tool, { ...p, ratified: true });
-  reregister(p.tool, `${registrations.get(p.tool)!.spec.description} Changes within the standing rule (${describePolicy(p)}) are applied without review.`);
+  reregister(p.tool, `${r.spec.description} Changes within the standing rule (${describePolicy(p)}) are applied without review.`);
   draftListeners.forEach(fn => fn(null));
   policyListeners.forEach(fn => fn());
 }
