@@ -117,6 +117,7 @@ export function ResultCard({ outcome, shifted, onDismiss }: ResultCardProps) {
         </dl>
       )}
       <p className="rc-note">{note}</p>
+      {p.error && <p className="rc-note">{p.error}</p>}
     </aside>
   );
 }
