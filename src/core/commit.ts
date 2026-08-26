@@ -33,6 +33,13 @@ export interface CommitOutcome {
   dropped: string[];
   notes: Note[];
   violation?: string;
+  /**
+   * Set only when the catch below caught something other than a ScopeViolation — a tool that
+   * threw for real during the commit re-run. Kept apart from `violation`, which means one
+   * specific thing (a write outside the approved set): overloading it here would tell whoever
+   * reads the outcome that the guard fired when the tool simply crashed.
+   */
+  error?: string;
 }
 
 export async function runCommit<S extends object, R>(
@@ -110,10 +117,12 @@ export async function runCommit<S extends object, R>(
     };
   } catch (e) {
     rollback();
+    const isScopeViolation = e instanceof ScopeViolation;
     return {
       status: 'denied',
       applied: [], skipped: 0, released: [], dropped: [], notes,
-      violation: e instanceof ScopeViolation ? e.key : undefined,
+      violation: isScopeViolation ? e.key : undefined,
+      error: isScopeViolation ? undefined : e instanceof Error ? e.message : String(e),
     };
   }
 }

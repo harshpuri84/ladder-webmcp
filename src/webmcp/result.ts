@@ -10,12 +10,14 @@ export interface ToolPayload {
   replan_required: boolean;
   rule_offered: string | null;
   /**
-   * Set only when the tool itself threw during preview, before touching a single row. A crash
-   * is not rejected work — modelling it as a zero-count `rejected` bucket is what made it
-   * fragile: a later, correct rule ("suppress a bucket reporting nothing") could silently
-   * delete it. This is its own field precisely so it survives that rule, and so the agent can
-   * tell a crashed tool apart from the guard blocking a write, which is a distinction this
-   * payload otherwise makes for every other case.
+   * Set only when the tool itself threw — either during preview, before touching a single
+   * row, or for real during the commit re-run (as opposed to the guard refusing a write
+   * outside the approved set, which is `denied` with no `error`). A crash is not rejected
+   * work — modelling it as a zero-count `rejected` bucket is what made it fragile: a later,
+   * correct rule ("suppress a bucket reporting nothing") could silently delete it. This is its
+   * own field precisely so it survives that rule, and so the agent can tell a crashed tool
+   * apart from the guard blocking a write, which is a distinction this payload otherwise makes
+   * for every other case.
    */
   error?: string;
 }

@@ -107,9 +107,28 @@ describe('runCommit', () => {
 
     expect(out.status).toBe('denied');
     expect(out.violation).toBe('rows:A:status');
+    expect(out.error).toBeUndefined();
     expect(s.rows.A.price).toBe(100);
     expect(s.rows.A.status).toBe('Booked');
     expect(s.rows.A.version).toBe(1);
+  });
+
+  // T9: a tool that crashes mid-commit (not a ScopeViolation) used to lose its message —
+  // `violation` stayed undefined because the guard never fired, so nothing carried the real
+  // reason. `error` is the dedicated field for that case; it must never be set alongside a
+  // genuine `violation`, since the two mean different things to whoever reads the receipt.
+  it('preserves a generic thrown message on the commit outcome without touching violation', async () => {
+    const s = fixture(); const o = wire(s);
+    const { diff } = await runShadow(s, repriceAll, o);
+    const ws = buildWriteSet(diff, ['rows:A', 'rows:B', 'rows:C'], []);
+
+    const crash = async () => { throw new Error('divide by zero in the real run'); };
+    const out = await runCommit(s, crash, ws, o);
+
+    expect(out.status).toBe('denied');
+    expect(out.error).toBe('divide by zero in the real run');
+    expect(out.violation).toBeUndefined();
+    expect(s.rows.A.price).toBe(100);
   });
 
   it('aborts without writing when a row changed since the preview', async () => {

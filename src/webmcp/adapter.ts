@@ -309,7 +309,11 @@ export function registerLadderTool(spec: LadderToolSpec) {
 
     return finish(cause, {
       status: reportedStatus,
-      requested,
+      // A commit crash (not a ScopeViolation, see out.error's doc comment in core/commit.ts)
+      // reports nothing in `rejected` — a crash is not rejected work — so `requested` has to
+      // match `applied` here too, the same way the preview-crash path above reports 0/0/[];
+      // otherwise the applied + Σrejected.count === requested invariant breaks.
+      requested: out.error !== undefined ? appliedTotal : requested,
       applied: appliedTotal,
       rejected,
       actions_released: out.released.length,
@@ -318,6 +322,7 @@ export function registerLadderTool(spec: LadderToolSpec) {
       // happen — that always means a replan, whether or not it moved `out.status` at all.
       replan_required: rejectedTotal > 0,
       rule_offered: draft ? describePolicy(draft) : null,
+      ...(out.error !== undefined ? { error: `the tool failed during commit: ${out.error}` } : {}),
     }, auto ? describePolicy(pol!) : undefined);
   };
 

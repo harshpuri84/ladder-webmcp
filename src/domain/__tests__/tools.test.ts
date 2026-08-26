@@ -399,6 +399,44 @@ describe('domain tools', () => {
     expect(store.state.shipments[target.id].eta).toBe(beforeEta);
   });
 
+  // Task 9b: a tool that throws for real during the commit re-run — a bug, not a
+  // ScopeViolation — used to reach the agent as a bare "denied" with no specifics. This
+  // registers a small test-only tool straight through the real registerLadderTool() (domain/
+  // tools.ts stays untouched) so the fix is exercised through the actual adapter wiring rather
+  // than reimplemented here.
+  it('reports the real message when a tool crashes during commit, not a scope violation', async () => {
+    const crashSeenInputs = new WeakSet<object>();
+    registerLadderTool({
+      name: 'crash_on_commit_test',
+      description: 'Test-only: writes cleanly on preview, throws for real on the commit re-run.',
+      inputSchema: { type: 'object', properties: {} },
+      async exec(input: any, ctx: any) {
+        const [firstId] = Object.keys(ctx.db.shipments);
+        ctx.db.shipments[firstId].status = 'Delivered';
+        if (crashSeenInputs.has(input)) throw new Error('divide by zero in the real run');
+        crashSeenInputs.add(input);
+        return { matched: 1 };
+      },
+    });
+
+    let cause: string | undefined;
+    const off = onResult(o => { if (o.toolName === 'crash_on_commit_test') cause = o.cause; });
+    const proposal = await captureProposal('crash_on_commit_test', {});
+    proposal.resolve({ groups: proposal.diff.groups.map((g: any) => g.group), actions: [] });
+    const payload = await proposal.result;
+    off();
+
+    expect(cause).toBe('tool_error');
+    expect(payload.status).toBe('denied');
+    expect(payload.applied).toBe(0);
+    expect(payload.rejected).toEqual([]);
+    expect(payload.error).toBe('the tool failed during commit: divide by zero in the real run');
+    // Same reconciliation invariant as every other path — a crash reports nothing rejected
+    // (see the `error` field's own doc comment), so `requested` has to match `applied` here.
+    const rejectedTotal = payload.rejected.reduce((n: number, r: any) => n + r.count, 0);
+    expect(payload.applied + rejectedTotal).toBe(payload.requested);
+  });
+
   // Placed last: ratifying a policy here makes update_shipments auto-approve for the rest of
   // this file's run, which would starve captureProposal (no PendingProposal ever fires) in
   // any test that runs after it.
