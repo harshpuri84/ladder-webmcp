@@ -16,7 +16,7 @@ function frame(o: ProposalOutcome): Framing {
       return {
         tone: 'moved',
         title: 'The records moved on',
-        note: `They changed while this was open, so nothing was applied against a stale picture. ${o.toolName} has been sent back to preview them again.`,
+        note: `They changed while this was open, so nothing was applied against a stale picture. ${o.toolName} has been told to preview them again.`,
       };
     case 'blocked':
       return {
