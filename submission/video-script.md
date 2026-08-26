@@ -21,11 +21,17 @@ it is wrong."
 
 ## 0:15–0:35 — Consequences, not arguments.
 
-**On screen:** scroll the diff slowly. Land on the "7 skipped, customs hold open" strip.
+**On screen:** scroll the diff slowly. Let two or three rows read: the shipment id, the customer
+and lane beneath it, and the price struck through and replaced, with the euro delta on the right.
 
 **Say:** "The agent asked to reprice a lane. The platform would show me the function call. This
-shows me what the call does: seventeen records, seven and a half thousand euros, and seven rows
-the tool left alone because they are held at customs."
+shows me what the call does: seventeen records, seven and a half thousand euros, and exactly
+which price becomes which."
+
+> **Note.** `reprice_shipments` has no customs-hold rule, so there is no "skipped" strip on this
+> call. If you want that beat on camera, it belongs to `update_shipments`, which does skip held
+> rows and reports them. Either add a short second call, or run the whole demo on
+> `update_shipments` and lose the money figure from the hero. I would keep the money.
 
 ## 0:35–1:05 — The sculpt. This is the money shot.
 

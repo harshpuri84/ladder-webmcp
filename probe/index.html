@@ -69,6 +69,9 @@
       }
     });
     log('registered slow_approval_probe. Ready.');
+    // The trust beat in the demo calls unregisterTool. Nothing has ever measured whether this
+    // runtime implements it, and if it does not, that beat throws on camera.
+    log('unregisterTool present: ' + (typeof mc.unregisterTool === 'function'));
   }
 
   btn.onclick = () => { if (window.__resolve) { window.__resolve('approved'); window.__resolve = null; } };
