@@ -1,4 +1,4 @@
-import { useMemo, useState, useSyncExternalStore } from 'react';
+import { useState, useSyncExternalStore } from 'react';
 import { store } from '../domain/store';
 
 const priceFormatter = new Intl.NumberFormat('en-GB', {
@@ -12,24 +12,26 @@ function subscribe(onStoreChange: () => void) {
 }
 
 function getSnapshot() {
-  return store.state;
+  return store.version;
 }
 
 export function Console() {
-  const state = useSyncExternalStore(subscribe, getSnapshot);
+  // Subscribed for the re-render only: the snapshot is a counter, because the state object
+  // is mutated in place and never changes identity. Memoising the rows against a mutable
+  // store is what made this table go stale after a commit, so the filter runs each render.
+  useSyncExternalStore(subscribe, getSnapshot);
   const [filter, setFilter] = useState('');
 
-  const shipments = useMemo(() => {
-    const all = Object.values(state.shipments);
-    const q = filter.trim().toLowerCase();
-    if (!q) return all;
-    return all.filter(
-      s =>
-        s.customer.toLowerCase().includes(q) ||
-        s.origin.toLowerCase().includes(q) ||
-        s.destination.toLowerCase().includes(q),
-    );
-  }, [state, filter]);
+  const all = Object.values(store.state.shipments);
+  const q = filter.trim().toLowerCase();
+  const shipments = q
+    ? all.filter(
+        s =>
+          s.customer.toLowerCase().includes(q) ||
+          s.origin.toLowerCase().includes(q) ||
+          s.destination.toLowerCase().includes(q),
+      )
+    : all;
 
   return (
     <div className="console">
@@ -42,7 +44,7 @@ export function Console() {
           onChange={e => setFilter(e.target.value)}
         />
         <span className="console-count">
-          {shipments.length} of {Object.keys(state.shipments).length} shipments
+          {shipments.length} of {Object.keys(store.state.shipments).length} shipments
         </span>
       </div>
       <table className="console-table">
