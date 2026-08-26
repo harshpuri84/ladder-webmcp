@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { runShadow } from '../shadow';
+import { collectingEffects, releasingEffects } from '../effects';
 import type { WriteRecord } from '../types';
 
 const fixture = () => ({
@@ -66,5 +67,43 @@ describe('runShadow', () => {
     expect(r.ok).toBe(false);
     expect(r.error!.message).toBe('boom');
     expect(s.rows.A.price).toBe(100);
+  });
+});
+
+describe('action identity', () => {
+  it('derives the same id for the same action regardless of call order', async () => {
+    const a = collectingEffects();
+    await a.effects.notify('one@example.com', 'first');
+    await a.effects.notify('two@example.com', 'second');
+
+    const b = collectingEffects();
+    await b.effects.notify('two@example.com', 'second');   // reversed
+    await b.effects.notify('one@example.com', 'first');
+
+    expect(new Set(a.actions.map(x => x.actionId)))
+      .toEqual(new Set(b.actions.map(x => x.actionId)));
+  });
+
+  it('distinguishes two genuinely identical actions', async () => {
+    const a = collectingEffects();
+    await a.effects.notify('same@example.com', 'twice');
+    await a.effects.notify('same@example.com', 'twice');
+    const ids = a.actions.map(x => x.actionId);
+    expect(ids[0]).not.toBe(ids[1]);
+    expect(new Set(ids).size).toBe(2);
+  });
+
+  it('releases the approved action even when commit calls them in a different order', async () => {
+    const preview = collectingEffects();
+    await preview.effects.notify('keep@example.com', 'keep me');
+    await preview.effects.notify('drop@example.com', 'drop me');
+    const approved = new Set([preview.actions[0].actionId]);
+
+    const commit = releasingEffects(approved);
+    await commit.effects.notify('drop@example.com', 'drop me');   // reversed order
+    await commit.effects.notify('keep@example.com', 'keep me');
+
+    expect(commit.released).toEqual([preview.actions[0].actionId]);
+    expect(commit.dropped).toEqual([preview.actions[1].actionId]);
   });
 });
