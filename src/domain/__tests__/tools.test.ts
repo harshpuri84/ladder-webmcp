@@ -1,47 +1,128 @@
-import { describe, it, expect, afterEach } from 'vitest';
+import { describe, it, expect, beforeAll, afterAll } from 'vitest';
+import type { store as StoreModule } from '../store';
+import type { registerDomainTools as RegisterDomainTools } from '../tools';
+import type { onProposal as OnProposal } from '../../webmcp/adapter';
 
-// This test exercises the *real* registration and preview path — the actual
-// registerLadderTool()/runShadow() wiring in src/webmcp/adapter.ts — rather than
-// reimplementing the domain's deltaOf in the test. WebMCP isn't present in the test
-// runner, so a minimal fake `document.modelContext` is installed before the modules
-// under test are imported (adapter.ts throws at import time if it can't find one).
-describe('domain tools: deltaOf wiring', () => {
-  afterEach(() => {
-    delete (globalThis as any).document;
-  });
+// This suite exercises the *real* registration and preview path — the actual
+// registerLadderTool()/runShadow()/runCommit() wiring in src/webmcp/adapter.ts — rather than
+// reimplementing any of it in the test. WebMCP isn't present in the test runner, so a minimal
+// fake `document.modelContext` is installed once, before the modules under test are imported.
+describe('domain tools', () => {
+  let store: typeof StoreModule;
+  let registerDomainTools: typeof RegisterDomainTools;
+  let onProposal: typeof OnProposal;
+  const registered = new Map<string, { execute: (...args: any[]) => Promise<any> }>();
 
-  it('wires a real, nonzero valueDelta into a repricing proposal', async () => {
-    const registered = new Map<string, { execute: (...args: any[]) => Promise<unknown> }>();
+  beforeAll(async () => {
     (globalThis as any).document = {
       modelContext: {
         registerTool: (spec: any) => registered.set(spec.name, spec),
         unregisterTool: (name: string) => registered.delete(name),
       },
     };
-
-    const { store } = await import('../store');
-    const { registerDomainTools } = await import('../tools');
-    const { onProposal } = await import('../../webmcp/adapter');
+    ({ store } = await import('../store'));
+    ({ registerDomainTools } = await import('../tools'));
+    ({ onProposal } = await import('../../webmcp/adapter'));
     registerDomainTools();
+  });
 
-    const reprice = registered.get('reprice_shipments');
-    expect(reprice).toBeDefined();
+  afterAll(() => {
+    delete (globalThis as any).document;
+  });
 
+  function callTool(name: string, input: any): Promise<any> {
+    return registered.get(name)!.execute(input);
+  }
+
+  /**
+   * Kicks off a non-readOnly tool call and waits for its PendingProposal to reach
+   * `onProposal`, without deciding it. Returns the diff/notes the human would see, the
+   * `resolve` callback that decides the proposal, and `result` — the tool's still-pending
+   * settled payload, to be awaited only after `resolve` is called.
+   */
+  async function captureProposal(name: string, input: any) {
+    const ready = new Promise<{ diff: any; notes: any[]; resolve: (d: any) => void }>(readyResolve => {
+      const off = onProposal(p => {
+        if (p && p.toolName === name) {
+          off();
+          readyResolve({ diff: p.diff, notes: p.notes, resolve: p.resolve });
+        }
+      });
+    });
+    const result = callTool(name, input);
+    const { diff, notes, resolve } = await ready;
+    return { diff, notes, resolve, result };
+  }
+
+  it('wires a real, nonzero valueDelta into a repricing proposal', async () => {
     const matches = Object.values(store.state.shipments).filter(s => s.customer === 'Northwind Retail');
     expect(matches.length).toBeGreaterThan(0);
     const expectedDelta = matches.reduce((sum, s) => sum + (Math.round(s.price * 1.1) - s.price), 0);
     expect(expectedDelta).not.toBe(0);
 
-    let capturedDiff: any;
-    const off = onProposal(p => {
-      if (p) { capturedDiff = p.diff; p.resolve(null); }
-    });
+    const proposal = await captureProposal('reprice_shipments', { customer: 'Northwind Retail', pct: 10 });
+    expect(proposal.diff.totals.valueDelta).toBe(expectedDelta);
+    expect(proposal.diff.totals.valueDelta).not.toBe(0);
 
-    await reprice!.execute({ customer: 'Northwind Retail', pct: 10 });
-    off();
+    proposal.resolve(null);
+    await proposal.result;
+  });
 
-    expect(capturedDiff).toBeDefined();
-    expect(capturedDiff.totals.valueDelta).toBe(expectedDelta);
-    expect(capturedDiff.totals.valueDelta).not.toBe(0);
+  it('skips and notes customs-hold rows, keeping them out of the diff', async () => {
+    const matches = Object.values(store.state.shipments).filter(s => s.customer === 'Northwind Retail');
+    const held = matches.filter(s => s.customsHold);
+    const unheld = matches.filter(s => !s.customsHold);
+    expect(held.length).toBeGreaterThan(0);
+    expect(unheld.length).toBeGreaterThan(0);
+
+    const proposal = await captureProposal('update_shipments', { customer: 'Northwind Retail', setEta: '2099-01-01' });
+
+    expect(proposal.diff.totals.records).toBe(unheld.length);
+    expect(proposal.diff.groups.map((g: any) => g.id).sort()).toEqual(unheld.map(s => s.id).sort());
+    expect(proposal.notes).toHaveLength(held.length);
+    for (const h of held) {
+      expect(proposal.notes.some((n: any) => n.id === h.id && n.reason === 'customs hold open')).toBe(true);
+    }
+
+    proposal.resolve(null);
+    await proposal.result;
+  });
+
+  it('reports figures that reconcile when rows are skipped for a domain reason (full refusal)', async () => {
+    const matches = Object.values(store.state.shipments).filter(s => s.customer === 'Northwind Retail');
+    const heldCount = matches.filter(s => s.customsHold).length;
+    expect(heldCount).toBeGreaterThan(0);
+    expect(heldCount).toBeLessThan(matches.length);
+
+    const proposal = await captureProposal('update_shipments', { customer: 'Northwind Retail', setEta: '2099-01-01' });
+    proposal.resolve(null);
+    const payload = await proposal.result;
+
+    const rejectedTotal = payload.rejected.reduce((n: number, r: any) => n + r.count, 0);
+    expect(payload.applied + rejectedTotal).toBe(payload.requested);
+    expect(payload.rejected.some((r: any) => r.reason === 'customs hold open')).toBe(true);
+  });
+
+  it('reports figures that reconcile in the partially-applied case', async () => {
+    const matches = Object.values(store.state.shipments).filter(s => s.customer === 'Northwind Retail');
+    const unheldIds = matches.filter(s => !s.customsHold).map(s => s.id);
+    expect(unheldIds.length).toBeGreaterThan(1);
+    const approveCount = Math.floor(unheldIds.length / 2);
+    expect(approveCount).toBeGreaterThan(0);
+    const toApprove = new Set(unheldIds.slice(0, approveCount));
+
+    const proposal = await captureProposal('update_shipments', { customer: 'Northwind Retail', setEta: '2099-01-01' });
+    const approvedGroups = proposal.diff.groups
+      .filter((g: any) => toApprove.has(g.id))
+      .map((g: any) => g.group);
+    expect(approvedGroups.length).toBe(approveCount);
+
+    proposal.resolve({ groups: approvedGroups, actions: [] });
+    const payload = await proposal.result;
+
+    expect(payload.status).toBe('partially_applied');
+    expect(payload.applied).toBe(approveCount);
+    const rejectedTotal = payload.rejected.reduce((n: number, r: any) => n + r.count, 0);
+    expect(payload.applied + rejectedTotal).toBe(payload.requested);
   });
 });

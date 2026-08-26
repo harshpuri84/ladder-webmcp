@@ -122,7 +122,12 @@ export function registerLadderTool(spec: LadderToolSpec) {
       });
     }
 
-    const requested = shadow.diff.totals.records + shadow.diff.actions.length;
+    // diffRequested is what the human is actually shown and decides on. Rows the tool
+    // skipped for a domain reason (e.g. a customs hold) never enter the diff, but the agent
+    // asked about them and hears about them in `rejected` — so `requested`, the figure sent
+    // to the agent, must count them too, or applied + rejected will not reconcile against it.
+    const diffRequested = shadow.diff.totals.records + shadow.diff.actions.length;
+    const requested = diffRequested + shadow.notes.length;
     const pol = activePolicy(spec.name);
     const auto = pol ? policyMatches(pol, shadow.diff, new Date()) : false;
 
@@ -136,7 +141,7 @@ export function registerLadderTool(spec: LadderToolSpec) {
       return toolResult({
         status: 'denied', requested, applied: 0,
         rejected: [...rejectedFrom(shadow.notes),
-                   { count: requested, reason: 'the operator refused this change', ids: [] }],
+                   { count: diffRequested, reason: 'the operator refused this change', ids: [] }],
         actions_released: 0, actions_dropped: shadow.diff.actions.length,
         replan_required: true, rule_offered: null,
       });
@@ -147,7 +152,12 @@ export function registerLadderTool(spec: LadderToolSpec) {
     store.notify();
 
     const appliedRows = new Set(out.applied.map(w => `${w.entity}:${w.id}`)).size;
-    const narrowedOut = shadow.diff.totals.records - appliedRows;
+    // narrowedOut only means anything once the commit actually ran: for an abort (stale,
+    // diverged, or a scope violation) nothing was applied for a wholly different reason, and
+    // counting the whole diff as "narrowed" there would double it against the abort's own
+    // bucket below.
+    const committed = out.status === 'applied' || out.status === 'partially_applied';
+    const narrowedOut = committed ? shadow.diff.totals.records - appliedRows : 0;
 
     history.push({ tool: spec.name, proposalId, proposed: requested,
                    approved: appliedRows + out.released.length,
@@ -163,11 +173,16 @@ export function registerLadderTool(spec: LadderToolSpec) {
       requested,
       applied: appliedRows + out.released.length,
       rejected: [
-        ...rejectedFrom([...shadow.notes, ...out.notes]),
+        // shadow.notes — not out.notes — is the domain-skip account here: it is always
+        // complete (drawn from a full preview run), where out.notes can be empty (the commit
+        // aborted before the tool ran at all) or partial (the tool stopped mid-way on a
+        // violation). Merging both would double-count the same rows when a deterministic tool
+        // re-derives the identical skips during the real commit.
+        ...rejectedFrom(shadow.notes),
         ...(narrowedOut > 0 ? [{ count: narrowedOut, reason: 'the operator removed these from the change', ids: [] }] : []),
-        ...(out.status === 'aborted_stale' ? [{ count: requested, reason: 'a record changed after the preview; nothing was applied', ids: [] }] : []),
-        ...(out.status === 'aborted_diverged' ? [{ count: requested, reason: `an approved field would have received a value the preview never showed (${out.violation}); nothing was applied`, ids: [] }] : []),
-        ...(out.violation ? [{ count: requested, reason: `the tool tried to write outside the approved set (${out.violation}); everything was rolled back`, ids: [] }] : []),
+        ...(out.status === 'aborted_stale' ? [{ count: diffRequested, reason: 'a record changed after the preview; nothing was applied', ids: [] }] : []),
+        ...(out.status === 'aborted_diverged' ? [{ count: diffRequested, reason: `an approved field would have received a value the preview never showed (${out.violation}); nothing was applied`, ids: [] }] : []),
+        ...(!committed && out.violation && out.status !== 'aborted_diverged' ? [{ count: diffRequested, reason: `the tool tried to write outside the approved set (${out.violation}); everything was rolled back`, ids: [] }] : []),
       ],
       actions_released: out.released.length,
       actions_dropped: out.dropped.length,
