@@ -490,6 +490,15 @@ describe('domain tools', () => {
     expect(payload.applied + rejectedTotal).toBe(payload.requested);
   });
 
+  // Without an enum, an agent has to guess casing ("in transit" vs "In transit") and gets no
+  // signal when it guesses wrong — this is what makes the zero-match/no-reason case rare
+  // rather than routine.
+  it('constrains the status fields to the five valid values via enum', () => {
+    const validStatuses = ['Booked', 'In transit', 'On hold', 'Delivered', 'Cancelled'];
+    expect((registered.get('search_shipments')! as any).inputSchema.properties.status.enum).toEqual(validStatuses);
+    expect((registered.get('update_shipments')! as any).inputSchema.properties.setStatus.enum).toEqual(validStatuses);
+  });
+
   // Placed last: ratifying a policy here makes update_shipments auto-approve for the rest of
   // this file's run, which would starve captureProposal (no PendingProposal ever fires) in
   // any test that runs after it.

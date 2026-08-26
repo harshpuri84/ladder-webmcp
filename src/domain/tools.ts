@@ -50,11 +50,15 @@ export function setBuggyToolEnabled(enabled: boolean): void {
  */
 const buggySeenInputs = new WeakSet<object>();
 
+// The five values ShipmentStatus actually accepts. Without this, an agent guessing casing
+// (e.g. "in transit" for "In transit") silently matches nothing and gets no signal why.
+const SHIPMENT_STATUSES: ShipmentStatus[] = ['Booked', 'In transit', 'On hold', 'Delivered', 'Cancelled'];
+
 const filterProps = {
   customer: { type: 'string', description: 'Exact customer name to filter by' },
   origin: { type: 'string', description: 'Exact origin to filter by' },
   destination: { type: 'string', description: 'Exact destination to filter by' },
-  status: { type: 'string', description: 'Exact shipment status to filter by' },
+  status: { type: 'string', enum: SHIPMENT_STATUSES, description: 'Exact shipment status to filter by' },
 } as const;
 
 const searchShipments: LadderToolSpec = {
@@ -89,7 +93,7 @@ const updateShipments: LadderToolSpec = {
     type: 'object',
     properties: {
       ...filterProps,
-      setStatus: { type: 'string', description: 'New status to apply to matching rows' },
+      setStatus: { type: 'string', enum: SHIPMENT_STATUSES, description: 'New status to apply to matching rows' },
       setEta: { type: 'string', description: 'New ETA (YYYY-MM-DD) to apply to matching rows' },
     },
   },
