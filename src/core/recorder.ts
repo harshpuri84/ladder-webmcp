@@ -1,3 +1,15 @@
+/**
+ * Scope, by design: this recorder sees writes at depth 2 (entity.id.field) and the
+ * structural writes at depth 1 and depth 0 (replacing a whole record or a whole entity).
+ * It does not see, and cannot guard, a mutation inside a nested object one level past that
+ * — a write like `db.rows.A.meta.limit = 999` reaches `meta` unrecorded, because nothing
+ * traps property writes past depth 2. The guarantee this module makes — every write is
+ * either previewed and approved, or refused — holds for stores whose record fields are
+ * primitives or are replaced wholesale (`db.rows.A.meta = { limit: 999 }` is seen and
+ * guarded normally). It does not hold for mutating inside a nested object field. A store
+ * that needs guarded writes below that depth is out of scope for this recorder as it
+ * stands, not silently supported.
+ */
 import type { RecorderHooks } from './types';
 import { groupKey } from './types';
 
