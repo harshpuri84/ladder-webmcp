@@ -102,6 +102,16 @@ export function ProposalPanel() {
   // guards against deciding the same head twice.
   const resolvedIds = useRef<Set<string>>(new Set());
 
+  // Shared by the footer buttons and the Escape handler below, so both go through the exact
+  // same guard rather than Escape reimplementing decide() and drifting from it.
+  const decideOn = (p: PendingProposal, d: Decision | null) => {
+    const id = p.diff.proposalId;
+    if (resolvedIds.current.has(id)) return;
+    resolvedIds.current.add(id);
+    p.resolve(d);
+    setQueue(q => q.filter(x => x !== p));
+  };
+
   useEffect(() => onProposal(p => {
     if (p) setQueue(q => (q.includes(p) ? q : [...q, p]));
   }), []);
@@ -126,6 +136,19 @@ export function ProposalPanel() {
   useEffect(() => {
     document.body.classList.toggle('pp-active', Boolean(head));
     return () => { document.body.classList.remove('pp-active'); };
+  }, [head]);
+
+  // F11: the panel carries role="dialog" and aria-modal="true", which sets the expectation
+  // that Escape closes it. It has to take the same path Refuse does — resolving the proposal
+  // with a real decision — rather than a silent dismiss, which would just be F1 again by
+  // another route: a proposal vanishing off screen with its promise never settled.
+  useEffect(() => {
+    if (!head) return;
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') decideOn(head, null);
+    };
+    document.addEventListener('keydown', onKeyDown);
+    return () => document.removeEventListener('keydown', onKeyDown);
   }, [head]);
 
   // Everything the agent asked for starts ticked: narrowing is the human act, and starting
@@ -158,15 +181,10 @@ export function ProposalPanel() {
     return next;
   };
 
-  const decide = (d: Decision | null) => {
-    const id = diff.proposalId;
-    // A no-op on an already-resolved head: the second of two decisions dispatched in the same
-    // batch must neither resolve `head` again nor remove a second proposal from the queue.
-    if (resolvedIds.current.has(id)) return;
-    resolvedIds.current.add(id);
-    head.resolve(d);
-    setQueue(q => q.filter(p => p !== head));
-  };
+  // A no-op on an already-resolved head: the second of two decisions dispatched in the same
+  // batch (a double-click, or Escape racing a button click) must neither resolve `head` again
+  // nor remove a second proposal from the queue.
+  const decide = (d: Decision | null) => decideOn(head, d);
   const decided = resolvedIds.current.has(diff.proposalId);
 
   return (
