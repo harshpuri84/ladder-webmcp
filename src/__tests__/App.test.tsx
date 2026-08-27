@@ -78,3 +78,39 @@ describe('App: WebMCP namespace injected after mount', () => {
     expect(screen.queryByText(/needs WebMCP/i)).toBeNull();
   });
 });
+
+/**
+ * The shell's width follows the tab, and it has to keep doing so. Widening the prose tabs to
+ * meet the header rule would have fixed a ragged edge by breaking a reading measure, so the
+ * rule was made to move instead — which means the class that moves it is now load-bearing for
+ * the look of the most-read page on the site, and silent if it regresses.
+ */
+describe('App: the shell is as wide as the tab under it needs', () => {
+  beforeEach(() => {
+    vi.resetModules();
+    (document as any).modelContext = { registerTool: vi.fn(), unregisterTool: vi.fn() };
+  });
+
+  afterEach(() => {
+    cleanup();
+    delete (document as any).modelContext;
+    window.location.hash = '';
+  });
+
+  it('takes the reading measure on the prose tabs and the full width on the register', async () => {
+    const { default: App } = await import('../App');
+
+    for (const [hash, reading] of [
+      ['#/problem', true],
+      ['#/elsewhere', true],
+      ['#/proof', false],
+    ] as const) {
+      window.location.hash = hash;
+      const { container, unmount } = render(<App />);
+      const app = container.querySelector('.app');
+      expect(app).toBeTruthy();
+      expect(app!.classList.contains('app--reading')).toBe(reading);
+      unmount();
+    }
+  });
+});

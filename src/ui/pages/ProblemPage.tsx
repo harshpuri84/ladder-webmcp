@@ -1,4 +1,5 @@
 import { EngineDiagram } from '../EngineDiagram';
+import { PlacementDiagram } from '../PlacementDiagram';
 import { ProofMark } from '../ProofMark';
 import { store } from '../../domain/store';
 import { DISRUPTED_FLIGHT } from '../../domain/seed';
@@ -19,6 +20,17 @@ const PAYLOAD = `{
   "replan_required": true
 }`;
 
+/**
+ * The sample's own figures, read back out of it.
+ *
+ * The paragraph above the block names two numbers and the block names the same two. Typing
+ * either of them a second time is how a page comes to contradict itself mid-sentence one
+ * fixture change later, so the prose reads `applied` out of the quoted sample and the count
+ * off the register, and `ProblemPage.test.tsx` asserts the sample's `requested` still equals
+ * that count. Drift fails there instead of shipping.
+ */
+const SAMPLE = JSON.parse(PAYLOAD) as { requested: number; applied: number };
+
 const NUMBER_WORDS = ['No', 'One', 'Two', 'Three', 'Four', 'Five', 'Six'];
 
 /**
@@ -38,6 +50,23 @@ function Fig({ children }: { children: React.ReactNode }) {
 /** An identifier a reader could type into an editor, set apart from the description of it. */
 function Code({ children }: { children: React.ReactNode }) {
   return <code className="mono pr-code">{children}</code>;
+}
+
+/**
+ * One of the four things that follow from the tool running inside the operator's own tab.
+ *
+ * Set as prose with a run-in bold lead rather than hung off a mark: the reference mark on this
+ * page already means "a limit, set apart from the run", and spending it a second time on a
+ * different kind of list would cost it that meaning. These are the argument continuing, not an
+ * aside from it, so an indent and the lead's weight do the grouping and nothing else has to.
+ */
+function Consequence({ lead, children }: { lead: string; children: React.ReactNode }) {
+  return (
+    <p className="pr-conseq">
+      <strong className="pr-conseq-lead">{lead}</strong>{' '}
+      {children}
+    </p>
+  );
 }
 
 /**
@@ -116,6 +145,60 @@ export function ProblemPage() {
       </section>
 
       <section className="pr-sec">
+        <h2 className="pr-h">Why this has to live in the page</h2>
+        <PlacementDiagram />
+        <p className="pr-p">
+          Before WebMCP, an agent that wanted to act on your records called an MCP server. The
+          server holds the tools, the server holds the credentials, and the person whose
+          records are changing is not in the room. They find out afterwards.
+        </p>
+        <p className="pr-p">
+          WebMCP moves the tool into the page.{' '}
+          <Code>document.modelContext.registerTool()</Code> puts the tool's{' '}
+          <Code>execute()</Code> inside the tab the operator already has open, running against
+          the state their screen is rendering, under the session they are already signed in
+          with.
+        </p>
+        <p className="pr-p">
+          That relocation is not a detail of packaging. It is the thing that makes this pattern
+          possible, and four consequences follow from it that a tool on a server cannot have:
+        </p>
+        <Consequence lead="The human is already here.">
+          The tool is called in a tab someone is looking at. There is no notification to send,
+          no approval queue to build, no second device to reach for. The interruption lands
+          where the work already was.
+        </Consequence>
+        <Consequence lead="The page owns the state, so it can rehearse against it.">
+          Ladder forks the application's own state with <Code>structuredClone</Code> and
+          runs the real <Code>execute()</Code> against the copy. A server-side tool has no copy
+          of your interface's state to rehearse against, and nowhere to show you the
+          result except a channel you are not watching.
+        </Consequence>
+        <Consequence lead="The tool's description can be rewritten at runtime.">
+          <Code>unregisterTool</Code>, then <Code>registerTool</Code> with new words. When an
+          operator ratifies a standing rule, the agent's own toolset changes and the agent
+          reads what it is now allowed to do — with no redeploy, no config file, and no
+          round trip to ask.
+        </Consequence>
+        <Consequence lead="The credential is the session that was already there.">
+          Nothing is issued to the agent. The operator's own signed-in session does the
+          work, so what the agent can reach is bounded by what that person could already do by
+          hand.
+        </Consequence>
+        <p className="pr-p">
+          The specification did anticipate the human. <Code>agent.requestUserInteraction()</Code>{' '}
+          exists on paper. Measured against Chrome 151 on 26 August 2026, <Code>execute</Code>{' '}
+          receives only its first argument, so there is no agent object to call it on. Ladder
+          detects for the hook and renders its own surface until it lands.
+        </p>
+        <p className="pr-p">
+          And where it does land, it can ask a question. What a question cannot express is the
+          three things this actually needs: consequences instead of arguments, part of a change
+          instead of all of it, and a refusal the agent can reason with.
+        </p>
+      </section>
+
+      <section className="pr-sec">
         <h2 className="pr-h">How it works</h2>
         <EngineDiagram />
         <p className="pr-p">
@@ -138,7 +221,7 @@ export function ProblemPage() {
       <section className="pr-sec">
         <h2 className="pr-h">A refusal is a message</h2>
         <p className="pr-p">
-          When someone cuts <Fig>{shipments}</Fig> down to <Fig>27</Fig>, the tool does not
+          When someone cuts <Fig>{shipments}</Fig> down to <Fig>{SAMPLE.applied}</Fig>, the tool does not
           return success. It returns what happened and why the rest did not.
         </p>
         {/* The only element on the page that can scroll sideways, so it takes a tab stop

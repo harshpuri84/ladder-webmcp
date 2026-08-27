@@ -2597,3 +2597,104 @@ body.pp-active .console-table td {
 .ed-return {
   color: var(--ink-muted);
 }
+
+/* ---------- the problem: why the tool belongs in the page ---------- */
+
+/*
+ * The four consequences of the tool running inside the operator's own tab. Indented as a set
+ * and grouped by the weight of each run-in lead, not by a mark: the reference mark on this
+ * page already means "a limit, set apart from the run", and a second list hung off the same
+ * mark would take that meaning back off it. The indent matches the limits' own inset so the
+ * two sets sit on one left edge, which is the only thing they should have in common.
+ */
+.pr-conseq {
+  margin: 0 0 16px;
+  padding-left: 25px;
+  max-width: calc(68ch + 25px);
+  font-size: 0.86rem;
+  line-height: 1.72;
+}
+
+.pr-conseq-lead {
+  font-weight: 600;
+}
+
+/* The measured note that closes the argument is not a fifth consequence. Space says so. */
+.pr-conseq + .pr-p {
+  margin-top: 26px;
+}
+
+/* ---------- where the tool lives, drawn ---------- */
+
+.pd {
+  margin: 20px 0 30px;
+  color: var(--ink);
+}
+
+.pd-svg {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.pd-svg--row {
+  max-width: 700px;
+}
+
+/*
+ * One arrangement is shown and the other removed outright, so exactly one drawing is ever in
+ * the accessibility tree. Below this width two five-station runs stop being readable well
+ * before they stop fitting.
+ *
+ * 760px, not the 720px this diagram alone would need: `EngineDiagram` stacks at 760, and the
+ * two drawings sit in consecutive sections of one page. Switching them at different widths
+ * leaves a 40px window where the reader sees one figure stacked and the other in a row, which
+ * reads as a bug in the page rather than as two independent decisions.
+ */
+.pd-svg--column {
+  display: none;
+  max-width: 320px;
+}
+
+@media (max-width: 760px) {
+  .pd-svg--row { display: none; }
+  .pd-svg--column { display: block; }
+}
+
+/* Text inside the drawing is filled, not stroked — the run's stroke belongs to the rules. */
+.pd-label {
+  fill: currentColor;
+  stroke: none;
+  font-family: var(--face);
+  font-size: 0.76rem;
+}
+
+/* Which band this is. Said by weight, in the same ink as everything else it labels. */
+.pd-band {
+  font-weight: 600;
+}
+
+/*
+ * What each boundary encloses, and what the operator on the far side of one gets. Both are
+ * already said by the rule form and by the drawing's own words; the lighter ink only agrees
+ * with them, and it is a luminance step rather than a hue.
+ */
+.pd-note {
+  fill: var(--ink-muted);
+}
+
+/*
+ * The reading tabs' shell width.
+ *
+ * Deliberately the same 724px `.pr` caps itself at, so the header, the tab bar's rule and
+ * every rule on the sheet below it share one right edge. The proof tab keeps `.app`'s full
+ * 1100px, which its register needs. Set after the 1080px block on purpose: below that width
+ * the register is what wants `max-width: 100%`, and prose still wants its measure — a
+ * `max-width` already yields the full width on any viewport narrower than the cap.
+ *
+ * This changes only how wide `.app` is allowed to be. The panel's right-margin reservation
+ * lives on `.app-shell` (`body.pp-active .app-shell`), which nothing here touches.
+ */
+.app--reading {
+  max-width: 724px;
+}

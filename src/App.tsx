@@ -42,7 +42,14 @@ function App() {
 
   return (
     <div className="app-shell">
-      <div className="app">
+      {/*
+        * The shell is as wide as the tab under it needs to be. The proof is a register and
+        * genuinely wants the full 1100px; the two reading tabs are prose and want a reading
+        * measure, and a header rule spanning 1100px over a sheet that stops at 724px is a
+        * ragged edge on the first thing a reader looks at. Widening the prose to match the
+        * rule would fix the edge by breaking the measure, so the rule moves instead.
+        */}
+      <div className={tab === 'proof' ? 'app' : 'app app--reading'}>
         <header className="app-header">
           <h1>Ladder</h1>
           <p className="app-subtitle">
