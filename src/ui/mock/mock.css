@@ -474,3 +474,60 @@
 .ew-list {
   margin-top: 28px;
 }
+
+/*
+ * The selector across the kinds of work. Three names, one open.
+ *
+ * Which one is in effect is said three times before the tint agrees with it: the weight, the
+ * 3px double rule under the name — the same "in effect" motif as the tab bar and the step
+ * strip — and `aria-pressed` for a reader who is not looking at it at all. Take the colour out
+ * and the open one is still the heavy one with the rule beneath it.
+ */
+
+.ew-pick {
+  margin-top: 26px;
+}
+
+.ew-pick-label {
+  margin: 0 0 8px;
+  color: var(--ink-muted);
+  font-size: 0.72rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.16em;
+}
+
+.ew-pick-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 26px;
+  border-bottom: 1px solid var(--rule);
+}
+
+.ew-pick-btn {
+  margin-bottom: -1px;
+  padding: 0 0 9px;
+  border: 0;
+  border-bottom: 3px double transparent;
+  background: none;
+  color: var(--ink-muted);
+  font-family: inherit;
+  font-size: 0.86rem;
+  cursor: pointer;
+}
+
+.ew-pick-btn:hover {
+  color: var(--mark);
+}
+
+.ew-pick-btn--now {
+  border-bottom-color: var(--mark);
+  color: var(--ink);
+  font-weight: 600;
+}
+
+@media (max-width: 700px) {
+  .ew-pick-row {
+    gap: 0 18px;
+  }
+}
