@@ -351,7 +351,21 @@ function composedDescription(name: string, policy?: Policy): string {
     (target
       ? `; anything above that is referred to a ${target.label.toLowerCase()} and is not applied by this call.`
       : '.');
-  return `${r.spec.description}${rule}${authority}`;
+  // What the agent should do when one of those two boundaries bites. `rejected` is inert to an
+  // agent that reads any non-success as "call it again the same way": the reasons and the ids
+  // are there so the next call can be a narrower, different one, and nothing but a sentence in
+  // the description ever tells it so. Last, after both boundary sentences, because it is about
+  // what happens once one of them has already applied.
+  const replan =
+    ' When the result\'s status is `partially_applied` or `denied`, do not retry the same call.'
+    + ' Read `rejected`: each entry carries a reason and the exact ids it applies to.'
+    + ' Propose a follow-up that addresses those reasons, restricted to those ids.'
+    // Only a role with someone above it can produce a `pending` bucket at all, so the sentence
+    // that explains one is omitted where no row could ever be referred.
+    + (target
+      ? ' An entry carrying `pending` is with a second person rather than refused; leave those ids out of the follow-up.'
+      : '');
+  return `${r.spec.description}${rule}${authority}${replan}`;
 }
 
 /**
@@ -544,6 +558,16 @@ export function registerLadderTool(spec: LadderToolSpec) {
     // to the agent, must count them too, or applied + rejected will not reconcile against it.
     const diffRequested = shadow.diff.totals.records + shadow.diff.actions.length;
     const requested = diffRequested + shadow.notes.length;
+
+    // The subjects of every bucket built below, named once. A refusal an agent cannot attach
+    // to anything is a refusal it cannot replan around, so no bucket on any path is left with
+    // an empty `ids` while the preview still knows what it covered. One group per record, and
+    // the action ids are the same content-derived ones the human approved (or did not) by
+    // name — a diff carries records or messages, effectively never both, so the two are only
+    // ever concatenated on the paths that reject the whole preview at once.
+    const recordIds = shadow.diff.groups.map(g => g.id);
+    const actionIds = shadow.diff.actions.map(a => a.actionId);
+    const allPreviewedIds = [...recordIds, ...actionIds];
     const pol = activePolicy(spec.name);
     const auto = pol ? policyMatches(pol, shadow.diff, new Date()) : false;
 
@@ -587,8 +611,13 @@ export function registerLadderTool(spec: LadderToolSpec) {
       const noMatch = nothingToDecide && requested === 0;
       return finish(nothingToDecide ? 'nothing_to_decide' : 'refused', {
         status: 'denied', requested, applied: 0,
-        rejected: [...rejectedFrom(shadow.notes),
-                   { count: diffRequested, reason: 'the operator refused this change', ids: [] }],
+        rejected: [
+          ...rejectedFrom(shadow.notes),
+          // One line per kind rather than a single `diffRequested` line, so each says which
+          // ids it covers; together they still sum to diffRequested, so the ledger is unmoved.
+          { count: shadow.diff.groups.length, reason: 'the operator refused this change', ids: recordIds },
+          { count: shadow.diff.actions.length, reason: 'the operator did not approve these messages', ids: actionIds },
+        ],
         actions_released: 0, actions_dropped: shadow.diff.actions.length,
         replan_required: true, rule_offered: null,
         ...(noMatch ? { reason: 'no records or actions matched this request; nothing was found to change' } : {}),
@@ -605,7 +634,10 @@ export function registerLadderTool(spec: LadderToolSpec) {
     const out = await runCommit(store.state, run, ws, { versionOf, bumpVersion });
     store.notify();
 
-    const appliedRows = new Set(out.applied.map(w => `${w.entity}:${w.id}`)).size;
+    // Kept as the set, not just its size: the rows the operator struck out are exactly the
+    // previewed groups that are neither in here nor referred, and naming them needs the keys.
+    const appliedRowKeys = new Set(out.applied.map(w => `${w.entity}:${w.id}`));
+    const appliedRows = appliedRowKeys.size;
     // narrowedOut and droppedActions only mean anything once the commit actually ran: for an
     // abort (stale, diverged, or a scope violation) nothing was applied or released for a
     // wholly different reason, and counting the whole diff (or every approved action) as
@@ -623,6 +655,15 @@ export function registerLadderTool(spec: LadderToolSpec) {
     const referredCount = committed ? referredGroups.length : 0;
     const removedByOperator = narrowedOut - referredCount;
     const referredIds = referredGroups.map(g => g.id);
+    // A diff group's key is `entity:id`, the same shape appliedRowKeys holds, so this is a
+    // straight set difference. Every applied write was previewed (the commit guard allows
+    // nothing else) and a referred group can never be applied, so this list has exactly
+    // `removedByOperator` entries — the count and its subjects come from one fact, not two.
+    const removedIds = committed
+      ? shadow.diff.groups
+          .filter(g => !appliedRowKeys.has(g.group) && !referredKeys.has(g.group))
+          .map(g => g.id)
+      : [];
     const awaiting = target ? target.label.toLowerCase() : 'a second approver';
 
     if (referredCount > 0) {
@@ -658,11 +699,11 @@ export function registerLadderTool(spec: LadderToolSpec) {
         ids: referredIds,
         pending: awaiting,
       }] : []),
-      ...(removedByOperator > 0 ? [{ count: removedByOperator, reason: 'the operator removed these from the change', ids: [] }] : []),
-      ...(droppedActions > 0 ? [{ count: droppedActions, reason: 'the operator did not approve these messages', ids: [] }] : []),
-      ...(out.status === 'aborted_stale' ? [{ count: diffRequested, reason: 'a record changed after the preview; nothing was applied', ids: [] }] : []),
-      ...(out.status === 'aborted_diverged' ? [{ count: diffRequested, reason: `an approved field would have received a value the preview never showed (${out.violation}); nothing was applied`, ids: [] }] : []),
-      ...(!committed && out.violation && out.status !== 'aborted_diverged' ? [{ count: diffRequested, reason: `the tool tried to write outside the approved set (${out.violation}); everything was rolled back`, ids: [] }] : []),
+      ...(removedByOperator > 0 ? [{ count: removedByOperator, reason: 'the operator removed these from the change', ids: removedIds }] : []),
+      ...(droppedActions > 0 ? [{ count: droppedActions, reason: 'the operator did not approve these messages', ids: out.dropped }] : []),
+      ...(out.status === 'aborted_stale' ? [{ count: diffRequested, reason: 'a record changed after the preview; nothing was applied', ids: allPreviewedIds }] : []),
+      ...(out.status === 'aborted_diverged' ? [{ count: diffRequested, reason: `an approved field would have received a value the preview never showed (${out.violation}); nothing was applied`, ids: allPreviewedIds }] : []),
+      ...(!committed && out.violation && out.status !== 'aborted_diverged' ? [{ count: diffRequested, reason: `the tool tried to write outside the approved set (${out.violation}); everything was rolled back`, ids: allPreviewedIds }] : []),
     ];
     const rejectedTotal = rejected.reduce((n, r) => n + r.count, 0);
 
