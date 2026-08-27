@@ -2,38 +2,57 @@ import { useEffect, useRef, useState } from 'react';
 import { onProposal, onResult } from '../webmcp/adapter';
 import type { Decision, PendingProposal, ProposalOutcome } from '../webmcp/adapter';
 import { store } from '../domain/store';
+import type { CustomsStatus, RemedyId, ScreeningStatus, SlaTier } from '../domain/types';
 import { BlastRadius } from './BlastRadius';
 import { DiffGroupRow } from './DiffGroupRow';
+import { RemedySummary } from './RemedySummary';
 import { ActionCard } from './ActionCard';
 import { ResultCard } from './ResultCard';
 import { ProofMark, RegistrationCorners } from './ProofMark';
+import { readProofRow, summariseRemedies } from './remedy-diff';
+import { remedyFull } from './remedy-words';
 
 // 8s read back as "already fading" from a paused frame two seconds in — that turned out to be
 // an opaque-background bug on the auto-apply tone (see .rc--auto in styles.css), not the hold
 // itself, but the hold is lengthened anyway so a demo video has real margin either way.
 const RESULT_HOLD_MS = 12000;
 
+/** Every field propose_remedy and notify_customers accept as a filter, in the agent's words. */
 interface Filter {
+  ids?: string[];
   customer?: string;
-  origin?: string;
-  destination?: string;
-  status?: string;
+  consol?: string;
+  slaTier?: SlaTier;
+  lithiumBattery?: boolean;
+  activeTempControl?: boolean;
+  pharmaQualifiedLane?: boolean;
+  oversizeMainDeckOnly?: boolean;
+  screeningStatus?: ScreeningStatus;
+  customsStatus?: CustomsStatus;
 }
 
-/** "from Shanghai to Rotterdam" — the lane the agent named, in the words a person would use. */
+/**
+ * "on CONSOL-A for Ashgrove Pharma carrying lithium-ion batteries" — the slice of the cancelled
+ * flight the agent named, in the words a person would use rather than as a filter object.
+ */
 function where(f: Filter): string {
   const bits: string[] = [];
-  if (f.origin && f.destination) bits.push(`from ${f.origin} to ${f.destination}`);
-  else if (f.origin) bits.push(`out of ${f.origin}`);
-  else if (f.destination) bits.push(`into ${f.destination}`);
+  if (f.ids?.length) bits.push(`${f.ids.length === 1 ? 'one shipment' : `${f.ids.length} shipments`} by id`);
+  if (f.consol) bits.push(`on ${f.consol}`);
   if (f.customer) bits.push(`for ${f.customer}`);
-  if (f.status) bits.push(`currently ${f.status}`);
+  if (f.slaTier) bits.push(`on the ${f.slaTier} tier`);
+  if (f.lithiumBattery) bits.push('carrying lithium-ion batteries');
+  if (f.oversizeMainDeckOnly) bits.push('built for a main deck');
+  if (f.pharmaQualifiedLane) bits.push('on a pharma-qualified lane');
+  if (f.activeTempControl) bits.push('in an active temperature-controlled container');
+  if (f.screeningStatus === 'pending') bits.push('not yet screened to passenger standard');
+  if (f.customsStatus === 'held') bits.push('still held by customs');
   return bits.join(' ');
 }
 
 const scoped = (f: Filter) => {
   const w = where(f);
-  return w ? `everything ${w}` : 'everything';
+  return w ? `everything ${w}` : 'every shipment on the cancelled flight';
 };
 
 /**
@@ -41,27 +60,17 @@ const scoped = (f: Filter) => {
  * of intent above the numbers means every figure below it is read against a purpose.
  */
 function describeRequest(toolName: string, input: unknown): string {
-  const i = (input ?? {}) as Filter & {
-    pct?: number; setStatus?: string; setEta?: string; message?: string;
-  };
+  const i = (input ?? {}) as Filter & { remedy?: RemedyId; message?: string };
   switch (toolName) {
-    case 'reprice_shipments': {
-      const pct = i.pct ?? 0;
-      const verb = pct < 0 ? 'Cut' : 'Raise';
-      return `${verb} prices ${Math.abs(pct)}% on ${scoped(i)}.`;
+    case 'propose_remedy': {
+      if (i.remedy) {
+        return `Put ${scoped(i)} on ${remedyFull(i.remedy).toLowerCase()}, wherever no rule blocks it.`;
+      }
+      return `Find the cheapest remedy still open to ${scoped(i)}.`;
     }
-    case 'update_shipments': {
-      const parts: string[] = [];
-      if (i.setStatus) parts.push(`status to ${i.setStatus}`);
-      if (i.setEta) parts.push(`ETA to ${i.setEta}`);
-      if (!parts.length) return `Update ${scoped(i)}.`;
-      return `Set ${parts.join(' and ')} on ${scoped(i)}.`;
-    }
-    case 'cancel_shipments':
-      return `Cancel ${scoped(i)}.`;
     case 'notify_customers': {
       const w = where(i);
-      const who = w ? `every customer with a shipment ${w}` : 'every customer';
+      const who = w ? `every customer with a shipment ${w}` : 'every customer on the cancelled flight';
       return `Message ${who}: ‘${i.message ?? ''}’`;
     }
     default:
@@ -76,10 +85,17 @@ function byReason(notes: { id: string; reason: string }[]) {
   return [...counts].map(([reason, count]) => ({ reason, count }));
 }
 
+const tierWord: Record<SlaTier, string> = {
+  premium: 'premium SLA',
+  standard: 'standard SLA',
+  basic: 'basic SLA',
+};
+
+/** Who this house shipment belongs to, which consol it rode, and when it was promised. */
 function subtitleFor(id: string): string {
   const s = store.state.shipments[id];
   if (!s) return '';
-  return `${s.customer} · ${s.origin} → ${s.destination}`;
+  return `${s.customer} · ${s.consol} · ${tierWord[s.slaTier]} · promised ${s.promisedDelivery}`;
 }
 
 export function ProposalPanel() {
@@ -171,8 +187,15 @@ export function ProposalPanel() {
   const selectedActions = diff.actions.filter(a => actions.has(a.actionId));
   const valueDelta = selectedGroups.reduce((n, g) => n + g.valueDelta, 0);
   // Read from the whole diff, not the selection, so the figure does not vanish the moment the
-  // human unticks the last priced row — that is exactly when the zero is worth seeing.
-  const touchesPrice = diff.groups.some(g => g.writes.some(w => w.field === 'price'));
+  // human unticks the last priced row — that is exactly when the zero is worth seeing. The
+  // priced field is the remedy's cost: a run that is entirely free same-carrier rebookings
+  // genuinely has nothing to spend, and the money figure stays off rather than shouting zero.
+  const touchesPrice = diff.groups.some(g => g.writes.some(w => w.field === 'remedyCost'));
+
+  // The remedy breakdown, read off the same selection the extent above it is read off, so the
+  // two never disagree about what is marked.
+  const selectedRows = selectedGroups.map(g => readProofRow(g, store.state.shipments[g.id]));
+  const { lines: remedyLines, constrained } = summariseRemedies(selectedRows);
   const waiting = queue.length - 1;
   const nothingPicked = selectedGroups.length === 0 && selectedActions.length === 0;
 
@@ -232,6 +255,12 @@ export function ProposalPanel() {
             actionsOnly={diff.totals.records === 0 && diff.actions.length > 0}
           />
 
+          <RemedySummary
+            lines={remedyLines}
+            constrained={constrained}
+            total={selectedGroups.length}
+          />
+
           {notes.length > 0 && (
             <section className="pp-notes">
               <p className="pp-notes-caption">
@@ -252,6 +281,7 @@ export function ProposalPanel() {
               <DiffGroupRow
                 key={g.group}
                 group={g}
+                record={store.state.shipments[g.id]}
                 subtitle={subtitleFor(g.id)}
                 checked={groups.has(g.group)}
                 onToggle={() => setGroups(s => toggle(s, g.group))}

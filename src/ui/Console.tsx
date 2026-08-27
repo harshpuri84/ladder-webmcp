@@ -1,13 +1,9 @@
 import { useState, useSyncExternalStore } from 'react';
 import { store } from '../domain/store';
 import { setBuggyToolEnabled } from '../domain/tools';
+import type { Shipment } from '../domain/types';
 import { ProofMark } from './ProofMark';
-
-const priceFormatter = new Intl.NumberFormat('en-GB', {
-  style: 'currency',
-  currency: 'EUR',
-  maximumFractionDigits: 0,
-});
+import { remedyCostWords, remedyShort } from './remedy-words';
 
 function subscribe(onStoreChange: () => void) {
   return store.subscribe(onStoreChange);
@@ -23,14 +19,41 @@ function getSnapshot() {
  * not through a tool, not through Ladder at all — and bumps `version`, the same field the
  * commit-time guard checks. Any pending commit that still expects the old version aborts as
  * stale rather than applying against a world that already moved.
+ *
+ * The edit itself is a revenue correction, because it has to be a field the register renders
+ * (so the change is visible, not just asserted) and a field the remedy proposal does not
+ * touch (so nothing about it can be mistaken for the agent's own work).
  */
 function editRowExternally(id: string) {
   const s = store.state.shipments[id];
   if (!s) return;
   s.version += 1;
-  s.price += 25;
+  s.revenueEur += 25;
   store.notify();
 }
+
+/**
+ * The cargo facts a remedy can founder on, in the order remedy-policy.ts checks them. Each is
+ * a plain flag on the record; the constraint layer, not this table, decides what any of them
+ * costs a shipment. Naming them here is what lets an operator see the constrained handful in
+ * the register before an agent has proposed anything.
+ */
+function constraintsOn(s: Shipment): string[] {
+  const out: string[] = [];
+  if (s.lithiumBattery) out.push('Lithium-ion');
+  if (s.oversizeMainDeckOnly) out.push('Main deck only');
+  if (s.screeningStatus !== 'cleared') out.push('Unscreened');
+  if (s.activeTempControl) out.push(`Active temp ${s.tempEnduranceHours}h`);
+  if (s.pharmaQualifiedLane) out.push('Pharma lane');
+  if (s.customsStatus !== 'released') out.push('Customs held');
+  return out;
+}
+
+const revenue = new Intl.NumberFormat('en-GB', {
+  style: 'currency',
+  currency: 'EUR',
+  maximumFractionDigits: 0,
+});
 
 export function Console() {
   // Subscribed for the re-render only: the snapshot is a counter, because the state object
@@ -47,18 +70,19 @@ export function Console() {
 
   const all = Object.values(store.state.shipments);
   const q = filter.trim().toLowerCase();
-  // F8: receipts and panel notes hand the operator ids ("SHP-10003 skipped, customs hold
-  // open") and status text, and a lane reads as "Shanghai → Rotterdam" — origin and destination
-  // matched separately before, so pasting any of those back in here found nothing.
+  // F8: receipts and panel notes hand the operator ids ("HAWB-70019 skipped, every remedy
+  // blocked") and rule words, so every one of those has to find its row when pasted back in
+  // — the id, the customer, the consol, the tier, and the cargo flags exactly as rendered.
   const shipments = q
     ? all.filter(
         s =>
           s.id.toLowerCase().includes(q) ||
           s.customer.toLowerCase().includes(q) ||
-          s.origin.toLowerCase().includes(q) ||
-          s.destination.toLowerCase().includes(q) ||
-          s.status.toLowerCase().includes(q) ||
-          `${s.origin} → ${s.destination}`.toLowerCase().includes(q),
+          s.consol.toLowerCase().includes(q) ||
+          s.slaTier.toLowerCase().includes(q) ||
+          s.promisedDelivery.toLowerCase().includes(q) ||
+          (s.remedy !== null && remedyShort(s.remedy).toLowerCase().includes(q)) ||
+          constraintsOn(s).some(c => c.toLowerCase().includes(q)),
       )
     : all;
 
@@ -68,13 +92,13 @@ export function Console() {
         <input
           className="console-filter"
           type="text"
-          placeholder="Filter by customer or lane…"
+          placeholder="Filter by customer, consol or cargo…"
           spellCheck={false}
           value={filter}
           onChange={e => setFilter(e.target.value)}
         />
         <span className="console-count">
-          {shipments.length} of {Object.keys(store.state.shipments).length} shipments
+          {shipments.length} of {Object.keys(store.state.shipments).length} house shipments
         </span>
       </div>
       <div className="console-demo-row">
@@ -87,9 +111,10 @@ export function Console() {
           Simulate a buggy tool
         </label>
         <p className="console-demo-note">
-          Makes <code>update_shipments</code> write a field at commit time that the preview
-          never showed, so you can watch Ladder's guard stop it. A deliberate demonstration,
-          not a real bug.
+          Makes <code>propose_remedy</code> rewrite a shipment&rsquo;s SLA tier at commit time —
+          a field the proof never showed and you never approved — so you can watch Ladder&rsquo;s
+          guard stop it and roll the whole commit back. A deliberate demonstration, not a real
+          bug.
         </p>
       </div>
       {/* The register is wider than a phone; it scrolls in its own frame, the page never does. */}
@@ -97,51 +122,77 @@ export function Console() {
         <table className="console-table">
           <thead>
             <tr>
-              <th>ID</th>
+              <th>House</th>
               <th>Customer</th>
-              <th>Lane</th>
-              <th>Status</th>
-              <th>Price</th>
-              <th>ETA</th>
+              <th>Consol</th>
+              <th>SLA</th>
+              <th>Promised</th>
+              <th>Revenue</th>
+              <th>Cargo</th>
+              <th>Remedy</th>
               <th>External edit</th>
             </tr>
           </thead>
           <tbody>
-            {shipments.map(s => (
-              <tr key={s.id}>
-                <td className="mono">
-                  {s.id}
-                  <span className="console-version">v{s.version}</span>
-                </td>
-                <td>{s.customer}</td>
-                <td>
-                  {s.origin} → {s.destination}
-                </td>
-                <td>
-                  {s.status}
-                  {/* The dagger says "set apart from the run" before the amber does — the
-                      colour is the second reading, never the first. */}
-                  {s.customsHold && (
-                    <span className="badge">
-                      <ProofMark name="dagger" size={11} />
-                      Customs hold
-                    </span>
-                  )}
-                </td>
-                <td className="mono">{priceFormatter.format(s.price)}</td>
-                <td className="mono">{s.eta}</td>
-                <td>
-                  <button
-                    className="console-edit-row"
-                    type="button"
-                    title="Simulates another operator or system changing this record outside any agent proposal."
-                    onClick={() => editRowExternally(s.id)}
-                  >
-                    Edit a row
-                  </button>
-                </td>
-              </tr>
-            ))}
+            {shipments.map(s => {
+              const constraints = constraintsOn(s);
+              return (
+                <tr key={s.id}>
+                  <td className="mono">
+                    {s.id}
+                    <span className="console-version">v{s.version}</span>
+                  </td>
+                  <td>{s.customer}</td>
+                  <td className="mono">{s.consol}</td>
+                  <td>{s.slaTier}</td>
+                  <td className="mono">{s.promisedDelivery}</td>
+                  <td className="mono">{revenue.format(s.revenueEur)}</td>
+                  <td>
+                    {constraints.length === 0 ? (
+                      <span className="console-none" aria-label="no cargo constraints">
+                        —
+                      </span>
+                    ) : (
+                      constraints.map(c => (
+                        // The dagger says "set apart from the run" before the amber does — the
+                        // colour is the second reading, never the first.
+                        <span className="badge" key={c}>
+                          <ProofMark name="dagger" size={11} />
+                          {c}
+                        </span>
+                      ))
+                    )}
+                  </td>
+                  <td>
+                    {s.remedy === null ? (
+                      <span className="console-none" aria-label="no remedy proposed yet">
+                        —
+                      </span>
+                    ) : (
+                      // The caret is the same mark the proof line used when this correction
+                      // went in, so a row that took one reads the same in both places.
+                      <span className="console-remedy">
+                        <ProofMark name="insert" size={12} />
+                        {remedyShort(s.remedy)}
+                        <span className="console-remedy-cost mono">
+                          {remedyCostWords(s.remedyCost)}
+                        </span>
+                      </span>
+                    )}
+                  </td>
+                  <td>
+                    <button
+                      className="console-edit-row"
+                      type="button"
+                      title="Simulates another operator or system changing this record outside any agent proposal."
+                      onClick={() => editRowExternally(s.id)}
+                    >
+                      Edit a row
+                    </button>
+                  </td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </div>

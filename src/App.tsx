@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Console } from './ui/Console';
+import { store } from './domain/store';
+import { DISRUPTED_FLIGHT } from './domain/seed';
 import { ProposalPanel } from './ui/ProposalPanel';
 import { RungStrip } from './ui/RungStrip';
 import { ActivityList } from './ui/ActivityList';
@@ -21,8 +23,8 @@ function WebmcpBanner() {
     <div className="webmcp-banner">
       <h2 className="webmcp-banner-heading">The agent half needs WebMCP — the console below works either way</h2>
       <p>
-        This browser can't reach the six shipment tools an agent would call, but every row is
-        still here to browse by hand. To turn the agent half on, open this page in one of:
+        This browser can't reach the four tools an agent would call, but every house shipment
+        is still here to browse by hand. To turn the agent half on, open this page in one of:
       </p>
       <ul className="webmcp-banner-list">
         <li><strong>ChatGPT desktop's built-in browser</strong> — supports WebMCP with no setup.</li>
@@ -34,6 +36,35 @@ function WebmcpBanner() {
         </li>
       </ul>
     </div>
+  );
+}
+
+/**
+ * The one thing every row on this page has in common, stated once at the top: a flight was
+ * cancelled and these are the house shipments that were on it. Every figure is counted off the
+ * fixture rather than written down beside it, so the docket cannot drift from the register
+ * underneath it.
+ */
+function Docket() {
+  const rows = Object.values(store.state.shipments);
+  const customers = new Set(rows.map(s => s.customer)).size;
+  const consols = new Set(rows.map(s => s.consol)).size;
+
+  return (
+    <p className="app-docket">
+      <span className="app-docket-lead">Flight cancelled</span>
+      <span className="app-docket-item mono">{DISRUPTED_FLIGHT.flightNumber}</span>
+      <span className="app-docket-item">
+        {DISRUPTED_FLIGHT.origin} to {DISRUPTED_FLIGHT.destination},{' '}
+        {DISRUPTED_FLIGHT.cancelledDeparture}
+      </span>
+      <span className="app-docket-item mono">{DISRUPTED_FLIGHT.mawb}</span>
+      <span className="app-docket-item">
+        <span className="mono">{rows.length}</span> house shipments ·{' '}
+        <span className="mono">{customers}</span> customers ·{' '}
+        <span className="mono">{consols}</span> consols
+      </span>
+    </p>
   );
 }
 
@@ -68,8 +99,9 @@ function App() {
         <header className="app-header">
           <h1>Ladder</h1>
           <p className="app-subtitle">
-            Shipment register · every agent write comes here as a proof before it lands
+            Every agent write comes here as a proof before it lands
           </p>
+          <Docket />
           <hr className="rule" />
         </header>
         <main>
