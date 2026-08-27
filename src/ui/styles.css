@@ -2415,3 +2415,185 @@ body.pp-active .console-table td {
    ride out a tab change — see App.tsx's own comment on why. Off the page rather than gone. */
 .app-tab-offstage {
   display: none;
+}
+
+/* ---------- the problem: long-form reading ---------- */
+
+/*
+ * Mode is Read, so the page is set as a page and not as a dashboard: one column at a reading
+ * measure, sections separated by a rule and by space rather than parcelled into cards, and
+ * nothing on it that asks to be clicked until the very end.
+ *
+ * The measure is the only reason this column is narrow. Sixty-eight characters is where a
+ * serif line stops costing the reader a return sweep, and every prose element here is capped
+ * at it; the two elements that are not prose — the engine drawing and the returned payload —
+ * are deliberately allowed to run wider, which is also what puts a rhythm on the page.
+ */
+
+/*
+ * The sheet's own width. Every rule, the drawing and the payload share this right edge, so the
+ * page has an edge at all; the prose sits at its measure inside it rather than the rules
+ * running off to a margin the text never reaches.
+ */
+.pr {
+  max-width: 724px;
+  /* The tab bar's double rule is a strong line; the first heading should not sit on it. */
+  padding-top: 8px;
+}
+
+.pr-sec + .pr-sec {
+  margin-top: 40px;
+  padding-top: 36px;
+  border-top: 1px solid var(--rule);
+}
+
+/* More air above a heading than below it: the space belongs to the section it opens. */
+.pr-h {
+  margin: 0 0 13px;
+  max-width: 68ch;
+  font-size: 1rem;
+  font-weight: 600;
+  line-height: 1.35;
+  letter-spacing: -0.005em;
+}
+
+.pr-p {
+  margin: 0 0 14px;
+  max-width: 68ch;
+  font-size: 0.86rem;
+  line-height: 1.72;
+}
+
+.pr-p:last-child {
+  margin-bottom: 0;
+}
+
+/* Set apart by face, not by a chip: a tinted box behind every identifier would pepper the
+   prose with rectangles, and the mono already says "you could type this". */
+.pr-code {
+  font-size: 0.78rem;
+  letter-spacing: -0.01em;
+}
+
+/*
+ * The returned payload, sunk into the sheet the way a pasted-in proof correction is. No
+ * highlighting and no window chrome — it is a tool result quoted in full, not a screenshot of
+ * an editor, and the one thing a reader is meant to do with it is check the arithmetic.
+ */
+.pr-payload {
+  margin: 18px 0;
+  max-width: 720px;
+  padding: 14px 16px;
+  background: var(--paper-sunk);
+  border: 1px solid var(--rule);
+  border-radius: 0;
+  overflow-x: auto;
+  font-size: 0.78rem;
+  line-height: 1.65;
+  color: var(--ink);
+  scrollbar-color: var(--rule-strong) var(--paper-sunk);
+}
+
+/*
+ * A limit, hung off the reference mark that has meant "set apart from the main run" since long
+ * before anyone printed in two colours. The mark is redundant by design: the bold clause states
+ * the limit on its own, so nothing here depends on seeing the dagger, or on seeing colour.
+ */
+.pr-limit {
+  position: relative;
+  margin: 0 0 15px;
+  padding-left: 25px;
+  max-width: 68ch;
+  font-size: 0.86rem;
+  line-height: 1.72;
+}
+
+.pr-limit-mark {
+  position: absolute;
+  left: 2px;
+  top: 0.42em;
+  color: var(--ink-muted);
+}
+
+.pr-limit-lead {
+  font-weight: 600;
+}
+
+/* Not a sixth limit — the measured note that closes the section. Space says so. */
+.pr-p--after-limits {
+  margin-top: 26px;
+}
+
+/*
+ * The imprint rule: the double rule a sheet uses to divide its body from the line at the foot
+ * that says who printed it. A plain link under it, because this page is not selling anything
+ * and a button here would say it was.
+ */
+.pr-onward {
+  margin: 44px 0 0;
+  padding-top: 18px;
+  border-top: 3px double var(--rule-strong);
+  font-size: 0.78rem;
+}
+
+.pr-onward a {
+  color: var(--mark);
+  text-decoration-line: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 3px;
+}
+
+.pr-onward a:hover {
+  text-decoration-thickness: 2px;
+}
+
+/* ---------- the engine, drawn ---------- */
+
+.ed {
+  margin: 20px 0 26px;
+  color: var(--ink);
+}
+
+.ed-svg {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.ed-svg--row {
+  max-width: 700px;
+}
+
+/*
+ * One arrangement is shown and the other is removed outright, so exactly one drawing is ever
+ * in the accessibility tree. Below this width five stages across stop being readable well
+ * before they stop fitting, and a diagram that scrolls sideways is a diagram nobody finishes.
+ */
+.ed-svg--column {
+  display: none;
+  max-width: 340px;
+}
+
+@media (max-width: 760px) {
+  .ed-svg--row { display: none; }
+  .ed-svg--column { display: block; }
+}
+
+/* Text inside the drawing is filled, not stroked — the run's stroke belongs to the rules. */
+.ed-label {
+  fill: currentColor;
+  stroke: none;
+  font-family: var(--face);
+  font-size: 0.76rem;
+}
+
+.ed-mono {
+  font-family: var(--face-mono);
+  letter-spacing: -0.01em;
+}
+
+/* The rollback is already said by the dashed rule and by the stet mark. The lighter ink only
+   agrees with them, and it is a luminance step rather than a hue. */
+.ed-return {
+  color: var(--ink-muted);
+}
