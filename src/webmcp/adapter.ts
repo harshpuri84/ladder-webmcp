@@ -189,6 +189,42 @@ const registrations = new Map<string, { spec: LadderToolSpec; execute: Function 
 // rather than a second mc.registerTool() for the same name.
 const registeredToolNames = new Set<string>();
 
+/**
+ * Every registered tool's spec, in registration order, read-only ones included — `registrations`
+ * above holds only the guarded write tools, because only those need an `execute` closure kept
+ * around to re-register with. The inventory panel needs the read tools too: a surface that
+ * showed only the tools Ladder guards would imply Ladder had something to say about the others,
+ * and its whole claim is the opposite — reads are untouched and go straight through.
+ */
+const toolSpecs = new Map<string, LadderToolSpec>();
+const toolListeners = new Set<() => void>();
+
+/** Fires once per tool as it registers, so a surface mounted before the host injected the
+ *  namespace still fills in rather than showing an empty inventory forever. */
+export function onToolsChange(fn: () => void): () => void {
+  toolListeners.add(fn);
+  return () => { toolListeners.delete(fn); };
+}
+
+export interface ToolSummary {
+  name: string;
+  readOnly: boolean;
+  /** The description as it stands registered with the browser right now — for a guarded tool
+   *  that is the composed one, standing rule and spend boundary included. This is the field
+   *  that makes ratifying a rule visible: it is literally what the agent reads. */
+  description: string;
+}
+
+/** What the agent can see, as the agent sees it. Never a second copy of the registry — every
+ *  field is read back out of the same maps the registration itself wrote. */
+export function listTools(): ToolSummary[] {
+  return [...toolSpecs.values()].map(spec => ({
+    name: spec.name,
+    readOnly: Boolean(spec.readOnly),
+    description: spec.readOnly ? spec.description : composedDescription(spec.name),
+  }));
+}
+
 const isLapsed = (p: Policy, now: Date) => p.ratified && new Date(p.expiresAt) <= now;
 
 /**
@@ -306,6 +342,11 @@ export function reregister(name: string, description: string) {
   if (!r) return;
   mc.unregisterTool(name);
   mc.registerTool({ name, description, inputSchema: r.spec.inputSchema, execute: r.execute });
+  // Every path that changes what the agent reads goes through here — ratifying a rule, revoking
+  // one, a rule lapsing, the role on shift changing. Firing from this one place is what lets the
+  // inventory panel hold a single subscription instead of tracking each of those separately and
+  // eventually missing one.
+  toolListeners.forEach(fn => fn());
 }
 
 let seq = 0;
@@ -412,6 +453,7 @@ export function registerLadderTool(spec: LadderToolSpec) {
   if (!mc) return;
   if (registeredToolNames.has(spec.name)) return;
   registeredToolNames.add(spec.name);
+  toolSpecs.set(spec.name, spec);
 
   if (spec.readOnly) {
     mc.registerTool({
@@ -429,6 +471,7 @@ export function registerLadderTool(spec: LadderToolSpec) {
         return { ...inert, content: [{ type: 'text', text: JSON.stringify(inert) }] };
       },
     });
+    toolListeners.forEach(fn => fn());
     return;
   }
 
@@ -670,4 +713,5 @@ export function registerLadderTool(spec: LadderToolSpec) {
     name: spec.name, description: composedDescription(spec.name),
     inputSchema: spec.inputSchema, execute,
   });
+  toolListeners.forEach(fn => fn());
 }

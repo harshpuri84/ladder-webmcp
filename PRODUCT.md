@@ -83,7 +83,7 @@ author's employer in code, fixture data, copy, or commit history.
 
 - Live: https://ladder-webmcp.vercel.app
 - Public repository: https://github.com/harshpuri84/ladder-webmcp
-- 83 passing tests, including regression coverage for every defect found in review.
+- 195 passing tests, including regression coverage for every defect found in review.
 - A dev-only test double behind `?demo`, gated out of the production build, that registers the
   same tools and lets a human drive the panel without a WebMCP runtime.
 - Fixture data is 200 deterministically seeded shipments with invented customer names. There are

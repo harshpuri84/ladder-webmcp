@@ -6,6 +6,7 @@ import { ProposalPanel } from './ui/ProposalPanel';
 import { RungStrip } from './ui/RungStrip';
 import { AuthorityStrip } from './ui/AuthorityStrip';
 import { ActivityList } from './ui/ActivityList';
+import { ToolPill } from './ui/ToolPill';
 import { isWebmcpAvailable, onAvailabilityChange, registerWhenReady } from './webmcp/adapter';
 import { registerDomainTools } from './domain/tools';
 
@@ -113,6 +114,7 @@ function App() {
         </main>
       </div>
       <ActivityList />
+      <ToolPill />
       <ProposalPanel />
     </div>
   );

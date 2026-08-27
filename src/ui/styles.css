@@ -2196,3 +2196,178 @@ body.pp-active .console-table td {
     transition-duration: 1ms !important;
   }
 }
+
+/* ---------- the agent's side of the glass ---------- */
+
+/*
+ * Bottom-left, not bottom-right. The reference this borrows from puts its tool chip in the
+ * right-hand corner, but that corner is already the returned proof's (.rc, above) and the
+ * proposal panel's. Left is the only corner where the inventory can be permanently present
+ * without ever moving to get out of something's way.
+ *
+ * z-index 9 puts it *under* the proposal overlay (10) deliberately. While a change is being
+ * decided the inventory is not part of the decision, so it dims with everything else instead
+ * of floating over the scrim claiming to still be reachable.
+ */
+.tp {
+  position: fixed;
+  left: 26px;
+  bottom: 26px;
+  z-index: 9;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 10px;
+  max-width: calc(100vw - 52px);
+}
+
+.tp-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 13px;
+  background: var(--paper-raised);
+  border: 1px solid var(--rule-strong);
+  border-radius: 2px;
+  color: var(--ink);
+  font: inherit;
+  font-size: 0.86rem;
+  cursor: pointer;
+  box-shadow:
+    0 1px 2px rgba(23, 21, 15, 0.10),
+    0 7px 14px -6px rgba(23, 21, 15, 0.24);
+}
+
+.tp-chip:hover {
+  border-color: var(--ink-faint);
+}
+
+.tp-chip-count {
+  color: var(--ink-muted);
+  font-size: 0.78rem;
+}
+
+.tp-panel {
+  width: 430px;
+  max-width: 100%;
+  /*
+   * Sized off the viewport rather than a round number: the four tools' rows plus the two
+   * composed descriptions come to ~590px, and a 62vh cap cut that off on a 720px-tall window —
+   * the last row half-drawn, with no scrollbar to say so. The subtraction is what the chip,
+   * the gap above it and the bottom inset actually occupy, so the panel takes every pixel
+   * between the top of the screen and its own chip and no more. Longer content still scrolls.
+   */
+  max-height: calc(100vh - 96px);
+  overflow-y: auto;
+  padding: 15px 17px 14px;
+  background: var(--paper-raised);
+  border: 1px solid var(--rule-strong);
+  box-shadow:
+    0 1px 2px rgba(23, 21, 15, 0.10),
+    0 10px 22px -8px rgba(23, 21, 15, 0.26);
+  animation: tp-in 200ms var(--ease);
+}
+
+@keyframes tp-in {
+  from { opacity: 0; transform: translateY(8px); }
+}
+
+.tp-panel-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 0 0 12px;
+  padding-bottom: 9px;
+  border-bottom: 1px solid var(--rule);
+  font-weight: 600;
+}
+
+.tp-panel-count {
+  color: var(--ink-muted);
+  font-size: 0.78rem;
+  font-weight: 400;
+}
+
+.tp-group {
+  margin: 14px 0 7px;
+  color: var(--ink-muted);
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.16em;
+}
+
+.tp-group:first-of-type {
+  margin-top: 0;
+}
+
+.tp-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.tp-tool {
+  padding: 9px 0;
+  border-top: 1px solid var(--rule);
+}
+
+.tp-tool:first-child {
+  border-top: 0;
+  padding-top: 0;
+}
+
+.tp-tool-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 0 0 4px;
+}
+
+.tp-tool-name {
+  font-size: 0.82rem;
+  font-weight: 600;
+}
+
+/*
+ * The mark carries the state; the hue only agrees with it. A read tool's row is set in the
+ * muted ink and a write tool's in the operator's blue, but strip both and `stet` versus
+ * `query` still says which is which.
+ */
+.tp-tool-standing {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  flex-shrink: 0;
+  color: var(--mark);
+  font-size: 0.76rem;
+  text-align: right;
+}
+
+.tp-tool--read .tp-tool-standing {
+  color: var(--ink-muted);
+}
+
+.tp-tool-desc {
+  margin: 0;
+  color: var(--ink-muted);
+  font-size: 0.78rem;
+  line-height: 1.45;
+}
+
+.tp-foot {
+  margin: 13px 0 0;
+  padding-top: 10px;
+  border-top: 1px solid var(--rule);
+  color: var(--ink-muted);
+  font-size: 0.76rem;
+}
+
+/* Below this the panel would sit on top of the register it is explaining. The chip stays. */
+@media (max-width: 640px) {
+  .tp-panel {
+    max-height: 46vh;
+  }
+}
