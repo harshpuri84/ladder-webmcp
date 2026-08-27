@@ -228,9 +228,11 @@ body.pp-active .al {
   flex-wrap: wrap;
   align-items: baseline;
   gap: 0 14px;
-  margin: 10px 0 0;
-  padding-top: 9px;
-  border-top: 1px solid var(--rule);
+  /* No border-top/padding-top of its own: the docket now sits directly under the tab bar's own
+     double rule (App.tsx renders it first inside the proof tab), and a second hairline ~22px
+     below that one doubled up a line the shipped design never had. This rule's own top margin
+     absorbs what the removed padding used to (10px + 9px), so the spacing reads the same. */
+  margin: 19px 0 0;
   font-size: 0.84rem;
   color: var(--ink-muted);
 }
@@ -2372,7 +2374,8 @@ body.pp-active .console-table td {
 
 .tab-bar {
   display: flex;
-  gap: 26px;
+  flex-wrap: wrap;
+  gap: 10px 26px;
 }
 
 .tab-bar-tab {
@@ -2407,3 +2410,8 @@ body.pp-active .console-table td {
 .tab-bar-rule {
   margin: 0 0 22px;
 }
+
+/* Kept mounted (not removed from the tree) on a non-proof tab, so its state and subscriptions
+   ride out a tab change — see App.tsx's own comment on why. Off the page rather than gone. */
+.app-tab-offstage {
+  display: none;

@@ -162,6 +162,33 @@ const policyListeners = new Set<() => void>();
 // mounts, and replayed to the first subscriber that attaches.
 const bufferedProposals: PendingProposal[] = [];
 
+// A second surface (App.tsx's tab-forcing effect) needs to know a proposal exists without
+// itself being an `onProposal` subscriber — becoming one would just race whichever subscriber
+// mounts first for the same buffer-draining `forEach` above, and React flushes a child's
+// passive effects (ProposalPanel, mounted below App) before a parent's own (App itself), so the
+// child always wins that race and the parent sees an already-emptied buffer. Tracked as a plain
+// counter rather than a boolean so two proposals queued back to back (see the F1 double-decision
+// suite) don't have the second's resolution flip this back to "nothing pending" early.
+let pendingProposalCount = 0;
+const arrivalListeners = new Set<() => void>();
+
+/** True whenever a proposal is awaiting a decision, whether or not it has already been drained
+ *  out of `bufferedProposals` and into a subscriber's own state. Reads nothing from the buffer
+ *  and drains nothing — a second surface can call this on mount to catch up on a proposal that
+ *  arrived before it existed, without competing with `onProposal`'s own replay. */
+export function hasPendingProposal(): boolean {
+  return pendingProposalCount > 0;
+}
+
+/** Fires once per proposal, the moment it is created — alongside the existing buffer/listener
+ *  notification below, never instead of it. Purely a signal: it neither reads nor drains
+ *  `bufferedProposals`, so it can be subscribed to from anywhere without affecting who the
+ *  buffer's own replay goes to. */
+export function onProposalArrival(fn: () => void): () => void {
+  arrivalListeners.add(fn);
+  return () => { arrivalListeners.delete(fn); };
+}
+
 export function onProposal(fn: (p: PendingProposal | null) => void) {
   proposalListeners.add(fn);
   if (bufferedProposals.length > 0) {
@@ -432,12 +459,20 @@ async function decide(
   const pending: PendingProposal = { toolName, input, diff, notes, authority, resolve: resolveFn };
 
   const show = async () => {
+    // Counted and announced here, at creation, regardless of which branch below actually
+    // delivers the proposal — this is what lets a second surface (App.tsx) learn a proposal
+    // exists without becoming another `onProposal` subscriber itself. See the two exports'
+    // own doc comments above.
+    pendingProposalCount++;
+    arrivalListeners.forEach(fn => fn());
+
     // No subscriber yet (e.g. a write call fired before React mounted its effect): hold this
     // proposal rather than broadcast it into an empty set, so the subscriber that eventually
     // attaches still gets it instead of the promise below waiting forever.
     if (proposalListeners.size === 0) bufferedProposals.push(pending);
     else proposalListeners.forEach(fn => fn(pending));
     const d = await decision;
+    pendingProposalCount--;
     const stillBuffered = bufferedProposals.indexOf(pending);
     if (stillBuffered !== -1) bufferedProposals.splice(stillBuffered, 1);
     proposalListeners.forEach(fn => fn(null));

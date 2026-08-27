@@ -12,6 +12,15 @@ interface TabBarProps {
   setTab(t: TabId): void;
 }
 
+/** The one tabpanel's id, shared with App.tsx so each tab button's `aria-controls` and the
+ *  panel's own id actually agree — a screen reader announcing a tab as controlling a panel that
+ *  does not exist (or the wrong one) is worse than no association at all. */
+export const TABPANEL_ID = 'ladder-tabpanel';
+
+/** A tab button's id, shared with App.tsx so the panel's `aria-labelledby` can point at whichever
+ *  button is currently active, by the same rule this file and App.tsx both use to build it. */
+export const tabButtonId = (id: TabId) => `tab-${id}`;
+
 /**
  * The active tab is said by weight and an underline rule — never by colour alone, since the
  * operator this whole product is built for has red-green colour vision deficiency. Colour on
@@ -39,10 +48,12 @@ export function TabBar({ tab, setTab }: TabBarProps) {
           return (
             <button
               key={id}
+              id={tabButtonId(id)}
               ref={el => { buttonRefs.current[i] = el; }}
               type="button"
               role="tab"
               aria-selected={active}
+              aria-controls={TABPANEL_ID}
               tabIndex={active ? 0 : -1}
               className={active ? 'tab-bar-tab tab-bar-tab--active' : 'tab-bar-tab'}
               onClick={() => setTab(id)}

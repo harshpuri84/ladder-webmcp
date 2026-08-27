@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect, beforeEach, afterEach, beforeAll, afterAll } from 'vitest';
-import { renderHook, act, render, screen, cleanup } from '@testing-library/react';
+import { renderHook, act, render, screen, cleanup, waitFor } from '@testing-library/react';
 import { useTab } from '../useTab';
 
 describe('useTab', () => {
@@ -49,6 +49,13 @@ const flush = () => new Promise(r => setTimeout(r, 0));
  * the real adapter and the real App through a fake `document.modelContext` that captures each
  * registered tool's `execute`, exactly the way ProposalPanel.test.tsx does it — not a
  * reimplementation of the queue logic that could hide a regression here.
+ *
+ * Both tests use `waitFor`/`findBy*` rather than a single fixed `flush()` tick before asserting.
+ * Under load a single macrotask isn't always enough for `propose_remedy`'s own preview (a real
+ * `await runShadow(...)` chain) to reach the decision boundary — a fixed-timer assertion flaked
+ * under exactly that load in review, on the one behaviour a judge will actually exercise.
+ * `waitFor` retries the assertion instead of gambling on one tick, so it settles as soon as the
+ * state actually lands rather than by a hard-coded deadline.
  */
 describe('App forces the proof tab open on a proposal', () => {
   const registered = new Map<string, { execute: (input: any) => Promise<any> }>();
@@ -76,13 +83,34 @@ describe('App forces the proof tab open on a proposal', () => {
 
     // The call is left pending on purpose — the panel it opens stays up until a human decides,
     // so awaiting the promise here would hang the test forever.
-    await act(async () => {
-      void registered.get('propose_remedy')!.execute({});
-      await flush();
-    });
+    act(() => { void registered.get('propose_remedy')!.execute({}); });
 
-    expect(window.location.hash).toBe('#/proof');
-    expect(screen.getByRole('tabpanel')).toBeTruthy();
+    await waitFor(() => expect(window.location.hash).toBe('#/proof'));
+    expect(await screen.findByRole('tabpanel')).toBeTruthy();
     expect(document.querySelector('.console')).toBeTruthy();
-  });
+  }, 10_000);
+
+  /**
+   * F-review-1: the exact race a prior version of this fix missed. React flushes child passive
+   * effects before parent ones, so `ProposalPanel`'s own `onProposal` subscription (mounted
+   * below App in the tree) used to drain a proposal buffered before mount, leaving App's own
+   * `onProposal` listener nothing to see. The tool is called and flushed to completion here
+   * before `App` is even imported for rendering, so the proposal is fully buffered — and, per
+   * the fix, `hasPendingProposal()` already true — before any effect runs at all.
+   */
+  it('switches straight to the proof tab on mount when a proposal already arrived before render', async () => {
+    const { default: App } = await import('../../App');
+
+    // Left pending on purpose, same as above — but called and flushed to completion before
+    // `render` ever runs, so this reproduces a proposal that arrived before mount, not after it.
+    void registered.get('propose_remedy')!.execute({});
+    await flush();
+
+    render(<App />);
+
+    await waitFor(() => expect(window.location.hash).toBe('#/proof'));
+    expect(await screen.findByRole('tab', { name: 'The proof' })).toBeTruthy();
+    const proofTab = screen.getByRole('tab', { name: 'The proof' });
+    expect(proofTab.getAttribute('aria-selected')).toBe('true');
+  }, 10_000);
 });

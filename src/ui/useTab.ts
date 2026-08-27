@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 
 export type TabId = 'problem' | 'proof' | 'elsewhere';
 
@@ -25,10 +25,13 @@ export function useTab(): { tab: TabId; setTab(t: TabId): void } {
     return () => window.removeEventListener('hashchange', onHash);
   }, []);
 
-  const setTab = (t: TabId) => {
+  // Memoized so a consumer's own effect keyed on `setTab` (App.tsx's proposal-arrival
+  // subscription) doesn't tear down and resubscribe on every render — this function's identity
+  // never actually needs to change, since it only ever closes over the hash and the setter.
+  const setTab = useCallback((t: TabId) => {
     window.location.hash = `#/${t}`;
     setTabState(t);
-  };
+  }, []);
 
   return { tab, setTab };
 }

@@ -10,6 +10,13 @@ import { isWebmcpAvailable, onAvailabilityChange } from '../../webmcp/adapter';
 // see useShowBanner below.
 const BANNER_GRACE_MS = 1500;
 
+// Module scope, not component state: this page unmounts and remounts on every tab round-trip
+// (it's only rendered while `tab === 'proof'`), and component state resets on remount while this
+// doesn't — so the grace period runs once per page load, not once per visit to the tab. Without
+// this, returning to the proof tab re-hid an already-known-unavailable banner for another
+// 1.5s every time, which reads as a flicker rather than a deliberate first-load grace.
+let graceElapsedOnce = false;
+
 function WebmcpBanner() {
   return (
     <div className="webmcp-banner">
@@ -70,12 +77,15 @@ function useWebmcpAvailable(): boolean {
 
 /** Delays the banner by BANNER_GRACE_MS so a host that's about to inject the namespace doesn't
  *  make it flash on the first frame. Resets to hidden the instant availability turns true,
- *  including mid-grace-period (the effect cleanup cancels the pending timer). */
+ *  including mid-grace-period (the effect cleanup cancels the pending timer). Once the grace
+ *  period has genuinely elapsed once (`graceElapsedOnce`, module scope — see above), a later
+ *  remount of this page shows the banner immediately instead of re-running the wait. */
 function useShowBanner(available: boolean): boolean {
-  const [show, setShow] = useState(false);
+  const [show, setShow] = useState(() => graceElapsedOnce && !available);
   useEffect(() => {
     if (available) { setShow(false); return; }
-    const t = setTimeout(() => setShow(true), BANNER_GRACE_MS);
+    if (graceElapsedOnce) { setShow(true); return; }
+    const t = setTimeout(() => { graceElapsedOnce = true; setShow(true); }, BANNER_GRACE_MS);
     return () => clearTimeout(t);
   }, [available]);
   return show;
