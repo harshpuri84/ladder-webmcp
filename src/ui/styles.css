@@ -2084,6 +2084,40 @@ body.pp-active .console-table td {
 
 /* ---------- narrow viewports ---------- */
 
+/*
+ * While a proposal is open, the panel takes a fixed 560px off the right edge (see
+ * --panel-width) and the console gets whatever the viewport has left. Measured 27 Aug 2026:
+ * that leftover clears the register's full nine-column floor (~900px, the `pp-active`
+ * padding rule above already squeezes it that far) only above roughly 1514px viewport width
+ * — below 1512px it was still 2px short, above 1514px it had 2px to spare. This breakpoint
+ * sits a little under that line on purpose, so a font substitution or a scrollbar gutter on
+ * some other platform doesn't tip a viewport just above 1514px back into the overflow this
+ * is meant to end.
+ *
+ * Below it, the console and the panel stop competing for that room by the register giving
+ * up the columns a decision does not need — who the customer is, which consol, which SLA
+ * tier, when it was promised, which cargo flags apply. What a decision on a shipment mid-
+ * proposal actually needs stays: the house id (identity), the remedy that landed, what it
+ * cost, and the External-edit control the stale-abort demonstration depends on. None of
+ * that needs a horizontal scrollbar to reach, which matters because one was tried here
+ * before and rejected: a scrollbar during a decision hides the exact columns that make the
+ * decision legible behind a scroll gesture, at the moment they matter most.
+ */
+@media (max-width: 1500px) {
+  body.pp-active .console-table th:nth-child(2),
+  body.pp-active .console-table td:nth-child(2),
+  body.pp-active .console-table th:nth-child(3),
+  body.pp-active .console-table td:nth-child(3),
+  body.pp-active .console-table th:nth-child(4),
+  body.pp-active .console-table td:nth-child(4),
+  body.pp-active .console-table th:nth-child(5),
+  body.pp-active .console-table td:nth-child(5),
+  body.pp-active .console-table th:nth-child(7),
+  body.pp-active .console-table td:nth-child(7) {
+    display: none;
+  }
+}
+
 @media (max-width: 1080px) {
   .app-shell {
     flex-direction: column;
@@ -2104,9 +2138,13 @@ body.pp-active .console-table td {
     max-height: none;
   }
 
-  body.pp-active .app-shell {
-    margin-right: 0;
-  }
+  /* No margin-right: 0 override here any more. Zeroing it let the console run full width
+     under the fixed-position panel instead of beside it — which is what put the sticky
+     Edit column (z-index 12) visibly on top of the panel (z-index 11) whenever its pinned
+     position fell inside the panel's own horizontal range. Reserving the panel's width the
+     same way the wide-viewport rule already does keeps the console genuinely beside the
+     panel, not under it, all the way down to this breakpoint's floor. See the console-table
+     rule below for what makes that fit once the margin is real. */
 }
 
 @media (max-width: 720px) {
