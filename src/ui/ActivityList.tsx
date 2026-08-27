@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
 import { onResult } from '../webmcp/adapter';
 import type { ProposalOutcome } from '../webmcp/adapter';
+import { ProofMark } from './ProofMark';
+import type { MarkName } from './ProofMark';
 
 let seq = 0;
 
@@ -13,6 +15,22 @@ interface ActivityEntry {
   cause: ProposalOutcome['cause'];
   at: number;
 }
+
+/**
+ * The mark against each line of the run log. Colour is not carrying this: `applied` and
+ * `auto_applied` took the correction (a caret), everything else did not (a deletion loop), and
+ * the two states that are set apart from the run — blocked and errored — carry a dagger. The
+ * cause is also printed in words on the same line.
+ */
+const CAUSE_MARK: Record<ProposalOutcome['cause'], MarkName> = {
+  applied: 'insert',
+  auto_applied: 'insert',
+  refused: 'dele',
+  nothing_to_decide: 'dele',
+  stale: 'stet',
+  blocked: 'dagger',
+  tool_error: 'dagger',
+};
 
 const timeFmt = new Intl.DateTimeFormat('en-GB', {
   hour: '2-digit',
@@ -44,7 +62,8 @@ export function ActivityList() {
 
   return (
     <aside className="al" aria-label="Activity">
-      <p className="al-heading">Activity</p>
+      <p className="al-heading">Proofs returned</p>
+      <hr className="rule" />
       {entries.length === 0 ? (
         <p className="al-empty">Nothing yet.</p>
       ) : (
@@ -52,6 +71,7 @@ export function ActivityList() {
           {entries.map(e => (
             <li key={e.key} className={`al-row al-row--${e.cause}`}>
               <div className="al-row-top">
+                <ProofMark name={CAUSE_MARK[e.cause] ?? 'dele'} size={13} className="al-mark" />
                 <span className="al-tool mono">{e.toolName}</span>
                 <span className="al-outcome">{e.cause.replace(/_/g, ' ')}</span>
               </div>

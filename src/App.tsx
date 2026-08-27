@@ -67,7 +67,10 @@ function App() {
       <div className="app">
         <header className="app-header">
           <h1>Ladder</h1>
-          <p className="app-subtitle">Shipment console</p>
+          <p className="app-subtitle">
+            Shipment register · every agent write comes here as a proof before it lands
+          </p>
+          <hr className="rule" />
         </header>
         <main>
           {showBanner && <WebmcpBanner />}

@@ -6,6 +6,7 @@ import { BlastRadius } from './BlastRadius';
 import { DiffGroupRow } from './DiffGroupRow';
 import { ActionCard } from './ActionCard';
 import { ResultCard } from './ResultCard';
+import { ProofMark, RegistrationCorners } from './ProofMark';
 
 // 8s read back as "already fading" from a paused frame two seconds in — that turned out to be
 // an opaque-background bug on the auto-apply tone (see .rc--auto in styles.css), not the hold
@@ -187,6 +188,13 @@ export function ProposalPanel() {
   const decide = (d: Decision | null) => decideOn(head, d);
   const decided = resolvedIds.current.has(diff.proposalId);
 
+  // The grade the stamp will carry. Everything the agent asked for, or a cut-down subset —
+  // the two readings a proof comes back with when it comes back at all.
+  const whole =
+    selectedGroups.length === diff.totals.records &&
+    selectedActions.length === diff.actions.length;
+  const grade = nothingPicked ? 'Nothing marked' : whole ? 'OK to run' : 'OK with changes';
+
   return (
     <>
       <div className="pp-scrim" />
@@ -197,6 +205,7 @@ export function ProposalPanel() {
         aria-modal="true"
         aria-label="Review this change"
       >
+        <RegistrationCorners />
         <header className="pp-head">
           <div className="pp-head-top">
             <span className="pp-tool mono">{head.toolName}</span>
@@ -205,6 +214,11 @@ export function ProposalPanel() {
             )}
           </div>
           <p className="pp-request">“{describeRequest(head.toolName, head.input)}”</p>
+          <p className="pp-slug">
+            <span className="pp-slug-caps">Proof for approval</span>
+            <span className="pp-slug-tail"> · nothing here has been applied yet</span>
+          </p>
+          <hr className="rule" />
         </header>
 
         <div className="pp-scroll">
@@ -220,7 +234,11 @@ export function ProposalPanel() {
 
           {notes.length > 0 && (
             <section className="pp-notes">
-              <p className="pp-notes-caption">Left alone by the tool, not by Ladder</p>
+              <p className="pp-notes-caption">
+                <ProofMark name="dele" size={13} />
+                <span className="pp-notes-caption-caps">Left alone by the tool</span>
+                <span className="pp-notes-caption-tail"> — not by Ladder</span>
+              </p>
               {byReason(notes).map(n => (
                 <p className="pp-note" key={n.reason}>
                   <span className="mono">{n.count}</span> skipped — {n.reason}
@@ -250,21 +268,30 @@ export function ProposalPanel() {
           </div>
         </div>
 
+        <hr className="rule" />
         <footer className="pp-foot">
+          {/*
+            The stamp block. A press proof does not come back yes or no — it comes back graded,
+            and the grade is the whole point of this product: the operator cuts a change down
+            rather than accepting or rejecting it whole. "OK to run" is everything as asked;
+            "OK with changes" is the partial consent the engine was built for.
+            The count stays in the label because narrowing has to be legible without reading
+            anything else, and it is what the button's accessible name is made of.
+          */}
           <button
-            className="pp-apply"
+            className="pp-stamp"
             type="button"
             disabled={nothingPicked || decided}
             onClick={() => decide({ groups: [...groups], actions: [...actions] })}
           >
-            {/* The label counts, so narrowing is legible without reading anything else. */}
-            <span className="pp-apply-label">
+            <span className="pp-stamp-grade">{grade}</span>
+            <span className="pp-stamp-label">
               {diff.totals.records === 0 && diff.actions.length > 0
                 ? `Release ${selectedActions.length} of ${diff.actions.length}`
                 : `Apply ${selectedGroups.length} of ${diff.totals.records}`}
             </span>
             {selectedActions.length > 0 && (
-              <span className="pp-apply-sub">
+              <span className="pp-stamp-sub">
                 {diff.totals.records === 0
                   ? selectedActions.length === 1 ? 'held action' : 'held actions'
                   : `and release ${selectedActions.length} ${
@@ -276,6 +303,9 @@ export function ProposalPanel() {
           <button className="pp-refuse" type="button" disabled={decided} onClick={() => decide(null)}>
             Refuse all
           </button>
+          {/* The third grade of the proof tradition, against the control that produces it.
+              Hidden from assistive tech so the button keeps its own plain name. */}
+          <span className="pp-refuse-grade" aria-hidden="true">Revise</span>
         </footer>
       </aside>
       {resultCard}

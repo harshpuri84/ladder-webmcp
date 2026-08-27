@@ -2,6 +2,12 @@ import type { ProposalOutcome } from '../webmcp/adapter';
 
 interface Framing {
   tone: string;
+  /**
+   * The word in the stamp. Every receipt state is told apart by this word first — a struck
+   * word survives greyscale, a coloured edge does not — and the tone only tints what it
+   * already says.
+   */
+  stamp: string;
   title: string;
   note: string;
 }
@@ -21,6 +27,7 @@ function frame(o: ProposalOutcome): Framing {
       const partial = o.payload.status === 'partially_applied';
       return {
         tone: partial ? 'partial' : 'applied',
+        stamp: partial ? 'OK with changes' : 'OK to run',
         title: partial ? 'Applied, partly' : 'Applied',
         note: partial
           ? `${o.payload.applied} of ${o.payload.requested} went through as approved. The rest is accounted for above, and ${o.toolName} has been told to replan around it.`
@@ -30,6 +37,7 @@ function frame(o: ProposalOutcome): Framing {
     case 'auto_applied':
       return {
         tone: 'auto',
+        stamp: 'Standing rule',
         title: 'Applied automatically',
         note: o.ruleDescription
           ? `Matched the standing rule for ${o.toolName} — ${o.ruleDescription} — so this went through with no review.`
@@ -38,18 +46,21 @@ function frame(o: ProposalOutcome): Framing {
     case 'stale':
       return {
         tone: 'moved',
+        stamp: 'Superseded',
         title: 'The records moved on',
         note: `They changed while this was open, so nothing was applied against a stale picture. ${o.toolName} has been told to preview them again.`,
       };
     case 'blocked':
       return {
         tone: 'blocked',
+        stamp: 'Blocked',
         title: 'Ladder blocked this',
         note: 'The tool tried to write outside what you approved, so every change was rolled back. The guard did its job.',
       };
     case 'tool_error':
       return {
         tone: 'fault',
+        stamp: 'Tool error',
         title: 'The tool errored',
         note: `${o.toolName} threw while it ran. Nothing was blocked and nothing was written — this is a fault in the tool, not the guard stopping it.`,
       };
@@ -61,6 +72,7 @@ function frame(o: ProposalOutcome): Framing {
       const noMatch = Boolean(o.payload.reason);
       return {
         tone: 'skipped',
+        stamp: 'Nothing to set',
         title: 'Nothing to change',
         note: noMatch
           ? `${o.toolName} found nothing that matched this request, so no panel was needed. The agent has been told why.`
@@ -70,12 +82,14 @@ function frame(o: ProposalOutcome): Framing {
     case 'refused':
       return {
         tone: 'sent',
+        stamp: 'Revise',
         title: 'Sent back to the agent',
         note: 'You refused the whole change. The agent has been told, in the same words as above.',
       };
     default:
       return {
         tone: 'sent',
+        stamp: 'Revise',
         title: 'Sent back to the agent',
         note: 'Your judgement left as structured data, not as a silent success.',
       };
@@ -90,7 +104,7 @@ export interface ResultCardProps {
 }
 
 export function ResultCard({ outcome, shifted, onDismiss }: ResultCardProps) {
-  const { tone, title, note } = frame(outcome);
+  const { tone, stamp, title, note } = frame(outcome);
   const p = outcome.payload;
   // Every entry here already has count > 0 — the adapter's finish() strips zero-count
   // entries before this component ever sees them, so there is no separate "remark with no
@@ -101,12 +115,17 @@ export function ResultCard({ outcome, shifted, onDismiss }: ResultCardProps) {
   return (
     <aside className={`rc rc--${tone}${shifted ? ' rc--shifted' : ''}`} role="status">
       <div className="rc-head">
-        <span className="rc-title">
-          {title}
-          {outcome.cause === 'auto_applied' && <span className="badge">Auto</span>}
-        </span>
-        <button className="rc-dismiss" type="button" onClick={onDismiss} aria-label="Dismiss">
-          ×
+        <div className="rc-head-text">
+          {/* The returned proof, stamped. Eight outcomes, eight words — told apart by the word
+              and by the rule form above it, never by an edge colour alone. */}
+          <span className="rc-stamp">{stamp}</span>
+          <span className="rc-title">{title}</span>
+        </div>
+        {/* Not a correction mark on purpose: this control's only job is to get out of the
+            way, and a judge has to recognise it without thought. The mark vocabulary carries
+            meaning everywhere else in this interface; a plain dismiss control carries none. */}
+        <button className="rc-dismiss" type="button" onClick={onDismiss} aria-label="Dismiss" title="Dismiss">
+          <span aria-hidden="true">&times;</span>
         </button>
       </div>
       {hasCounts && (

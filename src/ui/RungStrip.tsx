@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { activePolicy, describePolicy, onDraft, onPolicyChange, ratify, revoke } from '../webmcp/adapter';
 import type { Policy } from '../core/policy';
 import { NEVER_ELIGIBLE } from '../domain/policy-eligibility';
+import { ProofMark } from './ProofMark';
 
 /**
  * The four write tools, in registration order. Read tools (search_shipments, get_shipment)
@@ -110,14 +111,28 @@ function RuleForm({ onSubmit, onCancel }: RuleFormProps) {
   );
 }
 
-/** One chip's contents: rung 0, rung 1 with the rule in plain words, or permanently ineligible. */
+/**
+ * One chip's contents: rung 0, rung 1 with the rule in plain words, or permanently ineligible.
+ * The mark in front of each says which without reference to the chip's colour — a dagger for a
+ * tool that is set apart and can never be automatic, a caret for a rule a human has stamped in.
+ */
 function ChipState({ tool }: { tool: string }) {
   if (NEVER_ELIGIBLE.includes(tool)) {
-    return <span className="rs-chip-state rs-chip-state--never">never automatic — always reviewed</span>;
+    return (
+      <span className="rs-chip-state rs-chip-state--never">
+        <ProofMark name="dagger" size={12} />
+        never automatic — always reviewed
+      </span>
+    );
   }
   const pol = activePolicy(tool);
   if (pol?.ratified) {
-    return <span className="rs-chip-state rs-chip-state--rung1">standing rule — {describePolicy(pol)}</span>;
+    return (
+      <span className="rs-chip-state rs-chip-state--rung1">
+        <ProofMark name="insert" size={12} />
+        standing rule — {describePolicy(pol)}
+      </span>
+    );
   }
   return <span className="rs-chip-state">reviewed every time</span>;
 }
@@ -185,6 +200,10 @@ export function RungStrip() {
 
       {draft && (
         <div className="rs-draft">
+          <p className="rs-draft-caption">
+            <ProofMark name="insert" size={13} />
+            Ready to stand as a rule
+          </p>
           <p className="rs-draft-text">
             <span className="mono">{draft.tool}</span> has cleared three clean approvals in a
             row. Ladder can now handle {describePolicy(draft)} without asking first.
