@@ -64,7 +64,10 @@ Known limits, all deliberate and all documented:
 
 - Ladder is not a sandbox. It governs writes and effects that pass through the tool context it
   provides. A tool that reaches around that context is not governed by it.
-- The recorder is two levels deep. Mutation inside a nested object field is not seen.
+- The recorder is two levels deep, and refuses what it cannot record. A mutation inside a nested
+  object field one level past that cannot be previewed, so it is refused at the moment it is
+  attempted rather than performed: objects read at that depth come back as read-only views that
+  throw on any write, and a commit that hits one rolls back whole and returns denied.
 - Tools must be deterministic. A field set from a clock differs between the two runs and aborts.
 - Nothing persists. Standing rules, history and the activity log are in memory.
 - Approval is per record, not per field.
@@ -83,7 +86,7 @@ author's employer in code, fixture data, copy, or commit history.
 
 - Live: https://ladder-webmcp.vercel.app
 - Public repository: https://github.com/harshpuri84/ladder-webmcp
-- 195 passing tests, including regression coverage for every defect found in review.
+- 239 passing tests, including regression coverage for every defect found in review.
 - A dev-only test double behind `?demo`, gated out of the production build, that registers the
   same tools and lets a human drive the panel without a WebMCP runtime.
 - Fixture data is 200 deterministically seeded shipments with invented customer names. There are
