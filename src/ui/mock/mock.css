@@ -1,0 +1,476 @@
+/*
+ * The drawn sheets on the reusability tab.
+ *
+ * These inherit the Printer's Proof world wholesale — every colour here is a token from
+ * `styles.css`, and nothing in this file introduces a hue, a corner radius or a shadow the rest
+ * of the product does not already use. Two things are deliberately different from the running
+ * console, and both are honesty rather than taste:
+ *
+ *  1. Every sheet is banded above and below in the amber that means "set apart from the main
+ *     run", and both bands print the word Mockup. A picture of a decision must never be able to
+ *     be mistaken for a decision.
+ *  2. The hero count is 31px where the real blast radius is 50px. The mockups are subordinate
+ *     to the thing they are describing, and the size says so before a word is read.
+ *
+ * Colour carries nothing on its own here, as everywhere else: a cut row is struck through, marked
+ * with the deletion loop and stamped "Struck out"; a declined row carries the dagger and prints
+ * the rule that declined it. Take the hue out and every one of those still reads.
+ */
+
+.mk {
+  padding: 0 22px 18px;
+  background: var(--paper-raised);
+  border: 1px solid var(--rule-strong);
+  /* The one shadow recipe: a tight contact edge and one soft lift. A slip on a desk. */
+  box-shadow:
+    0 1px 2px rgba(23, 21, 15, 0.10),
+    0 7px 14px -6px rgba(23, 21, 15, 0.24);
+}
+
+.mk + .mk {
+  margin-top: 30px;
+}
+
+/* ---------- the two bands that say what this is ---------- */
+
+.mk-stamp {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 9px;
+  margin: 0 -22px;
+  padding: 9px 22px;
+  background: var(--hold-wash);
+  border-bottom: 3px double var(--hold);
+  color: var(--hold);
+  font-size: 0.78rem;
+}
+
+.mk-stamp-word {
+  font-size: 0.72rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.16em;
+}
+
+.mk-stamp-tail {
+  min-width: 0;
+}
+
+.mk-foot {
+  margin: 22px -22px -18px;
+  padding: 8px 22px;
+  background: var(--paper-sunk);
+  border-top: 3px double var(--hold);
+  color: var(--hold);
+  font-size: 0.76rem;
+}
+
+/* ---------- what this sheet is a picture of ---------- */
+
+.mk-head {
+  margin-top: 17px;
+}
+
+.mk-name {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.mk-who {
+  margin: 3px 0 0;
+  color: var(--ink-muted);
+  font-size: 0.78rem;
+}
+
+/* ---------- the four beats ---------- */
+
+/*
+ * Which beat is open is said by the weight and by the double rule beneath it — the same "in
+ * effect" motif as the tab bar — and only then agreed with by the tint. The ordinals are here
+ * because the order is the information: the argument is that these four happen in this
+ * sequence whatever the records are.
+ */
+.mk-steps {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 26px;
+  margin: 20px 0 0;
+  padding: 0;
+  list-style: none;
+  border-bottom: 1px solid var(--rule);
+}
+
+.mk-step {
+  display: flex;
+  align-items: baseline;
+  gap: 7px;
+  margin-bottom: -1px;
+  padding-bottom: 9px;
+  border-bottom: 3px double transparent;
+  color: var(--ink-muted);
+  font-size: 0.86rem;
+}
+
+.mk-step--now {
+  border-bottom-color: var(--mark);
+  color: var(--ink);
+  font-weight: 600;
+}
+
+.mk-step-n {
+  font-size: 0.72rem;
+  color: var(--ink-faint);
+}
+
+.mk-step--now .mk-step-n {
+  color: var(--ink-muted);
+}
+
+.mk-nav {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  margin-top: 16px;
+}
+
+.mk-nav-btn {
+  padding: 7px 15px;
+  border: 1px solid var(--rule-strong);
+  background: var(--paper);
+  color: var(--ink);
+  font-family: inherit;
+  font-size: 0.86rem;
+  cursor: pointer;
+}
+
+.mk-nav-btn:hover:not(:disabled) {
+  border-color: var(--mark);
+  color: var(--mark);
+}
+
+/* Not a greyed word: an uninked block, the way the stamp reads when nothing is marked. */
+.mk-nav-btn:disabled {
+  background: var(--paper-sunk);
+  border-color: var(--rule);
+  color: var(--ink-faint);
+  cursor: not-allowed;
+}
+
+.mk-nav-now {
+  margin: 0;
+  color: var(--ink-muted);
+  font-size: 0.78rem;
+}
+
+/*
+ * One authored entrance, replayed on each beat because the sheet's whole content changes. It
+ * never carries a meaning: every figure that moves is also printed beside the figure it moved
+ * from, so nothing here has to be seen moving to be read.
+ */
+.mk-body {
+  margin-top: 18px;
+  animation: mk-rise 220ms var(--ease);
+}
+
+@keyframes mk-rise {
+  from { opacity: 0; transform: translateY(8px); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mk-body { animation: none; }
+}
+
+/* ---------- beat one: the call ---------- */
+
+.mk-field {
+  margin: 0 0 7px;
+  color: var(--ink-muted);
+  font-size: 0.72rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.16em;
+}
+
+.mk-prompt {
+  max-width: 66ch;
+  margin: 0;
+  padding: 13px 16px;
+  background: var(--paper-sunk);
+  border-top: 1px solid var(--rule-strong);
+  border-bottom: 1px solid var(--rule-strong);
+  font-size: 1rem;
+  line-height: 1.45;
+}
+
+.mk-call-tail {
+  max-width: 66ch;
+  margin: 12px 0 0;
+  color: var(--ink-muted);
+  font-size: 0.86rem;
+}
+
+/* ---------- beats two and three: the extent, and what is left of it ---------- */
+
+.mk-figures {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 10px 40px;
+}
+
+.mk-figure {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+
+.mk-figure--money {
+  padding-bottom: 4px;
+}
+
+.mk-figure-line {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+}
+
+.mk-figure-count {
+  font-size: 31px;
+  line-height: 1;
+  font-weight: 600;
+}
+
+.mk-figure-money {
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+/* What the figure came down from, struck: the drop is on the sheet, not only in the movement. */
+.mk-figure-was {
+  color: var(--ink-muted);
+  font-size: 0.86rem;
+  text-decoration: line-through;
+  text-decoration-thickness: 1.5px;
+}
+
+.mk-figure-label {
+  color: var(--ink-muted);
+  font-size: 0.72rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.16em;
+}
+
+.mk-figure-caption {
+  max-width: 66ch;
+  margin: 10px 0 0;
+  color: var(--ink-muted);
+  font-size: 0.78rem;
+}
+
+/*
+ * Held matter, ruled above and below rather than tabbed down one edge. Not flex-wrapped: the
+ * dagger holds the gutter and the sentence wraps inside itself beside it, rather than the whole
+ * sentence dropping to a second line and leaving the mark stranded on the first.
+ */
+.mk-held-line {
+  display: flex;
+  align-items: baseline;
+  gap: 7px;
+  max-width: 66ch;
+  margin: 14px 0 0;
+  padding: 7px 0;
+  border-top: 3px double var(--hold);
+  border-bottom: 3px double var(--hold);
+  color: var(--hold);
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+
+/* ---------- the rows ---------- */
+
+.mk-rows {
+  margin: 18px 0 0;
+  padding: 0;
+  list-style: none;
+  border-top: 1px solid var(--rule);
+}
+
+.mk-row {
+  display: grid;
+  grid-template-columns: 22px minmax(0, 1fr);
+  gap: 0 8px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--rule);
+}
+
+.mk-row-mark {
+  padding-top: 2px;
+  color: var(--mark);
+}
+
+.mk-row--cut .mk-row-mark,
+.mk-row--held .mk-row-mark {
+  color: var(--hold);
+}
+
+.mk-row-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.mk-row-id {
+  font-size: 0.86rem;
+  font-weight: 600;
+}
+
+.mk-row-cost {
+  font-size: 0.86rem;
+}
+
+.mk-row-sub {
+  margin-top: 2px;
+  color: var(--ink-muted);
+  font-size: 0.78rem;
+}
+
+.mk-row-change {
+  margin-top: 4px;
+  font-size: 0.86rem;
+}
+
+/* Struck the way a compositor strikes what comes out — and stamped, so the line is not alone. */
+.mk-row--cut .mk-row-head,
+.mk-row--cut .mk-row-sub,
+.mk-row--cut .mk-row-change {
+  color: var(--ink-muted);
+  text-decoration: line-through;
+  text-decoration-thickness: 1.5px;
+  text-decoration-color: var(--hold);
+}
+
+.mk-row-note {
+  display: inline-block;
+  margin-top: 6px;
+  color: var(--hold);
+  font-size: 0.72rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.16em;
+}
+
+/* The rule that declined the row, in the words the domain uses. Prose, not a stamp word. */
+.mk-row-note--held {
+  font-size: 0.78rem;
+  text-transform: none;
+  letter-spacing: normal;
+}
+
+.mk-field--held {
+  margin-top: 22px;
+  color: var(--hold);
+}
+
+.mk-held {
+  border-top: 3px double var(--hold);
+}
+
+/* ---------- beat four: what went back ---------- */
+
+.mk-return-lead {
+  max-width: 66ch;
+  margin: 0;
+  font-size: 0.86rem;
+}
+
+.mk-payload {
+  margin: 14px 0 0;
+  padding: 14px 16px;
+  overflow-x: auto;
+  background: var(--paper-sunk);
+  border-top: 1px solid var(--rule-strong);
+  border-bottom: 1px solid var(--rule-strong);
+  font-size: 0.78rem;
+  line-height: 1.5;
+}
+
+.mk-return-tail {
+  max-width: 66ch;
+  margin: 12px 0 0;
+  color: var(--ink-muted);
+  font-size: 0.78rem;
+}
+
+/* ---------- narrow ---------- */
+
+@media (max-width: 700px) {
+  .mk {
+    padding: 0 15px 15px;
+  }
+
+  .mk-stamp {
+    margin: 0 -15px;
+    padding: 9px 15px;
+  }
+
+  .mk-foot {
+    margin: 22px -15px -15px;
+    padding: 8px 15px;
+  }
+
+  .mk-steps {
+    gap: 0 18px;
+  }
+
+  /* The cost stops competing with the id for one line and sits under it instead. */
+  .mk-row-head {
+    flex-wrap: wrap;
+    gap: 0 16px;
+  }
+}
+
+/* ---------- the page the sheets sit on ---------- */
+
+.ew-heading {
+  margin: 0 0 12px;
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.ew-lead {
+  max-width: 68ch;
+  margin: 0 0 11px;
+  font-size: 0.86rem;
+}
+
+/*
+ * The disclaimer, ruled above and below so it reads as matter set apart from the page rather
+ * than as a decorated paragraph. The dagger, the rules and the words all say the same thing;
+ * the amber is the fourth signal and never the first.
+ */
+.ew-warning {
+  display: flex;
+  align-items: baseline;
+  gap: 9px;
+  max-width: 66ch;
+  margin: 22px 0 0;
+  padding: 9px 0;
+  border-top: 3px double var(--hold);
+  border-bottom: 3px double var(--hold);
+  color: var(--hold);
+  font-size: 0.86rem;
+}
+
+.ew-warning-lead {
+  font-weight: 600;
+}
+
+.ew-list {
+  margin-top: 28px;
+}
