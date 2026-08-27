@@ -135,4 +135,11 @@ design. Tools must be deterministic: a field set from a clock differs between pr
 and will abort every time. Irreversible actions are held and released, never previewed as a
 diff. Concurrent commits against one store are not supported.
 
-All of that is in the README, and the code rejects what it cannot handle rather than guessing.
+All of that is in the README, and every one of those limits is enforced loudly rather than
+guessed around. A field set from a clock aborts the commit every time. A malformed entity or
+record key is rejected before a preview even starts. And a write below the second level, the one
+thing this recorder cannot preview, is refused at the moment it is attempted: objects read at
+that depth are read-only views that throw on any write, with the full path in the message, and a
+commit that hits one rolls back whole and returns denied. The depth limit is real and we would
+rather widen it than live with it. What it never does is let an unpreviewed write land quietly
+on real state.
