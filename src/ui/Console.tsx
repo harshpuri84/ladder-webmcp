@@ -14,11 +14,13 @@ function getSnapshot() {
 }
 
 /**
- * The "Edit a row" beat: a stand-in for another operator or another system touching this exact
- * record while an agent's proposal on it is still open. It writes directly to the live store —
- * not through a tool, not through Ladder at all — and bumps `version`, the same field the
- * commit-time guard checks. Any pending commit that still expects the old version aborts as
- * stale rather than applying against a world that already moved.
+ * Marta's edit: a stand-in for the other operator on this shift touching this exact record
+ * while an agent's proposal on it is still open. She has a name because what a stale abort
+ * models is a colleague working the same consol, not a system event, and a receipt that says
+ * "the records moved on" describes nobody. It writes directly to the live store — not through
+ * a tool, not through Ladder at all — and bumps `version`, the same field the commit-time
+ * guard checks. Any pending commit that still expects the old version aborts as stale rather
+ * than applying against a world that already moved.
  *
  * The edit itself is a revenue correction, because it has to be a field the register renders
  * (so the change is visible, not just asserted) and a field the remedy proposal does not
@@ -184,10 +186,10 @@ export function Console() {
                     <button
                       className="console-edit-row"
                       type="button"
-                      title="Simulates another operator or system changing this record outside any agent proposal."
+                      title="Simulates Marta, the other operator on this shift, changing this record outside any agent proposal."
                       onClick={() => editRowExternally(s.id)}
                     >
-                      Edit a row
+                      Marta edits this
                     </button>
                   </td>
                 </tr>

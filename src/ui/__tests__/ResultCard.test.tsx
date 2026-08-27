@@ -127,3 +127,17 @@ describe('ResultCard framing for a referred run', () => {
     expect(container.querySelector('.rc')!.className).toContain('rc--referred');
   });
 });
+
+/**
+ * A stale abort models two operators on the same consol, not a system event. "The records
+ * moved on" describes nobody; the register's own edit control simulates a named colleague, and
+ * the receipt has to say so.
+ */
+describe('ResultCard names the colleague who got there first', () => {
+  it('names Marta and says what happened, rather than reporting a passive system event', () => {
+    render(<ResultCard outcome={outcome('stale', 'aborted_stale', 0, 27)} shifted={false} onDismiss={() => {}} />);
+    expect(screen.getByText('Marta got there first')).toBeTruthy();
+    expect(screen.getByText(/Marta changed one of these shipments while your proof was open/)).toBeTruthy();
+    expect(screen.queryByText('The records moved on')).toBeNull();
+  });
+});

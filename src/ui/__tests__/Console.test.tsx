@@ -139,7 +139,7 @@ describe('Console external edit bumps the version the guard reads', () => {
     setFilter(target.id);
 
     const before = { version: target.version, revenue: target.revenueEur };
-    fireEvent.click(screen.getByRole('button', { name: 'Edit a row' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Marta edits this' }));
 
     expect(target.version).toBe(before.version + 1);
     expect(target.revenueEur).toBe(before.revenue + 25);

@@ -59,12 +59,19 @@ function frame(o: ProposalOutcome): Framing {
           ? `Matched the standing rule for ${o.toolName} — ${o.ruleDescription} — so this went through with no review.`
           : `Matched the standing rule for ${o.toolName}, so this went through with no review.`,
       };
+    // Two operators working the same consol, which is what a stale abort actually models —
+    // not a system event. Marta is the colleague the register's own edit control simulates,
+    // and naming her is the difference between "the records moved on" (nobody did anything)
+    // and a person on the same shift getting there first.
+    //
+    // "Changed", not "applied a remedy": nothing here knows which field moved, and the receipt
+    // does not get to assert something it was not told.
     case 'stale':
       return {
         tone: 'moved',
         stamp: 'Superseded',
-        title: 'The records moved on',
-        note: `They changed while this was open, so nothing was applied against a stale picture. ${o.toolName} has been told to preview them again.`,
+        title: 'Marta got there first',
+        note: `Marta changed one of these shipments while your proof was open, so nothing was applied against a stale picture. ${o.toolName} has been told to preview them again.`,
       };
     case 'blocked':
       return {
