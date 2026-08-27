@@ -2,17 +2,23 @@
 
 ## Why this use case fits WebMCP
 
-An operations agent proposes changing 47 shipments. The person responsible for those shipments
-has two options today: read the function call, or approve everything and hope.
+Thursday, 19:40. A flight from Frankfurt to Chicago is cancelled. Two consolidations were on
+it, so 42 shipments belonging to 31 different customers are now unbooked. Nobody assembled that
+list. The cancellation did.
 
-`update_shipments({ origin: "Shanghai", setStatus: "Delivered" })` tells them nothing that
-matters. Is that three rows or four hundred? What does it cost? Is any of it irreversible? The
-decision that actually blocks agents from touching real systems gets made against arguments,
-because arguments are all the platform can show.
+There are ninety minutes to the first cutoff, and three ways out. Rebook on the same carrier
+tomorrow morning, which is free and costs eighteen hours. Put it on a competitor's freighter
+tonight, which recovers the time and costs money. Truck it to another airport and fly from
+there, which lands one day late instead of two.
 
-WebMCP solved how an agent acts. It handed pages a way to expose typed tools instead of a screen
-to scrape. What it did not solve is what happens when the agent is wrong, and that is the part
-standing between a demo and production.
+The person responsible has to decide which shipments are worth which remedy. Today they see the
+agent's function call. What they need to see is that this one carries lithium-ion batteries and
+therefore cannot go on tomorrow's passenger flight at all, that this one's temperature-controlled
+container has twelve hours of endurance left and cannot wait until morning, and that this one is
+ordinary freight whose customer will not notice.
+
+WebMCP solved how an agent acts. What it did not solve is what happens when the agent is wrong,
+and that is the part standing between a demo and production.
 
 Ladder is a web app where that decision is made against consequences instead of arguments.
 
@@ -24,7 +30,7 @@ touched. What the tool *would* do becomes a diff.
 
 The person sees the blast radius: how many records, how much money, how many of the actions are
 irreversible, and a bar showing that share against the whole dataset. They untick what they do
-not want, and every figure moves as they do it. The button they press says "Apply 12 of 47".
+not want, and every figure moves as they do it. The button they press says "Apply 27 of 42".
 
 Then the same `execute()` runs again, against real state, through a Proxy that lets the approved
 writes through, silently skips the ones that were narrowed out, and throws if the tool goes
@@ -34,15 +40,18 @@ anywhere the preview never showed. A violation rolls the entire commit back.
 
 The person's edit stops being a veto and becomes a message.
 
-When someone cuts 47 down to 12, the tool does not return "success". It returns what actually
+When someone cuts 42 down to 27, the tool does not return "success". It returns what actually
 happened and why the rest did not:
 
 ```json
 {
   "status": "partially_applied",
-  "requested": 47,
-  "applied": 12,
-  "rejected": [{ "reason": "the operator removed these from the change", "count": 35, "ids": [] }],
+  "requested": 42,
+  "applied": 27,
+  "rejected": [
+    { "reason": "not screened to passenger standard", "count": 1, "ids": ["HAWB-70041"] },
+    { "reason": "the operator removed these from the change", "count": 14, "ids": [] }
+  ],
   "replan_required": true
 }
 ```
@@ -78,6 +87,18 @@ spec-conformant; neither is exercised in the runtime a judge will open.
 
 We also measured that a pending `execute` survives 96 seconds and returns its structured result
 intact, which is why the approval can take as long as a person needs.
+
+## Why the recommendation differs per shipment
+
+Every alternative a rule removed is shown with the rule that removed it, and the rule carries an
+identifier. Standalone lithium-ion is cargo-aircraft-only, so it cannot take a passenger flight.
+A piece built for a freighter main deck does not fit a belly hold. An active container's
+endurance can be shorter than the road route. Cargo not screened to passenger standard cannot
+fly one until it is re-screened.
+
+So the same remedy is correct for most of the flight and impossible for a handful, and the
+interface says which rule decided. Engineers tend to read this as a policy engine. That is the
+right reading.
 
 ## What the reference material does not do
 
