@@ -1,6 +1,6 @@
 import type { DiffGroup } from '../core/diff';
 import type { WriteRecord } from '../core/types';
-import type { BlockedAlternative, Shipment } from '../domain/types';
+import type { BlockedAlternative, RemedyId, Shipment } from '../domain/types';
 import { ProofMark } from './ProofMark';
 import { readProofRow } from './remedy-diff';
 import { remedyCostWords, remedyFull } from './remedy-words';
@@ -22,26 +22,50 @@ function formatValue(value: unknown) {
 const isMono = (field: string) => field === 'remedyCost' || field === 'promisedDelivery';
 
 /**
- * One alternative the constraint layer took off the table, with the rule that took it.
+ * One rule, and every alternative it took off the table.
  *
- * This is the half that makes a recommendation honest rather than arbitrary, so it is set the
- * way a proof sets a deletion: the deletion loop in the gutter, the remedy struck through, and
+ * Grouped by rule rather than one entry per alternative, because a rule that rules out two
+ * options rules them out for one reason: printing the same sentence twice under two deletions
+ * says the shipment failed two different tests, which is not what happened. A temperature clock
+ * that expires before tomorrow morning also expires before a road route, and reading it as one
+ * fact with two casualties is both shorter and truer.
+ *
+ * Set the way a proof sets a deletion: the loop in the gutter, the remedies struck through, and
  * the rule spelled out underneath in the words the domain itself uses. Three signals, none of
  * them a colour — the amber only ever agrees with the loop and the rule through the words.
  */
-function BlockedRow({ alt }: { alt: BlockedAlternative }) {
+function BlockedRow({ rule, ruleId, remedies }: { rule: string; ruleId: string; remedies: RemedyId[] }) {
   return (
     <li className="dg-blocked">
       <span className="dg-blocked-mark">
         <ProofMark name="dele" size={13} />
       </span>
       <div className="dg-blocked-body">
-        <span className="dg-blocked-remedy">{remedyFull(alt.remedy)}</span>
-        <span className="dg-blocked-rule">{alt.rule}</span>
-        <span className="dg-blocked-id mono">{alt.ruleId}</span>
+        {remedies.map(r => (
+          <span className="dg-blocked-remedy" key={r}>{remedyFull(r)}</span>
+        ))}
+        <span className="dg-blocked-rule">{rule}</span>
+        <span className="dg-blocked-id mono">{ruleId}</span>
       </div>
     </li>
   );
+}
+
+interface BlockingRule {
+  ruleId: string;
+  rule: string;
+  remedies: RemedyId[];
+}
+
+/** Folds the blocked alternatives to one entry per rule, in the order the domain listed them. */
+function byRule(blocked: BlockedAlternative[]): BlockingRule[] {
+  const out: BlockingRule[] = [];
+  for (const alt of blocked) {
+    const existing = out.find(r => r.ruleId === alt.ruleId);
+    if (existing) existing.remedies.push(alt.remedy);
+    else out.push({ ruleId: alt.ruleId, rule: alt.rule, remedies: [alt.remedy] });
+  }
+  return out;
 }
 
 /** The fallback path: any write this panel has no vocabulary for, set as a plain substitution. */
@@ -133,8 +157,8 @@ export function DiffGroupRow({ group, record, subtitle, checked, onToggle }: Dif
                     : `Blocked by rule — ${remedy.blocked.length} alternatives`}
                 </p>
                 <ul className="dg-blocked-list">
-                  {remedy.blocked.map(alt => (
-                    <BlockedRow key={alt.remedy} alt={alt} />
+                  {byRule(remedy.blocked).map(r => (
+                    <BlockedRow key={r.ruleId} rule={r.rule} ruleId={r.ruleId} remedies={r.remedies} />
                   ))}
                 </ul>
               </>

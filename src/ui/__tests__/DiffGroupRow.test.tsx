@@ -6,7 +6,7 @@ import type { Shipment } from '../../domain/types';
 import { DiffGroupRow } from '../DiffGroupRow';
 import { RemedySummary } from '../RemedySummary';
 import { readProofRow, summariseRemedies } from '../remedy-diff';
-import { seedShipments } from '../../domain/seed';
+import { seedShipments, DISRUPTED_FLIGHT } from '../../domain/seed';
 import { recommendRemedy } from '../../domain/remedy-policy';
 
 afterEach(() => cleanup());
@@ -45,7 +45,7 @@ describe('DiffGroupRow names the blocked alternatives and their rules', () => {
     const { group, record } = groupFor('HAWB-70001');
     render(<DiffGroupRow group={group} record={record} subtitle="Northwind Retail" checked onToggle={() => {}} />);
 
-    expect(screen.getByText('Truck to another gateway, fly from there')).toBeTruthy();
+    expect(screen.getByText(`Truck to ${DISRUPTED_FLIGHT.alternativeGateway}, fly from there`)).toBeTruthy();
     expect(screen.getByText('€326')).toBeTruthy();
     expect(screen.getByText('24')).toBeTruthy();
   });
@@ -63,20 +63,42 @@ describe('DiffGroupRow names the blocked alternatives and their rules', () => {
   });
 
   it('lists every blocked alternative when a rule takes two away', () => {
-    // HAWB-70015 is on a pharma-qualified lane: both reroutes need sign-off.
-    const { group, record } = groupFor('HAWB-70015');
+    // HAWB-70022 is on a pharma-qualified lane: both reroutes need sign-off.
+    const { group, record } = groupFor('HAWB-70022');
     const { container } = render(
-      <DiffGroupRow group={group} record={record} subtitle="Thistledown Books" checked onToggle={() => {}} />,
+      <DiffGroupRow group={group} record={record} subtitle="Marrow Biotech" checked onToggle={() => {}} />,
     );
 
     expect(container.textContent).toContain('Blocked by rule — 2 alternatives');
-    expect(container.querySelectorAll('.dg-blocked')).toHaveLength(2);
+    // One rule took both, so it is stated once with both alternatives struck under it.
+    expect(container.querySelectorAll('.dg-blocked')).toHaveLength(1);
+    expect(container.querySelectorAll('.dg-blocked-remedy')).toHaveLength(2);
+    expect(container.querySelectorAll('.dg-blocked-rule')).toHaveLength(1);
   });
 
-  it('carries no blocked block at all on an unconstrained row — the mass difference is the point', () => {
+  /**
+   * The row the whole demo turns on: the cheap option is gone because it is too slow, not
+   * because of an aircraft rule, so somebody has to decide to spend money to save the freight.
+   */
+  it('reads as urgent, not arbitrary, when a temperature clock leaves only the freighter', () => {
     const { group, record } = groupFor('HAWB-70002');
     const { container } = render(
       <DiffGroupRow group={group} record={record} subtitle="Belmont Foods" checked onToggle={() => {}} />,
+    );
+
+    expect(container.textContent).toContain("Competitor's freighter, tonight");
+    expect(container.textContent).toContain('Blocked by rule — 2 alternatives');
+    expect(container.textContent).toContain('endurance clock runs out');
+    // Both cheaper options are named, so the price is visibly the last resort rather than a
+    // preference: the free rebook and the road route are each struck with the same rule.
+    expect(screen.getByText('Same carrier, tomorrow morning')).toBeTruthy();
+    expect(container.querySelectorAll('.dg-blocked-remedy')).toHaveLength(2);
+  });
+
+  it('carries no blocked block at all on an unconstrained row — the mass difference is the point', () => {
+    const { group, record } = groupFor('HAWB-70003');
+    const { container } = render(
+      <DiffGroupRow group={group} record={record} subtitle="Karo Textiles" checked onToggle={() => {}} />,
     );
 
     expect(container.textContent).toContain('Same carrier, tomorrow morning');
@@ -86,8 +108,8 @@ describe('DiffGroupRow names the blocked alternatives and their rules', () => {
 
   it('falls back to a plain field substitution for a write it has no vocabulary for', () => {
     const group: DiffGroup = {
-      group: 'shipments:HAWB-70002', entity: 'shipments', id: 'HAWB-70002', valueDelta: 0, version: 1,
-      writes: [{ entity: 'shipments', id: 'HAWB-70002', field: 'slaTier', before: 'basic', after: 'premium', group: 'shipments:HAWB-70002' }],
+      group: 'shipments:HAWB-70003', entity: 'shipments', id: 'HAWB-70003', valueDelta: 0, version: 1,
+      writes: [{ entity: 'shipments', id: 'HAWB-70003', field: 'slaTier', before: 'basic', after: 'premium', group: 'shipments:HAWB-70003' }],
     };
     const { container } = render(
       <DiffGroupRow group={group} record={undefined} subtitle="" checked onToggle={() => {}} />,
@@ -121,6 +143,9 @@ describe('RemedySummary states the distribution of the run', () => {
     expect(biggest.count).toBeGreaterThan(total * 0.5);
     expect(constrained).toBeGreaterThan(0);
     expect(constrained).toBeLessThan(total * 0.5);
+    // All three remedies are represented, or a third of the option space never appears in the
+    // demo and the panel is only ever showing the same two answers.
+    expect(lines.map(l => l.remedy).sort()).toEqual(['competitor', 'rebook', 'truck']);
   });
 
   it('renders the tally and the constrained count in words', () => {
@@ -135,7 +160,7 @@ describe('RemedySummary states the distribution of the run', () => {
   });
 
   it('says so plainly when nothing was constrained rather than printing a zero', () => {
-    const { group, record } = groupFor('HAWB-70002');
+    const { group, record } = groupFor('HAWB-70003');
     const rows = [readProofRow(group, record)];
     const { lines, constrained } = summariseRemedies(rows);
     const { container } = render(<RemedySummary lines={lines} constrained={constrained} total={1} />);

@@ -59,15 +59,55 @@ describe('checkRemedy', () => {
     expect(checkRemedy(s, 'truck')).toEqual({ status: 'blocked', rule: RULES.pharmaLaneSignoffRequired });
   });
 
-  it('blocks truck when an active container\'s endurance is shorter than the route', () => {
-    const s = baseShipment({ activeTempControl: true, tempEnduranceHours: 18 });
+  it('blocks truck when an active container\'s endurance is shorter than the road route', () => {
+    const s = baseShipment({ activeTempControl: true, tempEnduranceHours: 20 });
     expect(checkRemedy(s, 'truck')).toEqual({ status: 'blocked', rule: RULES.activeTempEnduranceWindow });
     expect(checkRemedy(s, 'rebook').status).toBe('available');
     expect(checkRemedy(s, 'competitor').status).toBe('available');
   });
 
-  it('permits truck when an active container\'s endurance covers the route', () => {
+  it('permits truck when an active container\'s endurance covers the road route', () => {
     const s = baseShipment({ activeTempControl: true, tempEnduranceHours: 40 });
+    expect(checkRemedy(s, 'truck').status).toBe('available');
+  });
+
+  /**
+   * The excursion clock is the only rule that can take the *cheap* option away and leave the
+   * expensive one. Everything else here rules out a reroute and leaves the free rebook standing;
+   * this rules out the free rebook because it is too slow, which is a different kind of problem
+   * and the one that puts a price on somebody's decision.
+   */
+  it('leaves only the freighter tonight when the endurance clock expires before tomorrow morning', () => {
+    const s = baseShipment({ activeTempControl: true, tempEnduranceHours: 12 });
+    expect(checkRemedy(s, 'rebook')).toEqual({ status: 'blocked', rule: RULES.activeTempEnduranceWindow });
+    expect(checkRemedy(s, 'truck')).toEqual({ status: 'blocked', rule: RULES.activeTempEnduranceWindow });
+    expect(checkRemedy(s, 'competitor').status).toBe('available');
+  });
+
+  it('recommends that shipment the freighter, at a price, with both cheaper options named', () => {
+    const s = baseShipment({ activeTempControl: true, tempEnduranceHours: 12, weightKg: 200 });
+    const rec = recommendRemedy(s)!;
+    expect(rec.remedy).toBe('competitor');
+    expect(rec.cost).toBeGreaterThan(0);
+    expect(rec.recoveredHours).toBe(remedyRecoveredHours('competitor'));
+    expect(rec.blocked.map(b => b.remedy).sort()).toEqual(['rebook', 'truck']);
+    for (const alt of rec.blocked) expect(alt.ruleId).toBe(RULES.activeTempEnduranceWindow.id);
+  });
+
+  it('measures each remedy against its own transit time, not one shared route figure', () => {
+    // 20h outlasts tomorrow morning (18h) but not the road route (24h); 12h outlasts neither.
+    const outlastsRebookOnly = baseShipment({ activeTempControl: true, tempEnduranceHours: 20 });
+    const outlastsNeither = baseShipment({ activeTempControl: true, tempEnduranceHours: 12 });
+    expect(checkRemedy(outlastsRebookOnly, 'rebook').status).toBe('available');
+    expect(checkRemedy(outlastsNeither, 'rebook').status).toBe('blocked');
+  });
+
+  it('leaves a shipment with no active container untouched by the endurance rule', () => {
+    // tempEnduranceHours is meaningless when activeTempControl is false, and a 0 there must
+    // never be read as "no endurance at all".
+    const s = baseShipment({ activeTempControl: false, tempEnduranceHours: 0 });
+    expect(checkRemedy(s, 'rebook').status).toBe('available');
+    expect(checkRemedy(s, 'competitor').status).toBe('available');
     expect(checkRemedy(s, 'truck').status).toBe('available');
   });
 
@@ -83,8 +123,8 @@ describe('checkRemedy', () => {
     expect(checkRemedy(s, 'competitor').status).toBe('available');
   });
 
-  it('can block every remedy at once for a shipment that combines lithium and a pharma lane', () => {
-    const s = baseShipment({ lithiumBattery: true, pharmaQualifiedLane: true });
+  it('can block every remedy at once for unscreened cargo on a pharma-qualified lane', () => {
+    const s = baseShipment({ screeningStatus: 'pending', pharmaQualifiedLane: true });
     expect(checkRemedy(s, 'rebook').status).toBe('blocked');
     expect(checkRemedy(s, 'competitor').status).toBe('blocked');
     expect(checkRemedy(s, 'truck').status).toBe('blocked');

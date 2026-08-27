@@ -4,12 +4,13 @@
  * recovered time, the cheapest-available recommendation) is built on top of that one
  * predicate and stays just as pure.
  *
- * Three remedies exist for a house shipment caught on a cancelled flight:
+ * Three remedies exist for a house shipment caught on a cancelled flight out of Frankfurt:
  *  - rebook:     same carrier, next scheduled (passenger-belly) service, tomorrow morning. Free.
  *  - competitor: a competitor's freighter tonight, at spot rate. Cargo aircraft — no belly
  *                constraints — but switching carriers costs money and has a cutoff.
- *  - truck:      trucked to another gateway and flown from there. Not belly-constrained either,
- *                but it is itself a reroute, and it takes longer than the other two.
+ *  - truck:      trucked to the alternative European gateway and flown from there. Not
+ *                belly-constrained either, but it is itself a reroute and the slowest of the
+ *                three.
  */
 import type {
   BlockedAlternative, CustomsStatus, RemedyId, RemedyRule, Shipment, ScreeningStatus,
@@ -17,18 +18,25 @@ import type {
 
 export const REMEDIES: RemedyId[] = ['rebook', 'competitor', 'truck'];
 
-// A truck-and-fly route's total transit time, in hours — the figure an active container's
-// endurance clock is measured against. Fixed, not derived from any shipment: the route itself
-// doesn't change shipment to shipment, only whether a given container can survive it.
-const TRUCK_ROUTE_HOURS = 30;
+// What doing nothing costs: the next capacity this shipment could ride out of the gateway is
+// about two days away. Every remedy's recovered time is measured against this.
+const DO_NOTHING_HOURS = 48;
 
-// "The time it recovers" for each remedy, relative to a disrupted shipment doing nothing and
-// waiting for the next available capacity (assumed ~48h out). Fixed per remedy, matching the
-// design table's own language ("about 18 hours", "tonight", "one day instead of two") rather
-// than varying per shipment.
-const REBOOK_RECOVERED_HOURS = 30;     // delay limited to ~18h -> 48 - 18
-const COMPETITOR_RECOVERED_HOURS = 44; // flies out tonight -> 48 - ~4
-const TRUCK_RECOVERED_HOURS = 24;      // one day instead of two -> 48 - 24
+/**
+ * How long each remedy takes to get the freight moving and landed, in hours. One number per
+ * remedy, and the only time figure in this module — "the time it recovers" is derived from it
+ * (DO_NOTHING_HOURS minus this), and so is whether an active container's endurance clock
+ * outlasts it. A single source for both is what stops a remedy from claiming to recover a day
+ * while being measured against a different, longer route elsewhere in the file.
+ *
+ * Fixed per remedy, matching the design table's own language ("about 18 hours", "tonight",
+ * "one day instead of two"), rather than varying per shipment.
+ */
+const TRANSIT_HOURS: Record<RemedyId, number> = {
+  rebook: 18,     // tomorrow morning's belly service
+  competitor: 4,  // a freighter leaving tonight
+  truck: 24,      // road to the alternative gateway, then the air leg from there
+};
 
 // Competitor freighter: a spot-rate premium over the contracted rate, per kilo.
 const COMPETITOR_RATE_DELTA_PER_KG = 2.35;
@@ -51,7 +59,7 @@ export const RULES = {
   },
   activeTempEnduranceWindow: {
     id: 'active-temp-endurance-window',
-    description: "This active container's endurance clock is shorter than a truck-and-fly route.",
+    description: "This active container's endurance clock runs out before this option would land the shipment.",
   },
   pharmaLaneSignoffRequired: {
     id: 'pharma-lane-signoff-required',
@@ -59,7 +67,7 @@ export const RULES = {
   },
   customsAcdCutoff: {
     id: 'customs-acd-cutoff',
-    description: 'Advance cargo data must be filed against the new carrier before it loads, and this shipment is not yet customs-released ahead of that cutoff.',
+    description: 'Advance cargo data must be filed with United States customs against the new carrier before it loads, and this shipment is not yet released ahead of that cutoff.',
   },
 } as const satisfies Record<string, RemedyRule>;
 
@@ -72,6 +80,16 @@ const blockedBy = (rule: RemedyRule): RemedyAvailability => ({ status: 'blocked'
 
 /** The heart of it: given a shipment and a remedy, is it available, or blocked and by what. */
 export function checkRemedy(s: Shipment, remedy: RemedyId): RemedyAvailability {
+  // Checked first and against every remedy, not just the road one. An active container holds
+  // temperature for a fixed number of hours; any option that lands later than that has already
+  // spoiled the freight, whichever aircraft it was going to ride. This is the one constraint
+  // that can rule out the *cheap* option and leave only the fast one — a shipment whose clock
+  // expires before tomorrow morning cannot take the free rebook no matter what else is true
+  // of it, and if the clock is shorter than the road route either, the freighter tonight is
+  // all that is left.
+  if (s.activeTempControl && s.tempEnduranceHours < TRANSIT_HOURS[remedy]) {
+    return blockedBy(RULES.activeTempEnduranceWindow);
+  }
   if (remedy === 'rebook') {
     if (s.lithiumBattery) return blockedBy(RULES.lithiumCargoAircraftOnly);
     if (s.oversizeMainDeckOnly) return blockedBy(RULES.oversizeMainDeckOnly);
@@ -85,9 +103,6 @@ export function checkRemedy(s: Shipment, remedy: RemedyId): RemedyAvailability {
   }
   // truck
   if (s.pharmaQualifiedLane) return blockedBy(RULES.pharmaLaneSignoffRequired);
-  if (s.activeTempControl && s.tempEnduranceHours < TRUCK_ROUTE_HOURS) {
-    return blockedBy(RULES.activeTempEnduranceWindow);
-  }
   return AVAILABLE;
 }
 
@@ -105,9 +120,7 @@ export function remedyCost(s: Shipment, remedy: RemedyId): number {
 }
 
 export function remedyRecoveredHours(remedy: RemedyId): number {
-  if (remedy === 'rebook') return REBOOK_RECOVERED_HOURS;
-  if (remedy === 'competitor') return COMPETITOR_RECOVERED_HOURS;
-  return TRUCK_RECOVERED_HOURS;
+  return DO_NOTHING_HOURS - TRANSIT_HOURS[remedy];
 }
 
 /** Every remedy other than `chosen` that is blocked for this shipment, with its rule. */

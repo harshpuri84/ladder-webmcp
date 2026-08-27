@@ -1104,14 +1104,26 @@ body.pp-active .console-table td {
   color: var(--ink-muted);
 }
 
-.pp-note {
+.pp-note + .pp-note {
+  margin-top: 7px;
+}
+
+.pp-note-line {
   margin: 0;
   font-size: 0.86rem;
   color: var(--ink-muted);
 }
 
-.pp-note + .pp-note {
-  margin-top: 3px;
+/*
+ * The shipments themselves. Indented under the reason and set in the register's own face, so
+ * they read as ids to go and look up rather than as more prose — which is what they are: a
+ * shipment with no remedy left has to be escalated by a person, tonight.
+ */
+.pp-note-ids {
+  margin: 2px 0 0;
+  padding-left: 2ch;
+  font-size: 0.78rem;
+  color: var(--ink);
 }
 
 /* ---------- the change set ---------- */
@@ -1281,7 +1293,11 @@ body.pp-active .console-table td {
   min-width: 0;
 }
 
-/* Struck through, because a rule took it out — the mark in the gutter says so first. */
+/*
+ * Struck through, because a rule took it out — the mark in the gutter says so first. One line
+ * per alternative the rule above it removed, stacked, so two options lost to one rule read as
+ * one deletion with two names rather than as two separate findings.
+ */
 .dg-blocked-remedy {
   display: block;
   font-size: 0.86rem;
@@ -1294,7 +1310,7 @@ body.pp-active .console-table td {
 /* The rule in the domain's own words. Not struck: it is what happened, not what was removed. */
 .dg-blocked-rule {
   display: block;
-  margin-top: 1px;
+  margin-top: 3px;
   font-size: 0.82rem;
   line-height: 1.5;
   color: var(--ink);

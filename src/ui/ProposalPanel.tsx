@@ -78,11 +78,19 @@ function describeRequest(toolName: string, input: unknown): string {
   }
 }
 
-/** Rows the tool itself left alone, folded to one line per reason. */
+/**
+ * How many shipment ids a skip line names before it stops. A skip is something the operator has
+ * to go and do by hand — a shipment with no remedy left needs escalating tonight, by a person —
+ * so the ids are worth the room. Past a handful they stop being a to-do list and become a wall,
+ * and the count plus the receipt's own `ids` array carry the rest.
+ */
+const NAMED_SKIPS = 6;
+
+/** Rows the tool itself left alone, folded to one line per reason, each naming its shipments. */
 function byReason(notes: { id: string; reason: string }[]) {
-  const counts = new Map<string, number>();
-  for (const n of notes) counts.set(n.reason, (counts.get(n.reason) ?? 0) + 1);
-  return [...counts].map(([reason, count]) => ({ reason, count }));
+  const byText = new Map<string, string[]>();
+  for (const n of notes) byText.set(n.reason, [...(byText.get(n.reason) ?? []), n.id]);
+  return [...byText].map(([reason, ids]) => ({ reason, count: ids.length, ids }));
 }
 
 const tierWord: Record<SlaTier, string> = {
@@ -269,9 +277,17 @@ export function ProposalPanel() {
                 <span className="pp-notes-caption-tail"> — not by Ladder</span>
               </p>
               {byReason(notes).map(n => (
-                <p className="pp-note" key={n.reason}>
-                  <span className="mono">{n.count}</span> skipped — {n.reason}
-                </p>
+                <div className="pp-note" key={n.reason}>
+                  <p className="pp-note-line">
+                    <span className="mono">{n.count}</span> skipped — {n.reason}
+                  </p>
+                  {/* Named, not just counted. A shipment nobody can help is a real outcome and
+                      the operator has to know which one it is to go and do something about it. */}
+                  <p className="pp-note-ids mono">
+                    {n.ids.slice(0, NAMED_SKIPS).join(', ')}
+                    {n.ids.length > NAMED_SKIPS && ` and ${n.ids.length - NAMED_SKIPS} more`}
+                  </p>
+                </div>
               ))}
             </section>
           )}

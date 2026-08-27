@@ -1,7 +1,14 @@
 # Ladder — the interface, rebuilt on the remedy domain
 
 **27 Aug 2026.** Worktree `ladder-webmcp-wt-reframe`, branch `domain/disruption-reframe`.
-Commits `0c655a0` (the scope-violation switch) and `8251da1` (the interface).
+Commits `0c655a0` (the scope-violation switch), `8251da1` (the interface), and a fourth commit
+correcting the lane and the temperature clock after review.
+
+> **Second pass, after review.** The coordinator confirmed two of the four concerns raised below
+> and directed fixes for both: the lane was wrong in a way that made one rule fiction, and the
+> competitor freighter was never recommended. Both are now fixed in `src/domain`, at their
+> direction. The sections marked **[corrected]** carry the new numbers; the original measurements
+> are kept where they explain why something changed.
 
 ## Two of the four "read first" documents were not in this worktree
 
@@ -14,42 +21,173 @@ So the domain half of the brief was read from the code — `src/domain/remedy-po
 `types.ts`, `seed.ts` and `tools.ts` — rather than from the agent's account of it. Nothing was
 assumed about what the domain does; everything below is measured off the fixture.
 
-## What the fixture actually decides, which is what the panel had to show
+## The lane, and the rule it was making up **[corrected]**
+
+`seed.ts` seeded `Singapore → Frankfurt`. The scenario is `Frankfurt → Chicago`, and the
+difference is not cosmetic: **advance cargo data filed against a new carrier before it loads is
+a United States import requirement.** On a Europe-bound flight the `customs-acd-cutoff` rule
+describes a regulation that does not exist, which is exactly the detail a reader from this
+industry checks first.
+
+The lane is now Frankfurt to Chicago, with **Amsterdam** as the gateway the road option drives
+to, and both lane-dependent rules describe something that genuinely applies. The customs rule's
+own sentence now names the jurisdiction rather than leaving it implied:
+
+> Advance cargo data must be filed with United States customs against the new carrier before it
+> loads, and this shipment is not yet released ahead of that cutoff.
+
+`DISRUPTED_FLIGHT` gained an `alternativeGateway` field so the gateway is fixture data rather
+than a phrase the interface asserts — `remedy-words.ts` reads it, and the proof line renders
+"Truck to Amsterdam, fly from there". A test asserts the lane and the gateway directly, with the
+reason written down, so a future edit cannot quietly put the rules back out of scope.
+
+**Nothing else in the fixture assumed an Asia origin.** Checked by grep across `src/`,
+`.impeccable/`, `README.md`, `PRODUCT.md` and `index.html`: the only occurrence was `seed.ts`
+itself. Customer names carry no geography, and the promised-delivery window (15–18 Sep against a
+14 Sep cancellation) is as plausible for a transatlantic lane as for the old one. One stale
+reference survives outside my scope — `submission/description.md` still opens on
+`update_shipments({ origin: "Shanghai", ... })`, a tool that no longer exists — see Open below.
+
+The scenario also carries a wall clock ("Thursday 19:40, ninety minutes to the first cutoff")
+that the fixture does not. Nothing in the interface states a time, because stating one would be
+inventing data, and because nothing that runs inside a tool may read a clock.
+
+## The freighter now has a reason to exist **[corrected]**
+
+Before: **37 rebook, 4 truck, 1 with no remedy, 0 competitor.** A third of the option space
+never appeared, because the freighter is never the cheapest option — when the rebook is open it
+is free, and when the rebook is blocked the road route beats a spot rate at every weight in the
+fixture.
+
+The research gives the honest reason for that row to exist, and it is a constraint on *time*
+rather than on aircraft type. An active container holds temperature for a fixed number of hours;
+any option that lands later than that has already spoiled the freight, whichever aircraft it was
+going to ride. So the endurance check moved out of the truck branch and now runs against every
+remedy, measured against one transit figure per remedy:
+
+```
+TRANSIT_HOURS = { rebook: 18, competitor: 4, truck: 24 }
+recoveredHours = 48 − TRANSIT_HOURS[remedy]
+```
+
+That single source also fixed a quiet inconsistency the old code carried: the truck claimed to
+recover 24 hours while being measured for endurance against a separate `TRUCK_ROUTE_HOURS = 30`.
+One number per remedy now feeds both.
+
+The fixture carries three sizes of clock, and which side of those transit figures a clock falls
+on is the whole difference between an ordinary shipment and an urgent one:
+
+| endurance | what it rules out | fixture rows |
+|---|---|---|
+| 40h | nothing — temperature-controlled and fine | Ashgrove Pharma |
+| 20h | the road route only; the free rebook still lands | Halden Chemicals |
+| 12h | the rebook **and** the road route — only a freighter tonight lands in time | Belmont Foods, Amaranth Cosmetics |
+
+### The distribution now **[corrected]**
 
 Running `recommendRemedy` over all 42 seeded shipments:
 
-| | rows |
-|---|---|
-| free same-carrier rebook | 37 |
-| truck to another gateway | 4 |
-| every remedy blocked — a domain skip, no diff row | 1 |
-| **rows carrying at least one blocked alternative** | **7** |
+| | rows | cost |
+|---|---|---|
+| free same-carrier rebook | 34 | free |
+| truck to Amsterdam, fly from there | 5 | €1,696 |
+| competitor's freighter, tonight | 2 | €1,015 |
+| every remedy blocked — a domain skip, no diff row | 1 | — |
+| **rows carrying at least one blocked alternative** | **10** | |
 
-The competitor freighter is never *recommended*, because it is never the cheapest available
-option: when the rebook is open it is free, and when the rebook is blocked the truck is
-cheaper than a spot rate on any of these weights. It is still reachable — an agent can force
-`remedy: 'competitor'` and blocked rows come back named — and it appears in the panel wherever
-a rule blocked it.
+All three remedies represented, most rows still on the cheap one, and the constrained rows still
+a minority (10 of 42). A test asserts all three appear, so this cannot silently collapse back to
+two answers.
 
-Two consequences for the interface, both taken as given rather than designed around:
+The freighter row reads exactly as intended — the cheap option is gone because it is *too slow*,
+not because of an aircraft rule, so someone has to decide to spend money to save the freight:
 
-- The brief's example row ("the free rebook is blocked by lithium-ion and the only option is
-  the freighter") is structurally present but lands on the truck, not the freighter:
-  `HAWB-70001` reads *rebook blocked by `lithium-cargo-aircraft-only`, remedy = truck, €326*.
-  The shape the brief asked for is exactly what renders; the fixture's economics pick a
-  different fallback.
-- 37 free / 4 paid / 1 escalation / 7 constrained is a real distribution, so making it visible
-  was a matter of showing it rather than staging it.
+```
+☑ ⌃  HAWB-70002                                              +€317
+      Belmont Foods · CONSOL-A · basic SLA · promised 2026-09-18
+      REMEDY   Competitor's freighter, tonight
+               €317 · recovers 44 h
+      BLOCKED BY RULE — 2 ALTERNATIVES
+      ⌐ ̶S̶a̶m̶e̶ ̶c̶a̶r̶r̶i̶e̶r̶,̶ ̶t̶o̶m̶o̶r̶r̶o̶w̶ ̶m̶o̶r̶n̶i̶n̶g̶
+        ̶T̶r̶u̶c̶k̶ ̶t̶o̶ ̶A̶m̶s̶t̶e̶r̶d̶a̶m̶,̶ ̶f̶l̶y̶ ̶f̶r̶o̶m̶ ̶t̶h̶e̶r̶e̶
+        This active container's endurance clock runs out before this option would land
+        the shipment.
+        active-temp-endurance-window
+```
 
-**One mismatch worth flagging.** `docs/DISRUPTION-SCENARIO.md` describes a Frankfurt → Chicago
-cancellation. `src/domain/seed.ts` seeds `NX-4821, Singapore → Frankfurt, 2026-09-14`. The
-interface renders the fixture, never the document — the docket line at the top of the page is
-counted and read straight off `DISRUPTED_FLIGHT` and the store — so the page cannot drift from
-the data. But the two disagree, and one of them should be corrected before this is filmed.
+**Blocked alternatives are now grouped by rule**, which this row is what prompted. Printing the
+same sentence under two separate deletions says the shipment failed two different tests, and it
+did not — one clock expired before both options. One rule, both casualties struck under it, is
+shorter and truer. The caption still counts alternatives, not rules.
 
-The scenario also carries a wall clock ("Thursday 19:40, ninety minutes to the first cutoff")
-that the fixture does not. Nothing in the interface states a time, because stating one would
-be inventing data, and because nothing that runs inside a tool may read a clock.
+## Flags that sat on the wrong customers **[corrected, and beyond what was asked]**
+
+While correcting the lane I checked the rest of the fixture against the same bar, and several
+flags were on customers who would never ship that commodity: a robotics company in an active
+temperature-controlled container, a books publisher on a pharma-qualified lane, a pharmaceutical
+shipper carrying standalone lithium-ion batteries. That is the same class of error as the lane —
+the first thing an industry reader notices, and it makes every other figure on the page suspect.
+
+Every flag now sits on a customer who would plausibly carry it:
+
+| flag | shipment | customer |
+|---|---|---|
+| standalone lithium-ion | HAWB-70001, HAWB-70025 | Northwind Retail, Gravelight Batteries |
+| built for a main deck | HAWB-70023 | Talon Aerospace Parts |
+| not screened to passenger standard | HAWB-70018, HAWB-70030, HAWB-70041 | Cobalt Sportswear, Nautilus Marine Supply, Ashgrove Pharma |
+| pharma-qualified lane | HAWB-70022, HAWB-70041 | Marrow Biotech, Ashgrove Pharma |
+| held by customs | HAWB-70038 | Marrow Biotech |
+| active temperature control | HAWB-70002, HAWB-70004, HAWB-70008, HAWB-70014 | Belmont Foods, Ashgrove Pharma, Halden Chemicals, Amaranth Cosmetics |
+
+Three customers now have one constrained shipment and one ordinary one, which is what a consol
+actually looks like: Northwind Retail (lithium / clean), Marrow Biotech (pharma lane / customs
+held) and Ashgrove Pharma (temperature-controlled and fine / out of options entirely).
+
+This was not asked for. It is a fixture change, it is reversible, and it is called out here so
+it can be rejected on its own terms.
+
+## The shipment nobody can help **[answered]**
+
+`HAWB-70041`, Ashgrove Pharma: unscreened cargo on a pharma-qualified lane. The rebook needs
+passenger-standard screening, and both reroutes need a lane sign-off nobody can give tonight.
+`recommendRemedy` returns null, `propose_remedy` pushes a domain note instead of guessing, and
+no diff row is ever built for it.
+
+Previously this was constructed from lithium plus a pharma lane, which is not a combination that
+occurs — a pharmaceutical shipper does not tender standalone batteries. Unscreened-on-a-pharma-lane
+is the same outcome from a pairing that happens.
+
+**What the interface does with it.** It is stated, in the panel's "left alone by the tool"
+block, above the change set and before the stamp:
+
+```
+⌐ LEFT ALONE BY THE TOOL — not by Ladder
+  1 skipped — every remedy is blocked for this shipment; it needs manual escalation
+  HAWB-70041
+```
+
+The id on that second line is new in this pass. Folding skips to one line per reason was already
+right — forty of the same reason should not be forty lines — but a shipment nobody can help is
+something a person has to go and act on tonight, and a bare count does not tell them which one.
+The line now names up to six shipments and says "and N more" past that; the receipt's `ids` array
+carries the full list to the agent either way.
+
+**What the agent is told.** Driven live, applying the whole run with one row struck by hand:
+
+```
+status            partially_applied
+requested         42
+applied           40
+rejected          1 · every remedy is blocked for this shipment; it needs manual escalation
+                      ids: ["HAWB-70041"]
+                  1 · the operator removed these from the change
+replan_required   true
+```
+
+40 + 1 + 1 = 42. **The invariant holds for that row**, and the agent gets the shipment id and the
+reason as structured data rather than a silent absence. The receipt on screen says the same in
+words: *"40 of 42 went through as approved. The rest is accounted for above, and propose_remedy
+has been told to replan around it."*
 
 ## The proof line
 
@@ -181,6 +319,9 @@ of the real DOM, checkbox state frozen to attributes) rather than hand-written, 
 actual components against the actual stylesheet. Sections: the build this replaced, proof lines,
 extent + tally + held matter + stamp, the eight receipts, the rungs, the register + run log.
 
+Rebuilt again in the second pass to carry the freighter row, the grouped-by-rule deletion, the
+three-remedy tally and the named skip.
+
 Read in **normal vision, deuteranopia, protanopia, and no colour at all**:
 
 | element | what tells it apart with no colour | verdict |
@@ -189,7 +330,9 @@ Read in **normal vision, deuteranopia, protanopia, and no colour at all**:
 | blocked-alternative block | small-caps caption "BLOCKED BY RULE — n ALTERNATIVES", hanging rule down the left, the rule sentence | pass |
 | rule id | mono, smaller, on its own line | pass |
 | row taken vs row struck by the operator | caret vs stet, rule through the whole correction, "STRUCK OUT — STANDS AS IT IS" | pass |
-| the tally | count / remedy / price in three columns, tabular figures | pass |
+| the tally, now three remedies | count / remedy / price in three columns, tabular figures | pass |
+| one rule blocking two options | one deletion loop, two struck remedy names stacked under it, one rule sentence | pass |
+| a named skip | the ids in the register's own face, indented under the reason | pass |
 | the constrained line | dagger + double rules above and below + the sentence | pass |
 | held action | dagger + double rules + "HELD — CANNOT BE UNDONE" | pass |
 | cargo flags in the register | dagger + boxed word ("Lithium-ion", "Main deck only", "Customs held") | pass |
@@ -207,13 +350,17 @@ are still unmistakable, because the marks differ (`dele` vs `stet`) and the word
 
 ## Checks
 
-- `npm test` — **19 files, 159 tests, all passing**. 56 core tests unmodified.
+- `npm test` — **19 files, 165 tests, all passing** (159 before the second pass; six added for
+  the corrected lane, the three-size temperature clock, the freighter-only row, the per-remedy
+  transit measurement, the no-active-container case, and all-three-remedies-represented). 56 core
+  tests unmodified.
 - `npm run build` — clean. `dist/` carries no `__ladderDemo` and no `fake-model-context`
   (grep over `dist/` returns nothing).
 - `npm run lint` — 3 warnings, all pre-existing on `main` (verified by stashing: 3 before, 3
-  after). A fourth (`only-export-components` on the new `RemedySummary.tsx`) was removed by
+  after; still 3 after the second pass). A fourth (`only-export-components` on the new `RemedySummary.tsx`) was removed by
   moving `summariseRemedies` into `remedy-diff.ts`, where the reduction belongs anyway.
-- Design detector over every changed source file — **`[]`**, clean.
+- Design detector over every changed source file, including the corrected domain files —
+  **`[]`**, clean.
   The only finding anywhere was `em-dash-overuse`, advisory-only, on `.impeccable/cvd/test.html`
   — which already tripped it before this task (19 em-dashes then, 23 now); they are the sheet's
   established caption grammar plus the domain's own rule sentences.
@@ -229,9 +376,11 @@ are still unmistakable, because the marks differ (`dele` vs `stet`) and the word
 - Determinism: nothing added reads a clock or a random source inside a tool. The one `Date.now`
   in the interface is the activity log's timestamp, which predates this work and runs in React,
   not in a tool.
-- Reconciliation, `applied + Σrejected.count === requested`, observed on every path driven:
-  partial apply 39 + 1 + 2 = 42; refusal 0 + 1 + 14 = 15; stale 0 + 27 = 27; scope violation
-  0 + 1 = 1. Asserted in the new buggy-tool test on the abort path.
+- Reconciliation, `applied + Σrejected.count === requested`, observed on every path driven.
+  On the corrected fixture: partial apply 40 + 1 + 1 = 42 (the skipped row named, ids carried);
+  scope violation 0 + 1 = 1, `slaTier` still `basic` and `remedy` still null after the rollback.
+  Earlier passes on the old fixture: refusal 0 + 1 + 14 = 15; stale 0 + 27 = 27. Asserted in the
+  buggy-tool test on the abort path.
 
 ## New and changed files
 
@@ -244,15 +393,24 @@ Changed: `DiffGroupRow.tsx`, `ProposalPanel.tsx`, `Console.tsx`, `RungStrip.tsx`
 `styles.css`, `.impeccable/cvd/test.html`, four existing test files for the new ids and the
 four-tool count, and `src/domain/tools.ts` for the demonstration switch.
 
-`src/core/` untouched.
+Changed in the second pass, at the coordinator's direction: `src/domain/seed.ts` (the lane, the
+alternative gateway, the three temperature clocks, the flag-to-customer pairings),
+`src/domain/remedy-policy.ts` (per-remedy transit hours, the endurance rule generalised to every
+remedy, the customs rule naming its jurisdiction), and the two domain test files that cover them.
+
+`src/core/` untouched throughout.
 
 ## Open
 
-1. **The lane disagrees with the scenario document.** Fixture says Singapore → Frankfurt; the
-   document says Frankfurt → Chicago. Decide which is canonical before filming.
-2. **The competitor freighter is never the recommendation** on this fixture. If the video wants
-   a row that recovers tonight at a price, the seed needs a shipment where the truck is blocked
-   and the freighter is not — an active container with endurance under 30h *and* a blocked
-   rebook. That is a seed change, so I left it alone.
-3. **`docs/` is untracked in the sibling checkout.** `DISRUPTION-SCENARIO.md` is not in git at
-   all; if it is the design of record it should be committed.
+1. **The submission copy still describes the old scenario.** `submission/description.md` opens on
+   `update_shipments({ origin: "Shanghai", setStatus: "Delivered" })` and "an operations agent
+   proposes changing 47 shipments" — a tool, a lane and a scenario that no longer exist. It is a
+   separate deliverable and I did not touch it, but it is the first thing a judge reads.
+2. **The flag-to-customer repairing was not asked for.** It is described above in full so it can
+   be reverted; the lane fix and the temperature clock do not depend on it.
+3. **Resolved in this pass:** the lane (now Frankfurt → Chicago with Amsterdam as the alternative
+   gateway) and the missing freighter (now 2 rows, recommended because the excursion clock rules
+   out both cheaper options).
+4. **Closed by the coordinator:** `docs/DISRUPTION-SCENARIO.md` is committed on `main`, and the
+   domain report lives outside the repo. The degraded detector stays as reported — no writing
+   into the skill's install directory.

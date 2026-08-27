@@ -9,6 +9,7 @@
  * cell, where there is not.
  */
 import type { RemedyId } from '../domain/types';
+import { DISRUPTED_FLIGHT } from '../domain/seed';
 
 interface RemedyWords {
   /** The proof line: what happens to this shipment, in the words an operator would use. */
@@ -27,7 +28,9 @@ const WORDS: Record<RemedyId, RemedyWords> = {
     short: 'freighter',
   },
   truck: {
-    full: 'Truck to another gateway, fly from there',
+    // The gateway is read off the fixture rather than written down here: the road option only
+    // means anything as a named place, and the interface must not be the one asserting which.
+    full: `Truck to ${DISRUPTED_FLIGHT.alternativeGateway}, fly from there`,
     short: 'truck-and-fly',
   },
 };

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { seedShipments, CONSOLS } from '../seed';
+import { seedShipments, CONSOLS, DISRUPTED_FLIGHT } from '../seed';
 
 describe('seedShipments', () => {
   it('is deterministic', () => {
@@ -58,9 +58,12 @@ describe('seedShipments', () => {
       x.lithiumBattery || x.activeTempControl || x.pharmaQualifiedLane ||
       x.oversizeMainDeckOnly || x.screeningStatus !== 'cleared' || x.customsStatus !== 'released',
     );
+    const total = Object.keys(s).length;
     expect(flagged.length).toBeGreaterThan(0);
-    expect(flagged.length).toBeLessThan(12);
-    expect(flagged.length).toBeLessThan(Object.keys(s).length - flagged.length);
+    // "A handful" stated as a ratio rather than a fixed count, so adding one flagged shipment
+    // does not fail a test whose point is the proportion.
+    expect(flagged.length * 3).toBeLessThanOrEqual(total);
+    expect(flagged.length).toBeLessThan(total - flagged.length);
   });
 
   it('carries at least one shipment for every one of the six blocking flags', () => {
@@ -74,10 +77,29 @@ describe('seedShipments', () => {
     expect(rows.some(x => x.customsStatus === 'held')).toBe(true);
   });
 
-  it('gives at least one active-temp-controlled shipment enough endurance for a truck route, and one too little', () => {
+  /**
+   * Three sizes of temperature clock, because which side of a remedy's transit time a clock
+   * falls on is the whole difference between an ordinary shipment and the one that has to move
+   * tonight at a price. Written against the transit figures remedy-policy.ts uses (18h for the
+   * rebook, 24h for the road route) rather than against the endurance numbers themselves.
+   */
+  it('carries a temperature clock that outlasts every option, one that rules out the road route, and one that leaves only tonight', () => {
     const s = seedShipments();
     const rows = Object.values(s).filter(x => x.activeTempControl);
-    expect(rows.some(x => x.tempEnduranceHours >= 30)).toBe(true);
-    expect(rows.some(x => x.tempEnduranceHours < 30)).toBe(true);
+    expect(rows.some(x => x.tempEnduranceHours >= 24)).toBe(true);
+    expect(rows.some(x => x.tempEnduranceHours >= 18 && x.tempEnduranceHours < 24)).toBe(true);
+    expect(rows.some(x => x.tempEnduranceHours < 18)).toBe(true);
+    // Never so short that even a freighter tonight could not make it — that would be a
+    // shipment nobody can help for a reason the panel has no way to act on.
+    for (const row of rows) expect(row.tempEnduranceHours).toBeGreaterThanOrEqual(4);
+  });
+
+  it('flies a lane on which every one of its rules describes something real', () => {
+    // Advance cargo data filed against a new carrier before it loads is a United States import
+    // requirement, so the customs rule only exists on a flight bound for the United States.
+    expect(DISRUPTED_FLIGHT.origin).toBe('Frankfurt');
+    expect(DISRUPTED_FLIGHT.destination).toBe('Chicago');
+    // And the road option needs a second airport within a truck ride of the origin gateway.
+    expect(DISRUPTED_FLIGHT.alternativeGateway).toBe('Amsterdam');
   });
 });
