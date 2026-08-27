@@ -140,6 +140,9 @@ hr.rule {
 .pp-slug-caps,
 .pp-notes-caption-caps,
 .rs-draft-caption,
+.rm-caption,
+.dg-blocked-caption,
+.app-docket-lead,
 .dg-struck-note,
 .ac-struck-note {
   text-transform: uppercase;
@@ -212,6 +215,39 @@ body.pp-active .al {
   margin: 5px 0 0;
   color: var(--ink-muted);
   font-size: 0.92rem;
+}
+
+/*
+ * The docket: the one fact every row on this page shares. Set as a run of items separated by
+ * a rule rather than by punctuation, so it reads as a shipping document's header block and not
+ * as a sentence — and so a narrow viewport can wrap it without the separators piling up.
+ */
+.app-docket {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0 14px;
+  margin: 10px 0 0;
+  padding-top: 9px;
+  border-top: 1px solid var(--rule);
+  font-size: 0.84rem;
+  color: var(--ink-muted);
+}
+
+/* The only part that is an assertion rather than a reference number, so it carries the ink. */
+.app-docket-lead {
+  color: var(--ink);
+}
+
+.app-docket-item + .app-docket-item::before,
+.app-docket-lead + .app-docket-item::before {
+  content: '';
+  display: inline-block;
+  width: 1px;
+  height: 0.82em;
+  margin-right: 14px;
+  vertical-align: -0.06em;
+  background: var(--rule-strong);
 }
 
 /* Ruled above and below rather than tabbed down one edge — matter set apart from the sheet. */
@@ -340,11 +376,38 @@ body.pp-active .al {
   font-size: 0.72rem;
 }
 
+/*
+ * The external-edit control is the one thing in the register a human must be able to reach
+ * while a proposal is open — it is what makes a record move underneath a decision, and half
+ * the enforcement story rests on it. The register grew four columns with the disruption
+ * reframe, so at every viewport under about 1430px the table is now wider than the narrowed
+ * content box and scrolls inside its own frame: `min-width: 0` cannot shrink an intrinsic
+ * minimum, and this column was ending up scrolled off the right edge of the frame — outside
+ * the register entirely, where `elementFromPoint` returns the panel's scrim and no click
+ * lands. (Measured 27 Aug 2026 at 1200px, before this rule: table 815px in a 586px frame.)
+ *
+ * Pinning the column to the right edge of its own scroll frame fixes that at every width at
+ * once, rather than a ladder of media queries dropping one column per breakpoint. It needs a
+ * z-index because it needs to clear the scrim (10), which is the one place in this interface
+ * where stacking is doing real work — so it is stated once, here, with an opaque ground so
+ * the columns scrolling behind it do not read through.
+ */
+.console-table th:last-child,
+.console-table td:last-child {
+  position: sticky;
+  right: 0;
+  z-index: 12;
+  background: var(--paper);
+  border-left: 1px solid var(--rule);
+}
+
+.console-table tbody tr:hover td:last-child {
+  background: var(--paper-raised);
+}
+
 .console-edit-row {
-  /* Above the proposal panel's scrim (z-index 10), which covers the full viewport regardless
-     of layout and would otherwise swallow every click here. Safe in a way it wasn't before:
-     the layout rule above (body.pp-active .app-shell) guarantees this button's rect never
-     coincides with the panel's own rect (z-index 11), so it only needs to clear the scrim. */
+  /* Above the scrim in its own right, so the control clears it even if the cell around it
+     ever stops being the stacking context that carries it there. */
   position: relative;
   z-index: 12;
   padding: 3px 10px;
@@ -370,9 +433,15 @@ body.pp-active .al {
 
 .console-table {
   width: 100%;
-  min-width: 720px;
+  min-width: 880px;
   border-collapse: collapse;
   font-size: 0.88rem;
+}
+
+/* A waybill number, a consol id or a date broken across two lines stops being one token. */
+.console-table th,
+.console-table td.mono {
+  white-space: nowrap;
 }
 
 .console-table th,
@@ -436,6 +505,36 @@ body.pp-active .console-table td {
   text-transform: uppercase;
   letter-spacing: 0.07em;
   white-space: nowrap;
+}
+
+/* An empty cell has to say "nothing here", not look like a rendering failure. */
+.console-none {
+  color: var(--ink-faint);
+}
+
+/*
+ * The remedy a row has been given, once one has landed. The caret is the same mark the proof
+ * line carried when the correction went in, so the register and the sheet agree without the
+ * reader having to learn a second vocabulary for the same event.
+ */
+.console-remedy {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 5px;
+  color: var(--mark);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.console-remedy-cost {
+  color: var(--ink-muted);
+  font-weight: 400;
+  font-size: 0.82em;
+}
+
+/* Several flags can land on one shipment, so they wrap instead of forcing the column wider. */
+.console-table td .badge + .badge {
+  margin-top: 3px;
 }
 
 /* ---------- the imprint: standing rules ---------- */
@@ -917,6 +1016,77 @@ body.pp-active .console-table td {
   font-weight: 600;
 }
 
+/* ---------- remedies in this run ---------- */
+
+/*
+ * The distribution, which is the argument: most of the forty-two take the free rebook and a
+ * handful are genuinely constrained. Set as a tally — count, remedy, price — because that is
+ * the shape a printer's docket puts a run in, and because three short columns are read at a
+ * glance where three sentences are not.
+ */
+.rm {
+  margin-top: 22px;
+  padding-top: 13px;
+  border-top: 1px solid var(--rule);
+}
+
+.rm-caption {
+  margin: 0 0 7px;
+  color: var(--ink-muted);
+}
+
+.rm-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.rm-line {
+  display: grid;
+  grid-template-columns: 3ch 1fr auto;
+  align-items: baseline;
+  gap: 0 12px;
+  padding: 3px 0;
+  font-size: 0.88rem;
+}
+
+.rm-line + .rm-line {
+  border-top: 1px solid var(--rule);
+}
+
+.rm-count {
+  text-align: right;
+  font-weight: 600;
+}
+
+.rm-name {
+  min-width: 0;
+}
+
+.rm-cost {
+  color: var(--ink-muted);
+  white-space: nowrap;
+}
+
+/*
+ * How many rows lost an option to a rule. Ruled above and below with the dagger against it —
+ * the same "set apart from the run" treatment held actions and flagged cargo already carry,
+ * so the reader meets one mark for one meaning across the whole interface.
+ */
+.rm-constrained {
+  display: flex;
+  align-items: baseline;
+  gap: 7px;
+  margin: 11px 0 0;
+  padding: 7px 0;
+  border-top: 3px double var(--hold);
+  border-bottom: 3px double var(--hold);
+  color: var(--hold);
+  font-size: 0.84rem;
+  font-weight: 600;
+  max-width: 58ch;
+}
+
 /* ---------- what the tool skipped ---------- */
 
 .pp-notes {
@@ -934,14 +1104,26 @@ body.pp-active .console-table td {
   color: var(--ink-muted);
 }
 
-.pp-note {
+.pp-note + .pp-note {
+  margin-top: 7px;
+}
+
+.pp-note-line {
   margin: 0;
   font-size: 0.86rem;
   color: var(--ink-muted);
 }
 
-.pp-note + .pp-note {
-  margin-top: 3px;
+/*
+ * The shipments themselves. Indented under the reason and set in the register's own face, so
+ * they read as ids to go and look up rather than as more prose — which is what they are: a
+ * shipment with no remedy left has to be escalated by a person, tonight.
+ */
+.pp-note-ids {
+  margin: 2px 0 0;
+  padding-left: 2ch;
+  font-size: 0.78rem;
+  color: var(--ink);
 }
 
 /* ---------- the change set ---------- */
@@ -1032,6 +1214,128 @@ body.pp-active .console-table td {
   margin-top: 1px;
   font-size: 0.78rem;
   color: var(--ink-muted);
+}
+
+/* ---------- the remedy on one line of the proof ---------- */
+
+.dg-remedy {
+  margin-top: 7px;
+}
+
+/*
+ * The correction itself, set the way a compositor sets a substitution: what the record said
+ * before is struck, what goes in follows it in a heavier weight. No arrow between them and no
+ * colour on either — the strikethrough and the weight step are the whole signal, and both
+ * survive greyscale.
+ */
+.dg-remedy-line {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0;
+  font-size: 0.88rem;
+  line-height: 1.6;
+}
+
+/* What it costs and what it buys back — the two figures the operator is actually deciding. */
+.dg-terms {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 7px;
+  margin: 2px 0 0;
+  padding-left: 64px;
+  font-size: 0.82rem;
+  color: var(--ink-muted);
+}
+
+.dg-term-sep {
+  color: var(--ink-faint);
+}
+
+/*
+ * What a rule took off the table. This is the half that makes a recommendation honest rather
+ * than arbitrary, so it is given real room rather than a tooltip: a caption in the sheet's
+ * instruction voice, then one deletion per alternative with the rule spelled out under it.
+ *
+ * A row with nothing blocked stops at the two lines above. A row that lost an option grows by
+ * exactly what it lost — so scanning forty-two of these, the constrained handful is legible as
+ * mass before a single word is read.
+ */
+.dg-blocked-caption {
+  margin: 9px 0 0;
+  color: var(--hold);
+}
+
+.dg-blocked-list {
+  list-style: none;
+  margin: 4px 0 0;
+  padding: 0;
+  border-left: 1px solid var(--hold);
+}
+
+.dg-blocked {
+  display: flex;
+  gap: 7px;
+  padding: 3px 0 3px 9px;
+}
+
+.dg-blocked-mark {
+  flex: none;
+  width: 13px;
+  padding-top: 2px;
+  color: var(--hold);
+}
+
+.dg-blocked-body {
+  flex: 1;
+  min-width: 0;
+}
+
+/*
+ * Struck through, because a rule took it out — the mark in the gutter says so first. One line
+ * per alternative the rule above it removed, stacked, so two options lost to one rule read as
+ * one deletion with two names rather than as two separate findings.
+ */
+.dg-blocked-remedy {
+  display: block;
+  font-size: 0.86rem;
+  color: var(--ink-muted);
+  text-decoration: line-through;
+  text-decoration-thickness: 1.5px;
+  text-decoration-color: var(--hold);
+}
+
+/* The rule in the domain's own words. Not struck: it is what happened, not what was removed. */
+.dg-blocked-rule {
+  display: block;
+  margin-top: 3px;
+  font-size: 0.82rem;
+  line-height: 1.5;
+  color: var(--ink);
+  max-width: 56ch;
+}
+
+/* Named the way a linter names a rule, so an engineer reading this as a policy engine can. */
+.dg-blocked-id {
+  display: block;
+  margin-top: 2px;
+  font-size: 0.72rem;
+  color: var(--ink-faint);
+}
+
+/* Declining the row strikes the whole correction, alternatives included. */
+.dg--struck .dg-remedy-line,
+.dg--struck .dg-terms {
+  text-decoration: line-through;
+  text-decoration-thickness: 1.5px;
+  text-decoration-color: var(--hold);
+  color: var(--ink-muted);
+}
+
+.dg--struck .dg-remedy-line .dg-after {
+  font-weight: 400;
 }
 
 .dg-changes {

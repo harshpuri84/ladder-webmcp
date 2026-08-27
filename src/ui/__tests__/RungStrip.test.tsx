@@ -24,7 +24,7 @@ describe('RungStrip rule form expiry validation (F6/F7)', () => {
     ({ registerLadderTool } = await import('../../webmcp/adapter'));
     ({ RungStrip } = await import('../RungStrip'));
     registerLadderTool({
-      name: 'update_shipments', description: 'base description', inputSchema: { type: 'object', properties: {} },
+      name: 'propose_remedy', description: 'base description', inputSchema: { type: 'object', properties: {} },
       async exec() { return {}; },
     });
   });

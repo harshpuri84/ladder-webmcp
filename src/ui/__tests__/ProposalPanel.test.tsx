@@ -34,7 +34,7 @@ describe('ProposalPanel: double decision in one batch (F1)', () => {
       name: 'test_tool_one', description: 'first test tool',
       inputSchema: { type: 'object', properties: {} },
       async exec(_input: any, ctx: any) {
-        ctx.db.shipments['SHP-10000'].status = 'Delivered';
+        ctx.db.shipments['HAWB-70001'].remedy = 'truck';
         return { matched: 1 };
       },
     });
@@ -42,7 +42,7 @@ describe('ProposalPanel: double decision in one batch (F1)', () => {
       name: 'test_tool_two', description: 'second test tool',
       inputSchema: { type: 'object', properties: {} },
       async exec(_input: any, ctx: any) {
-        ctx.db.shipments['SHP-10001'].status = 'Delivered';
+        ctx.db.shipments['HAWB-70002'].remedy = 'rebook';
         return { matched: 1 };
       },
     });

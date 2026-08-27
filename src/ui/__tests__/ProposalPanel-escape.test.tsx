@@ -29,7 +29,7 @@ describe('ProposalPanel: Escape refuses the open proposal (F11)', () => {
       name: 'escape_test_tool', description: 'test-only',
       inputSchema: { type: 'object', properties: {} },
       async exec(_input: any, ctx: any) {
-        ctx.db.shipments['SHP-10002'].price += 1;
+        ctx.db.shipments['HAWB-70003'].revenueEur += 1;
         return { matched: 1 };
       },
     });
@@ -63,9 +63,9 @@ describe('ProposalPanel: Escape refuses the open proposal (F11)', () => {
       name: 'escape_race_test_tool', description: 'test-only',
       inputSchema: { type: 'object', properties: {} },
       async exec(_input: any, ctx: any) {
-        // A price bump rather than a fixed status assignment: guaranteed to differ from
+        // A revenue bump rather than a fixed field assignment: guaranteed to differ from
         // whatever the seed happened to produce, so the write always reaches the diff.
-        ctx.db.shipments['SHP-10003'].price += 1;
+        ctx.db.shipments['HAWB-70004'].revenueEur += 1;
         return { matched: 1 };
       },
     });

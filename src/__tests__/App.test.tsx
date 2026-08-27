@@ -9,7 +9,7 @@ import { render, screen, cleanup, waitFor } from '@testing-library/react';
  * desktop's built-in browser (an entirely normal host to inject a moment later) left the
  * read seeing nothing, registering nothing, with the "needs WebMCP" banner showing forever
  * even once the runtime was sitting right there. This drives the real `App` component end to
- * end: banner visible while genuinely unavailable, then a late injection registers all six
+ * end: banner visible while genuinely unavailable, then a late injection registers all four
  * tools exactly once, the banner disappears without a reload, and a call actually works.
  */
 describe('App: WebMCP namespace injected after mount', () => {
@@ -48,9 +48,9 @@ describe('App: WebMCP namespace injected after mount', () => {
       unregisterTool: (name: string) => registered.delete(name),
     };
 
-    await waitFor(() => expect(registered.size).toBe(6), { timeout: 2000 });
+    await waitFor(() => expect(registered.size).toBe(4), { timeout: 2000 });
     // No tool registered more than once.
-    expect(new Set(registered.keys()).size).toBe(6);
+    expect(new Set(registered.keys()).size).toBe(4);
 
     await waitFor(
       () => expect(screen.queryByText(/needs WebMCP/i)).toBeNull(),

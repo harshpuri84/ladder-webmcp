@@ -5,11 +5,11 @@ import { NEVER_ELIGIBLE } from '../domain/policy-eligibility';
 import { ProofMark } from './ProofMark';
 
 /**
- * The four write tools, in registration order. Read tools (search_shipments, get_shipment)
+ * The two write tools, in registration order. Read tools (search_shipments, get_shipment)
  * never carry a rung — nothing about them is ever applied without review because nothing
  * about them writes anything — so they have no chip here.
  */
-const WRITE_TOOLS = ['update_shipments', 'reprice_shipments', 'cancel_shipments', 'notify_customers'];
+const WRITE_TOOLS = ['propose_remedy', 'notify_customers'];
 
 const DAY_MS = 86_400_000;
 const DEFAULT_EXPIRY_DAYS = 7;

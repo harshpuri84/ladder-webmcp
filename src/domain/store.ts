@@ -17,7 +17,7 @@ export interface Store {
 
 export function createStore(): Store {
   const listeners = new Set<Listener>();
-  const state: AppState = { shipments: seedShipments(200) };
+  const state: AppState = { shipments: seedShipments() };
   let version = 0;
   return {
     state,

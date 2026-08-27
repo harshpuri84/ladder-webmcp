@@ -110,7 +110,7 @@ describe('registerWhenReady / checkForWebmcp', () => {
     infoSpy.mockRestore();
   });
 
-  it('registers the six domain tools exactly once each, whether present at load or injected late', async () => {
+  it('registers the four domain tools exactly once each, whether present at load or injected late', async () => {
     const registerTool = vi.fn();
     vi.useFakeTimers();
     const { registerWhenReady } = await import('../adapter');
@@ -121,8 +121,8 @@ describe('registerWhenReady / checkForWebmcp', () => {
     vi.advanceTimersByTime(POLL_INTERVAL_MS_FOR_TEST);
 
     const names = registerTool.mock.calls.map(c => c[0].name);
-    expect(names).toHaveLength(6);
-    expect(new Set(names).size).toBe(6); // no name registered twice
+    expect(names).toHaveLength(4);
+    expect(new Set(names).size).toBe(4); // no name registered twice
   });
 });
 
