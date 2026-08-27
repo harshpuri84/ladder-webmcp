@@ -82,3 +82,48 @@ describe('ResultCard framing distinguishes zero-match from everything-held (F12)
     expect(screen.getByText(/already accounted for/)).toBeTruthy();
   });
 });
+
+/**
+ * The two ends of the authority boundary, on the receipt. A referred run is not a refusal and
+ * not a plain partial: the operator did everything they were allowed to, and a colleague has
+ * the rest. `REFER` is the stamped word for that, against `OK TO RUN` for what they could
+ * authorise — and the words, not an edge colour, are what tell the two apart.
+ */
+describe('ResultCard framing for a referred run', () => {
+  function referred(applied: number, requested: number, count: number): ProposalOutcome {
+    return {
+      toolName: 'propose_remedy',
+      cause: 'referred',
+      payload: {
+        status: 'partially_applied' as any, requested, applied,
+        rejected: [{
+          count,
+          reason: "above the gateway operator's EUR 250 spend authority — referred to a duty manager, not refused",
+          ids: ['HAWB-70001'],
+          pending: 'duty manager',
+        }],
+        actions_released: 0, actions_dropped: 0,
+        replan_required: false, rule_offered: null,
+        referred: { count, ids: ['HAWB-70001'], awaiting: 'duty manager' },
+      },
+    };
+  }
+
+  it('stamps REFER, names who has it, and says plainly that it was not refused', () => {
+    render(<ResultCard outcome={referred(23, 27, 4)} shifted={false} onDismiss={() => {}} />);
+    expect(screen.getByText('Refer')).toBeTruthy();
+    expect(screen.getByText('Applied what you can authorise')).toBeTruthy();
+    expect(screen.getByText(/now with the duty manager/)).toBeTruthy();
+    expect(screen.getByText(/not refused, not yet decided/)).toBeTruthy();
+  });
+
+  it('says nothing landed when nothing did, rather than claiming a partial success', () => {
+    render(<ResultCard outcome={referred(0, 4, 4)} shifted={false} onDismiss={() => {}} />);
+    expect(screen.getByText('Referred, nothing applied')).toBeTruthy();
+  });
+
+  it('carries a rule form of its own, not one it shares with a blocked or refused receipt', () => {
+    const { container } = render(<ResultCard outcome={referred(23, 27, 4)} shifted={false} onDismiss={() => {}} />);
+    expect(container.querySelector('.rc')!.className).toContain('rc--referred');
+  });
+});

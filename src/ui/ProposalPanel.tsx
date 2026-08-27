@@ -10,7 +10,7 @@ import { ActionCard } from './ActionCard';
 import { ResultCard } from './ResultCard';
 import { ProofMark, RegistrationCorners } from './ProofMark';
 import { readProofRow, summariseRemedies } from './remedy-diff';
-import { remedyFull } from './remedy-words';
+import { money, remedyFull } from './remedy-words';
 
 // 8s read back as "already fading" from a paused frame two seconds in — that turned out to be
 // an opaque-background bug on the auto-apply tone (see .rc--auto in styles.css), not the hold
@@ -177,10 +177,12 @@ export function ProposalPanel() {
   }, [head]);
 
   // Everything the agent asked for starts ticked: narrowing is the human act, and starting
-  // from nothing would make "Apply 0 of 47" the resting state.
+  // from nothing would make "Apply 0 of 47" the resting state. Everything except the rows this
+  // operator has no authority over — those were never theirs to start ticked or to untick.
   if (head && head.diff.proposalId !== selectedFor) {
+    const cannot = new Set(head.authority.referred);
     setSelectedFor(head.diff.proposalId);
-    setGroups(new Set(head.diff.groups.map(g => g.group)));
+    setGroups(new Set(head.diff.groups.map(g => g.group).filter(g => !cannot.has(g))));
     setActions(new Set(head.diff.actions.map(a => a.actionId)));
   }
 
@@ -190,7 +192,15 @@ export function ProposalPanel() {
 
   if (!head) return resultCard;
 
-  const { diff, notes } = head;
+  const { diff, notes, authority } = head;
+  // The two halves of the sheet: what this operator can decide, and what a second person has
+  // to. Referred rows stay on the sheet — the operator is accountable for the whole recovery
+  // and has to see all of it — they are simply not theirs to mark.
+  const referredKeys = new Set(authority.referred);
+  const authorisable = diff.groups.filter(g => !referredKeys.has(g.group));
+  const referredGroups = diff.groups.filter(g => referredKeys.has(g.group));
+  const referredSpend = referredGroups.reduce((n, g) => n + g.valueDelta, 0);
+  const referredTo = { limitEur: authority.role.spendLimitEur, role: authority.target?.label ?? 'second approver' };
   const selectedGroups = diff.groups.filter(g => groups.has(g.group));
   const selectedActions = diff.actions.filter(a => actions.has(a.actionId));
   const valueDelta = selectedGroups.reduce((n, g) => n + g.valueDelta, 0);
@@ -222,9 +232,16 @@ export function ProposalPanel() {
   // The grade the stamp will carry. Everything the agent asked for, or a cut-down subset —
   // the two readings a proof comes back with when it comes back at all.
   const whole =
-    selectedGroups.length === diff.totals.records &&
+    selectedGroups.length === authorisable.length &&
     selectedActions.length === diff.actions.length;
-  const grade = nothingPicked ? 'Nothing marked' : whole ? 'OK to run' : 'OK with changes';
+  // A sheet where every row is above this operator's limit still has to be stampable: sending
+  // it on is the act. Left disabled, the boundary would look like a dead end rather than a
+  // handover — and the freight would sit in Frankfurt while the panel said "nothing marked".
+  const onlyReferral = nothingPicked && referredGroups.length > 0;
+  const grade = onlyReferral ? 'Refer'
+    : nothingPicked ? 'Nothing marked'
+    : whole ? 'OK to run'
+    : 'OK with changes';
 
   return (
     <>
@@ -269,6 +286,32 @@ export function ProposalPanel() {
             total={selectedGroups.length}
           />
 
+          {referredGroups.length > 0 && (
+            <section className="pp-refer">
+              <p className="pp-refer-caption">
+                <ProofMark name="query" size={13} />
+                <span className="pp-refer-caption-caps">Not yours to authorise</span>
+                <span className="pp-refer-caption-tail"> — referred, not refused</span>
+              </p>
+              <p className="pp-refer-line">
+                <span className="mono">{referredGroups.length}</span>{' '}
+                {referredGroups.length === 1 ? 'shipment costs' : 'shipments cost'} more than
+                your EUR <span className="mono">{authority.role.spendLimitEur}</span> limit
+                {referredSpend > 0 && (
+                  <> — <span className="mono">{money(referredSpend)}</span> in total</>
+                )}
+                . {authority.target
+                  ? `Applying will send ${referredGroups.length === 1 ? 'it' : 'them'} to a ${authority.target.label.toLowerCase()}, who decides ${referredGroups.length === 1 ? 'it' : 'them'} separately.`
+                  : 'There is nobody above you to refer them to.'}
+              </p>
+              <p className="pp-refer-ids mono">
+                {referredGroups.slice(0, NAMED_SKIPS).map(g => g.id).join(', ')}
+                {referredGroups.length > NAMED_SKIPS &&
+                  ` and ${referredGroups.length - NAMED_SKIPS} more`}
+              </p>
+            </section>
+          )}
+
           {notes.length > 0 && (
             <section className="pp-notes">
               <p className="pp-notes-caption">
@@ -300,6 +343,7 @@ export function ProposalPanel() {
                 record={store.state.shipments[g.id]}
                 subtitle={subtitleFor(g.id)}
                 checked={groups.has(g.group)}
+                referredTo={referredKeys.has(g.group) ? referredTo : undefined}
                 onToggle={() => setGroups(s => toggle(s, g.group))}
               />
             ))}
@@ -327,15 +371,26 @@ export function ProposalPanel() {
           <button
             className="pp-stamp"
             type="button"
-            disabled={nothingPicked || decided}
+            disabled={(nothingPicked && !onlyReferral) || decided}
             onClick={() => decide({ groups: [...groups], actions: [...actions] })}
           >
             <span className="pp-stamp-grade">{grade}</span>
             <span className="pp-stamp-label">
+              {/* Counted against what this operator can authorise, not against the whole
+                  sheet: "Apply 23 of 27" with four rows referred would read as four rows they
+                  struck out, which is the one thing they did not do. */}
               {diff.totals.records === 0 && diff.actions.length > 0
                 ? `Release ${selectedActions.length} of ${diff.actions.length}`
-                : `Apply ${selectedGroups.length} of ${diff.totals.records}`}
+                : authorisable.length === 0 && referredGroups.length > 0
+                ? `Refer ${referredGroups.length} of ${referredGroups.length}`
+                : `Apply ${selectedGroups.length} of ${authorisable.length}`}
             </span>
+            {referredGroups.length > 0 && authorisable.length > 0 && (
+              <span className="pp-stamp-sub">
+                and refer {referredGroups.length}{' '}
+                {referredGroups.length === 1 ? 'shipment' : 'shipments'}
+              </span>
+            )}
             {selectedActions.length > 0 && (
               <span className="pp-stamp-sub">
                 {diff.totals.records === 0

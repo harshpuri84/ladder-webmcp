@@ -4,6 +4,7 @@ import { store } from './domain/store';
 import { DISRUPTED_FLIGHT } from './domain/seed';
 import { ProposalPanel } from './ui/ProposalPanel';
 import { RungStrip } from './ui/RungStrip';
+import { AuthorityStrip } from './ui/AuthorityStrip';
 import { ActivityList } from './ui/ActivityList';
 import { isWebmcpAvailable, onAvailabilityChange, registerWhenReady } from './webmcp/adapter';
 import { registerDomainTools } from './domain/tools';
@@ -107,6 +108,7 @@ function App() {
         <main>
           {showBanner && <WebmcpBanner />}
           <RungStrip />
+          <AuthorityStrip />
           <Console />
         </main>
       </div>

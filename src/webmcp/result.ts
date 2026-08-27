@@ -4,11 +4,27 @@ export interface ToolPayload {
   status: CommitStatus;
   requested: number;
   applied: number;
-  rejected: { count: number; reason: string; ids: string[] }[];
+  /**
+   * The reconciliation ledger, and the whole of it: `applied` plus the sum of every `count`
+   * here always equals `requested`. A bucket carrying `pending` is still counted in that sum —
+   * it did not happen — but it is the one kind of "did not happen" that is not final, so it
+   * says which second party it is waiting on rather than letting the agent read it as a no.
+   */
+  rejected: { count: number; reason: string; ids: string[]; pending?: string }[];
   actions_released: number;
   actions_dropped: number;
   replan_required: boolean;
   rule_offered: string | null;
+  /**
+   * Set only when a spend authority boundary sent rows to a second approver. It names the
+   * subset of `rejected` that is awaiting a person rather than settled, so an agent does not
+   * have to parse a reason string to tell referral from refusal — and deliberately does not
+   * add to the ledger above, because those rows are already counted there once. Referral is
+   * not refusal, and it is not a replan either: `replan_required` stays false when referred
+   * rows are the only thing that did not land, because re-planning around a decision a human
+   * is in the middle of making would produce a worse plan, not a better one.
+   */
+  referred?: { count: number; ids: string[]; awaiting: string };
   /**
    * Set only when the tool itself threw — either during preview, before touching a single
    * row, or for real during the commit re-run (as opposed to the guard refusing a write

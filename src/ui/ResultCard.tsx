@@ -34,6 +34,22 @@ function frame(o: ProposalOutcome): Framing {
           : `${o.toolName} did exactly what you approved — ${o.payload.applied} of ${o.payload.requested}, nothing left over.`,
       };
     }
+    // Not a failure and not a partial refusal: the operator did everything they were allowed
+    // to do, and the rest is with a colleague. `REFER` is the stamped word for that, opposite
+    // `OK TO RUN` — the two halves of an authority boundary, told apart by the word first.
+    case 'referred': {
+      const r = o.payload.referred;
+      const n = r?.count ?? 0;
+      const who = r?.awaiting ?? 'a second approver';
+      return {
+        tone: 'referred',
+        stamp: 'Refer',
+        title: o.payload.applied > 0 ? 'Applied what you can authorise' : 'Referred, nothing applied',
+        note: `${o.payload.applied} of ${o.payload.requested} went through on your authority. ` +
+          `${n} ${n === 1 ? 'shipment is' : 'shipments are'} above your spend limit and ${n === 1 ? 'is' : 'are'} ` +
+          `now with the ${who} — not refused, not yet decided. ${o.toolName} has been told exactly that.`,
+      };
+    }
     case 'auto_applied':
       return {
         tone: 'auto',
@@ -146,7 +162,10 @@ export function ResultCard({ outcome, shifted, onDismiss }: ResultCardProps) {
           ) : (
             refused.map(r => (
               <div className="rc-row" key={r.reason}>
-                <dt>refused</dt>
+                {/* A pending bucket is counted here like every other thing that did not
+                    happen, but calling it "refused" beside a reason that says "not refused"
+                    would read as the receipt arguing with itself. */}
+                <dt>{r.pending ? 'referred' : 'refused'}</dt>
                 <dd className="mono">{r.count}</dd>
                 <span className="rc-reason">— {r.reason}</span>
               </div>

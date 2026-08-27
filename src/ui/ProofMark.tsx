@@ -17,6 +17,7 @@ export type MarkName =
   | 'dele'
   | 'stet'
   | 'dagger'
+  | 'query'
   | 'registration';
 
 /**
@@ -24,6 +25,10 @@ export type MarkName =
  * `dele`    — the deletion loop. This comes out.
  * `stet`    — dots beneath a struck line. Let it stand: ignore the correction above.
  * `dagger`  — the reference mark. Points at something set apart from the main run.
+ * `query`   — the author's query, written in the margin as "Qy?". The proofreader cannot
+ *             settle this one and passes it to whoever can. That is exactly a referral, so it
+ *             is the mark a referred row carries, and it is a different shape from every other
+ *             mark here rather than the same shape in another colour.
  * `regist.` — the registration target, printed outside the trim so plates line up.
  */
 const PATHS: Record<MarkName, ReactNode> = {
@@ -49,6 +54,12 @@ const PATHS: Record<MarkName, ReactNode> = {
     <>
       <path d="M8 2.25v11.5" />
       <path d="M4.25 5.5h7.5" />
+    </>
+  ),
+  query: (
+    <>
+      <path d="M5.4 5.6a2.65 2.65 0 1 1 3.35 2.55c-.62.2-.9.66-.9 1.3v.65" />
+      <path d="M7.85 13.1h.3" />
     </>
   ),
   registration: (

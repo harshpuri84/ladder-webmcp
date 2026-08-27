@@ -3,6 +3,10 @@ import { runCommit } from '../core/commit';
 import { buildWriteSet } from '../core/writeset';
 import { draftPolicy, policyMatches, type Disposition, type Policy } from '../core/policy';
 import { recordingProxy } from '../core/recorder';
+import {
+  currentRole, describeAuthority, isReferable, onRoleChange, referralTarget,
+  type AuthorityRole,
+} from './authority';
 import { NEVER_ELIGIBLE } from '../domain/policy-eligibility';
 import type { Diff } from '../core/diff';
 import type { Note, WriteRecord } from '../core/types';
@@ -100,8 +104,20 @@ export interface LadderToolSpec {
 }
 
 export interface Decision { groups: string[]; actions: string[]; }
+
+/** What the operator on shift may and may not authorise, as the panel needs to say it. */
+export interface AuthorityScope {
+  role: AuthorityRole;
+  /** Who rows above the limit go to, or null when this role is the top of the ladder. */
+  target: AuthorityRole | null;
+  /** Group keys the diff carries that this role cannot authorise. Never empty-checked by the UI
+   *  as an enforcement step — the filter in `execute` is what enforces it. */
+  referred: string[];
+}
+
 export interface PendingProposal {
   toolName: string; input: unknown; diff: Diff; notes: Note[];
+  authority: AuthorityScope;
   resolve(d: Decision | null): void;
 }
 
@@ -118,8 +134,13 @@ export interface PendingProposal {
 // the same branch a genuine decline uses (same status, same rejected shape), but nobody was
 // ever asked. Folding it into 'refused' would tell the human they declined something they
 // were never shown.
+// 'referred' is 'applied' plus the one fact that changes what the human should do next: part of
+// what they were shown was never theirs to authorise and is now with a second person. Folding it
+// into 'applied' (or into a plain partial) would report a run as finished while a colleague still
+// has half of it open.
 export type OutcomeCause =
-  | 'applied' | 'auto_applied' | 'refused' | 'nothing_to_decide' | 'stale' | 'blocked' | 'tool_error';
+  | 'applied' | 'auto_applied' | 'referred' | 'refused' | 'nothing_to_decide' | 'stale'
+  | 'blocked' | 'tool_error';
 export interface ProposalOutcome {
   toolName: string; cause: OutcomeCause; payload: ToolPayload;
   /** Set only for 'auto_applied': the standing rule's own words, so the receipt can name it. */
@@ -191,7 +212,7 @@ export function activePolicy(tool: string): Policy | undefined {
 function clearPolicy(tool: string) {
   const r = registrations.get(tool);
   policies.delete(tool);
-  if (r) reregister(tool, r.spec.description);
+  if (r) reregister(tool, composedDescription(tool));
   policyListeners.forEach(fn => fn());
 }
 
@@ -228,13 +249,57 @@ export function revoke(tool: string): void {
 export function ratify(p: Policy) {
   const r = registrations.get(p.tool);
   if (!r) return;
-  policies.set(p.tool, { ...p, ratified: true });
-  reregister(p.tool, `${r.spec.description} Changes within the standing rule (${describePolicy(p)}) are applied without review.`);
+  const ratified = { ...p, ratified: true };
+  policies.set(p.tool, ratified);
+  // The just-ratified policy is passed in rather than read back through activePolicy(), which
+  // treats an already-lapsed rule as absent. Ratifying an expired policy is a caller error, not
+  // a silent no-op: the description says what was stamped, and the next call's expiry check is
+  // what puts it back. Reading it back here would have that correction never appear to happen.
+  reregister(p.tool, composedDescription(p.tool, ratified));
   draftListeners.forEach(fn => fn(null));
   policyListeners.forEach(fn => fn());
 }
 export const describePolicy = (p: Policy) =>
   `up to ${p.maxRecords} records, up to EUR ${p.maxValue}, reversible only, expires ${p.expiresAt.slice(0, 10)}`;
+
+/**
+ * The agent's own description of a guarded write tool, composed from the three things that
+ * actually bound it: what the tool does, what a ratified standing rule lets it do without
+ * review, and what the human on shift is allowed to authorise. Autonomy is stated in one
+ * sentence and authority in the next, because they move independently — a standing rule can be
+ * ratified or lapse without the spend boundary changing, and the role can change without
+ * touching the rule.
+ *
+ * Worded about value on a record rather than about freight, so it stays true of a tool whose
+ * records carry no value at all: nothing that costs nothing is ever above a limit.
+ */
+function composedDescription(name: string, policy?: Policy): string {
+  const r = registrations.get(name);
+  if (!r) return '';
+  const pol = policy ?? activePolicy(name);
+  const rule = pol
+    ? ` Changes within the standing rule (${describePolicy(pol)}) are applied without review.`
+    : '';
+  const role = currentRole();
+  const target = referralTarget(role);
+  // Opened on the condition rather than stated flat, so it reads correctly on a tool whose
+  // changes never carry a cost at all — where nothing costs anything, nothing is ever referred.
+  const authority = ` Where a proposed change carries a cost, the operator on shift is a ${role.label.toLowerCase()} and ${describeAuthority(role)}` +
+    (target
+      ? `; anything above that is referred to a ${target.label.toLowerCase()} and is not applied by this call.`
+      : '.');
+  return `${r.spec.description}${rule}${authority}`;
+}
+
+/**
+ * Changing who is on shift changes what the agent's toolset says it can get done, so every
+ * guarded write tool is re-registered with its new description — the same push-based path
+ * ratifying and revoking a standing rule already take, for the same reason: the description
+ * must never keep claiming a boundary that has moved.
+ */
+onRoleChange(() => {
+  for (const name of registrations.keys()) reregister(name, composedDescription(name));
+});
 
 export function reregister(name: string, description: string) {
   const r = registrations.get(name);
@@ -262,11 +327,68 @@ function rejectedFrom(notes: Note[]) {
   return [...byReason].map(([reason, ids]) => ({ reason, ids, count: ids.length }));
 }
 
-async function decide(toolName: string, input: unknown, diff: Diff, notes: Note[], agent: any, signal?: AbortSignal) {
+/**
+ * The rows one call left with a second person, held so a duty manager can pick them up after
+ * the tool call that produced them has already returned. Nothing here is applied state: a
+ * referral is a note that a decision is outstanding, and the decision itself goes through the
+ * ordinary path — preview, panel, guarded commit — when the second approver takes it.
+ */
+export interface Referral {
+  id: string;
+  toolName: string;
+  /** The original call's arguments, narrowed to the referred rows when it is picked up. */
+  input: unknown;
+  ids: string[];
+  spendEur: number;
+  /** Who referred it, and who it is waiting on, in the words the strip and receipts use. */
+  fromRole: string;
+  toRoleId: string;
+  toRole: string;
+}
+
+const referrals: Referral[] = [];
+const referralListeners = new Set<() => void>();
+let referralSeq = 0;
+
+export function onReferralsChange(fn: () => void) {
+  referralListeners.add(fn); return () => { referralListeners.delete(fn); };
+}
+export function listReferrals(): Referral[] {
+  return [...referrals];
+}
+
+/**
+ * The second approver picks a referral up. It is deliberately not a special commit path: the
+ * tool is called again, narrowed to exactly the referred rows, so the duty manager gets their
+ * own preview, their own proof sheet and the same guarded commit the first operator got. A
+ * rubber stamp on someone else's diff would not be a second approval.
+ *
+ * Narrowing by `ids` is the one place this layer names a tool argument. It is already the layer
+ * that binds core to this application's shape — `versionOf` and `deltaOf` above both read
+ * shipment fields — so the binding lives here rather than leaking into `src/core/`.
+ *
+ * Removed from the queue on pickup, whatever the second approver then decides: it has been
+ * put in front of them, and their answer (applied, cut down, or refused) is reported by the
+ * ordinary receipt rather than by this list.
+ */
+export function reviewReferral(id: string): Promise<unknown> | null {
+  const idx = referrals.findIndex(r => r.id === id);
+  if (idx === -1) return null;
+  const [ref] = referrals.splice(idx, 1);
+  referralListeners.forEach(fn => fn());
+  const reg = registrations.get(ref.toolName);
+  if (!reg) return null;
+  return reg.execute({ ...(ref.input as Record<string, unknown> ?? {}), ids: ref.ids });
+}
+
+async function decide(
+  toolName: string, input: unknown, diff: Diff, notes: Note[],
+  authority: AuthorityScope, agent: any, signal?: AbortSignal,
+) {
   let resolveFn!: (d: Decision | null) => void;
   const decision = new Promise<Decision | null>(r => { resolveFn = r; });
   signal?.addEventListener('abort', () => resolveFn(null), { once: true });
-  const pending: PendingProposal = { toolName, input, diff, notes, resolve: resolveFn };
+  const pending: PendingProposal = { toolName, input, diff, notes, authority, resolve: resolveFn };
 
   const show = async () => {
     // No subscriber yet (e.g. a write call fired before React mounted its effect): hold this
@@ -357,11 +479,23 @@ export function registerLadderTool(spec: LadderToolSpec) {
     // human, because there they genuinely are deciding something.
     const nothingToDecide = shadow.diff.groups.length === 0 && shadow.diff.actions.length === 0;
 
+    // The authority boundary. A row whose value is above what the operator on shift may commit
+    // is not theirs to approve, so it is separated here — before the panel is opened, so they
+    // are never shown a control over something they cannot do — and enforced below, after the
+    // decision comes back, so nothing the interface does (or a standing rule does) can put it
+    // back. Read off `valueDelta`, which is already the per-record money figure the diff
+    // carries and the same one the extent panel and the standing-rule cap are read from.
+    const role = currentRole();
+    const target = referralTarget(role);
+    const referredGroups = shadow.diff.groups.filter(g => isReferable(g.valueDelta, role));
+    const referredKeys = new Set(referredGroups.map(g => g.group));
+    const authority: AuthorityScope = { role, target, referred: [...referredKeys] };
+
     const approved: Decision | null = auto
       ? { groups: shadow.diff.groups.map(g => g.group), actions: [] }
       : nothingToDecide
       ? null
-      : await decide(spec.name, input, shadow.diff, shadow.notes, agent, options?.signal);
+      : await decide(spec.name, input, shadow.diff, shadow.notes, authority, agent, options?.signal);
 
     if (!approved) {
       history.push({ tool: spec.name, proposalId, proposed: requested, approved: 0,
@@ -383,7 +517,13 @@ export function registerLadderTool(spec: LadderToolSpec) {
       });
     }
 
-    const ws = buildWriteSet(shadow.diff, approved.groups, approved.actions);
+    // Enforcement, not presentation. The panel already withholds these controls, and a ratified
+    // standing rule approves every group without a panel at all — both of those hand a group
+    // list to this line, and neither of them gets to decide the boundary. An authority limit
+    // that only the interface honoured would not be an authority limit.
+    const authorisedGroups = approved.groups.filter(g => !referredKeys.has(g));
+
+    const ws = buildWriteSet(shadow.diff, authorisedGroups, approved.actions);
     const out = await runCommit(store.state, run, ws, { versionOf, bumpVersion });
     store.notify();
 
@@ -396,6 +536,30 @@ export function registerLadderTool(spec: LadderToolSpec) {
     const narrowedOut = committed ? shadow.diff.totals.records - appliedRows : 0;
     const droppedActions = committed ? out.dropped.length : 0;
     const appliedTotal = appliedRows + out.released.length;
+
+    // Referred rows sit inside `narrowedOut` — they were previewed and not applied, exactly
+    // like a row the operator unticked — but they are not the same event and must not be
+    // reported as one. Split here, once, so the two get their own reason lines below and the
+    // ledger still sums to the same total either way. A referred row can never be in
+    // `appliedRows` (the filter above kept it out of the write set), so this cannot go negative.
+    const referredCount = committed ? referredGroups.length : 0;
+    const removedByOperator = narrowedOut - referredCount;
+    const referredIds = referredGroups.map(g => g.id);
+    const awaiting = target ? target.label.toLowerCase() : 'a second approver';
+
+    if (referredCount > 0) {
+      referrals.push({
+        id: `ref-${++referralSeq}`,
+        toolName: spec.name,
+        input,
+        ids: referredIds,
+        spendEur: referredGroups.reduce((n, g) => n + g.valueDelta, 0),
+        fromRole: role.label,
+        toRoleId: target?.id ?? role.id,
+        toRole: target?.label ?? role.label,
+      });
+      referralListeners.forEach(fn => fn());
+    }
 
     // shadow.notes — not out.notes — is the domain-skip account here: it is always complete
     // (drawn from a full preview run), where out.notes can be empty (the commit aborted before
@@ -410,7 +574,13 @@ export function registerLadderTool(spec: LadderToolSpec) {
     // applied + Σrejected.count === requested. A crash is not rejected work either way.
     const rejected = out.error !== undefined ? [] : [
       ...rejectedFrom(shadow.notes),
-      ...(narrowedOut > 0 ? [{ count: narrowedOut, reason: 'the operator removed these from the change', ids: [] }] : []),
+      ...(referredCount > 0 ? [{
+        count: referredCount,
+        reason: `above the ${role.label.toLowerCase()}'s EUR ${role.spendLimitEur} spend authority — referred to a ${awaiting}, not refused`,
+        ids: referredIds,
+        pending: awaiting,
+      }] : []),
+      ...(removedByOperator > 0 ? [{ count: removedByOperator, reason: 'the operator removed these from the change', ids: [] }] : []),
       ...(droppedActions > 0 ? [{ count: droppedActions, reason: 'the operator did not approve these messages', ids: [] }] : []),
       ...(out.status === 'aborted_stale' ? [{ count: diffRequested, reason: 'a record changed after the preview; nothing was applied', ids: [] }] : []),
       ...(out.status === 'aborted_diverged' ? [{ count: diffRequested, reason: `an approved field would have received a value the preview never showed (${out.violation}); nothing was applied`, ids: [] }] : []),
@@ -451,6 +621,9 @@ export function registerLadderTool(spec: LadderToolSpec) {
       // A commit that returned `denied` with no violation key is a tool that threw, not the
       // guard firing. Kept apart so the UI never reports a crash as enforcement.
       !committed ? 'tool_error' :
+      // Named before 'auto_applied' and before 'applied': whatever else was true of this run,
+      // the fact the human has to act on is that part of it is now with someone else.
+      referredCount > 0 ? 'referred' :
       // auto is only true when a ratified policy already cleared this diff without ever
       // showing the panel — the one case the receipt has to name, not just report.
       auto ? 'auto_applied' :
@@ -475,12 +648,26 @@ export function registerLadderTool(spec: LadderToolSpec) {
       // reassurance already fixed twice elsewhere (a domain-skip tool reporting `applied`,
       // dropped messages reporting a clean success) — on the path with the least information
       // for the agent to catch it itself.
-      replan_required: rejectedTotal > 0 || out.error !== undefined,
+      //
+      // Referred rows are the one exception, and they are subtracted here rather than left out
+      // of `rejected`: they did not happen, so they stay in the ledger, but they have not been
+      // refused either. Telling an agent to replan around a row a duty manager is holding would
+      // have it propose a worse remedy for freight that is about to get a better one.
+      replan_required: rejectedTotal - referredCount > 0 || out.error !== undefined,
+      ...(referredCount > 0
+        ? { referred: { count: referredCount, ids: referredIds, awaiting } }
+        : {}),
       rule_offered: draft ? describePolicy(draft) : null,
       ...(out.error !== undefined ? { error: `the tool failed during commit: ${out.error}` } : {}),
     }, auto ? describePolicy(pol!) : undefined);
   };
 
+  // Registered before the description is composed, because composedDescription() reads the
+  // registration back for the tool's base words — and the agent is told about the spend
+  // boundary from the first registration, not only once a row has already been referred.
   registrations.set(spec.name, { spec, execute });
-  mc.registerTool({ name: spec.name, description: spec.description, inputSchema: spec.inputSchema, execute });
+  mc.registerTool({
+    name: spec.name, description: composedDescription(spec.name),
+    inputSchema: spec.inputSchema, execute,
+  });
 }

@@ -174,3 +174,67 @@ describe('RemedySummary states the distribution of the run', () => {
     expect(container.firstChild).toBeNull();
   });
 });
+
+/**
+ * A referred row is the one row on the sheet that is not the operator's to mark. It has to be
+ * distinguishable from a row they struck out — the difference between "I said no" and "this
+ * was never mine" — and it has to be distinguishable without any colour, since the operator
+ * this is built for cannot rely on hue at all. Three signals carry it: a mark shape no other
+ * state uses, a rule form on the row's own edge, and the stamped word.
+ */
+describe('DiffGroupRow sets a referred row apart without using colour', () => {
+  const referredTo = { limitEur: 250, role: 'Duty manager' };
+
+  it('withholds the control and stamps the word REFER, naming the limit and the approver', () => {
+    const { group, record } = groupFor('HAWB-70001');
+    render(
+      <DiffGroupRow
+        group={group} record={record} subtitle="" checked
+        referredTo={referredTo} onToggle={() => {}}
+      />,
+    );
+
+    const box = screen.getByRole('checkbox') as HTMLInputElement;
+    expect(box.disabled).toBe(true);
+    expect(box.checked).toBe(false);
+    expect(box.getAttribute('aria-label')).toMatch(/not yours to approve/);
+
+    expect(screen.getByText('Refer')).toBeTruthy();
+    expect(screen.getByText(/over your EUR/)).toBeTruthy();
+    expect(screen.getByText(/duty manager/)).toBeTruthy();
+  });
+
+  it('is not struck out — nothing on it was declined', () => {
+    const { group, record } = groupFor('HAWB-70001');
+    const { container } = render(
+      <DiffGroupRow
+        group={group} record={record} subtitle="" checked
+        referredTo={referredTo} onToggle={() => {}}
+      />,
+    );
+
+    const row = container.querySelector('.dg')!;
+    expect(row.className).toContain('dg--referred');
+    expect(row.className).not.toContain('dg--struck');
+  });
+
+  it('carries a mark shape that no other row state uses', () => {
+    const { group, record } = groupFor('HAWB-70001');
+    const referred = render(
+      <DiffGroupRow
+        group={group} record={record} subtitle="" checked
+        referredTo={referredTo} onToggle={() => {}}
+      />,
+    );
+    const referredMark = referred.container.querySelector('.dg-mark svg')!.innerHTML;
+    cleanup();
+
+    for (const checked of [true, false]) {
+      const other = render(
+        <DiffGroupRow group={group} record={record} subtitle="" checked={checked} onToggle={() => {}} />,
+      );
+      expect(other.container.querySelector('.dg-mark svg')!.innerHTML).not.toBe(referredMark);
+      cleanup();
+    }
+  });
+});

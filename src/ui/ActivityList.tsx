@@ -19,12 +19,14 @@ interface ActivityEntry {
 /**
  * The mark against each line of the run log. Colour is not carrying this: `applied` and
  * `auto_applied` took the correction (a caret), everything else did not (a deletion loop), and
- * the two states that are set apart from the run — blocked and errored — carry a dagger. The
+ * the two states that are set apart from the run — blocked and errored — carry a dagger. A
+ * referred run carries the query mark, the same one the row itself carried on the sheet. The
  * cause is also printed in words on the same line.
  */
 const CAUSE_MARK: Record<ProposalOutcome['cause'], MarkName> = {
   applied: 'insert',
   auto_applied: 'insert',
+  referred: 'query',
   refused: 'dele',
   nothing_to_decide: 'dele',
   stale: 'stet',

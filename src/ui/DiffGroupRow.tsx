@@ -90,6 +90,12 @@ export interface DiffGroupRowProps {
   /** Customer, consol and tier, which live on the record rather than in the diff. */
   subtitle: string;
   checked: boolean;
+  /**
+   * Set when this row's spend is above what the operator on shift may authorise. The row is
+   * then not theirs to mark at all, so the control is withheld rather than shown and ignored,
+   * and the row says who it went to instead.
+   */
+  referredTo?: { limitEur: number; role: string };
   onToggle(): void;
 }
 
@@ -106,23 +112,30 @@ export interface DiffGroupRowProps {
  * grows by exactly the size of what it lost, so the constrained handful is legible as mass
  * before a single word of it is read — which is the point of showing forty-two of these at once.
  */
-export function DiffGroupRow({ group, record, subtitle, checked, onToggle }: DiffGroupRowProps) {
+export function DiffGroupRow({
+  group, record, subtitle, checked, referredTo, onToggle,
+}: DiffGroupRowProps) {
   const delta = group.valueDelta;
   const { remedy, otherWrites } = readProofRow(group, record);
+  // A referred row is never struck: nothing has been declined on it. It is set apart instead —
+  // a query mark in the gutter, a double rule down its edge, and the word REFER — none of which
+  // is a colour, and all three of which read with the hue removed entirely.
+  const referred = Boolean(referredTo);
 
   return (
-    <label className={`dg${checked ? '' : ' dg--struck'}`}>
+    <label className={`dg${referred ? ' dg--referred' : checked ? '' : ' dg--struck'}`}>
       {/* One checkbox for the whole record. Approving half of a two-sided change is how
           data goes incoherent, and the engine's unit of approval is the group. */}
       <input
         className="dg-check"
         type="checkbox"
-        checked={checked}
+        checked={referred ? false : checked}
+        disabled={referred}
         onChange={onToggle}
-        aria-label={`Include ${group.id}`}
+        aria-label={referred ? `${group.id} — referred, not yours to approve` : `Include ${group.id}`}
       />
       <span className="dg-mark">
-        <ProofMark name={checked ? 'insert' : 'stet'} size={15} />
+        <ProofMark name={referred ? 'query' : checked ? 'insert' : 'stet'} size={15} />
       </span>
       <div className="dg-body">
         <div className="dg-head">
@@ -174,8 +187,18 @@ export function DiffGroupRow({ group, record, subtitle, checked, onToggle }: Dif
           </ul>
         )}
 
-        {/* The word, not just the rule through it: a struck line has to say why it is struck. */}
+        {/* The stamped word. A struck line has to say why it is struck; a referred row has to
+            say whose decision it now is, and what put it out of this operator's reach. */}
         <span className="dg-struck-note">Struck out — stands as it is</span>
+        {referredTo && (
+          <span className="dg-refer-note">
+            <span className="dg-refer-word">Refer</span>
+            <span className="dg-refer-tail">
+              over your EUR <span className="mono">{referredTo.limitEur}</span> limit — needs
+              the {referredTo.role.toLowerCase()}
+            </span>
+          </span>
+        )}
       </div>
     </label>
   );

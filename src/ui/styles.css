@@ -144,6 +144,11 @@ hr.rule {
 .dg-blocked-caption,
 .app-docket-lead,
 .dg-struck-note,
+.dg-refer-word,
+.au-heading,
+.au-state-caps,
+.au-refs-caption-caps,
+.pp-refer-caption-caps,
 .ac-struck-note {
   text-transform: uppercase;
   /* 11.5px, not 10.5px: below an 11px floor a letterspaced caps label stops being
@@ -757,6 +762,158 @@ body.pp-active .console-table td {
 }
 
 /* ---------- the proof sheet ---------- */
+
+
+/* ---------- the imprint: spend authority ---------- */
+
+/*
+ * Set as a second imprint block beside the standing rules, because they answer the two halves
+ * of one question — how far the agent may go without this person, and how far this person may
+ * go without a second one. Same stock, same frame, same caps voice.
+ */
+.au {
+  background: var(--paper);
+  border: 1px solid var(--rule-strong);
+  padding: 15px 18px 17px;
+  margin-bottom: 22px;
+}
+
+.au-heading {
+  margin: 0 0 11px;
+  color: var(--ink-muted);
+}
+
+.au-roles {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 9px;
+}
+
+/* Which role is in effect is said by the caret and by the double rule, never by the tint. */
+.au-role {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 7px;
+  padding: 7px 12px;
+  border: 1px solid var(--rule-strong);
+  background: var(--paper-raised);
+  color: var(--ink-muted);
+  font-family: inherit;
+  font-size: 0.86rem;
+  cursor: pointer;
+}
+
+.au-role--on {
+  border: 3px double var(--mark);
+  padding: 5px 10px;
+  color: var(--ink);
+  font-weight: 600;
+  background: var(--mark-wash);
+}
+
+.au-role--on .pm {
+  color: var(--mark);
+}
+
+.au-role-limit {
+  font-size: 0.78rem;
+  color: var(--ink-muted);
+}
+
+.au-state {
+  margin: 11px 0 0;
+  font-size: 0.86rem;
+  line-height: 1.55;
+  color: var(--ink);
+}
+
+.au-state-caps {
+  color: var(--ink-muted);
+  margin-right: 5px;
+}
+
+.au-demo-note {
+  margin: 5px 0 0;
+  max-width: 74ch;
+  font-size: 0.78rem;
+  line-height: 1.45;
+  color: var(--ink-muted);
+}
+
+.au-refs {
+  margin-top: 13px;
+  padding-top: 11px;
+  border-top: 3px double var(--hold);
+}
+
+.au-refs-caption {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  margin: 0 0 7px;
+  color: var(--hold);
+}
+
+.au-refs-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.au-ref {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 8px 0;
+}
+
+.au-ref + .au-ref {
+  border-top: 1px solid var(--rule);
+}
+
+.au-ref-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.au-ref-line {
+  margin: 0;
+  font-size: 0.86rem;
+  color: var(--ink);
+}
+
+.au-ref-ids {
+  margin: 2px 0 0;
+  font-size: 0.78rem;
+  color: var(--ink-muted);
+  overflow-wrap: anywhere;
+}
+
+.au-ref-review {
+  flex: none;
+  padding: 7px 13px;
+  border: 1px solid var(--rule-strong);
+  background: var(--paper-raised);
+  color: var(--ink);
+  font-family: inherit;
+  font-size: 0.86rem;
+  cursor: pointer;
+}
+
+.au-ref-review:hover:not(:disabled) {
+  background: var(--mark-wash);
+  border-color: var(--mark);
+}
+
+/* Not this role's to decide: the control is inert and says whose it is, rather than greying
+   out a word the reader then has to guess the reason for. */
+.au-ref-review:disabled {
+  background: var(--paper-sunk);
+  border-style: dashed;
+  color: var(--ink-muted);
+  cursor: not-allowed;
+}
 
 .pp-scrim {
   position: fixed;
@@ -1407,6 +1564,101 @@ body.pp-active .console-table td {
   display: block;
 }
 
+/*
+ * ── The authority boundary, on the sheet ──────────────────────────────────────────────────
+ *
+ * A referred row is not struck and must never look struck: nothing about it has been declined.
+ * It is set apart, which this interface already has a vocabulary for — and it is set apart by
+ * three signals that all survive the colour being removed:
+ *
+ *   1. a query mark in the gutter, a shape no other state uses;
+ *   2. a double rule down the row's own edge, a rule *form* rather than a rule colour — the
+ *      same double form held matter carries top and bottom, turned onto the axis that says
+ *      "this row", not "this band";
+ *   3. the stamped word REFER, which is the whole point: OK TO RUN is what this person can
+ *      authorise, REFER is what they cannot.
+ *
+ * The amber only ever agrees with all three. Take it out and the row still reads.
+ */
+.dg--referred {
+  border-left: 3px double var(--hold);
+  padding-left: 9px;
+  background: var(--hold-wash);
+  cursor: default;
+}
+
+.dg--referred .dg-mark {
+  color: var(--hold);
+}
+
+/* An unusable control reads as unusable, not as an unticked one the operator forgot. */
+.dg--referred .dg-check {
+  accent-color: var(--rule-strong);
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+.dg-refer-note {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 7px;
+  margin-top: 6px;
+}
+
+.dg-refer-word {
+  padding: 1px 7px;
+  border: 3px double var(--hold);
+  color: var(--hold);
+}
+
+.dg-refer-tail {
+  font-size: 0.82rem;
+  color: var(--ink-muted);
+}
+
+/*
+ * The same news, once, above the list — because forty rows deep is too late to find out that
+ * four of them were never yours. Set like the tool's own skip note (a dashed frame on sunk
+ * stock) rather than like a diff row, since neither is something the operator can act on here.
+ */
+.pp-refer {
+  margin-top: 22px;
+  padding: 11px 13px 12px;
+  background: var(--paper-sunk);
+  border: 1px dashed var(--hold);
+}
+
+.pp-refer-caption {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  margin: 0 0 6px;
+  color: var(--hold);
+}
+
+.pp-refer-caption-tail {
+  text-transform: none;
+  letter-spacing: 0;
+  font-weight: 400;
+  font-size: 0.8rem;
+  color: var(--ink-muted);
+}
+
+.pp-refer-line {
+  margin: 0;
+  font-size: 0.86rem;
+  line-height: 1.55;
+  color: var(--ink);
+}
+
+.pp-refer-ids {
+  margin: 3px 0 0;
+  padding-left: 2ch;
+  font-size: 0.78rem;
+  color: var(--ink);
+}
+
 /* ---------- held actions ---------- */
 
 /*
@@ -1620,6 +1872,7 @@ body.pp-active .console-table td {
   color: var(--mark);
 }
 
+.rc--referred .rc-stamp,
 .rc--blocked .rc-stamp,
 .rc--sent .rc-stamp,
 .rc--moved .rc-stamp,
@@ -1636,6 +1889,9 @@ body.pp-active .console-table td {
 .rc--sent { border-top: 3px solid var(--hold); }
 .rc--moved { border-top: 3px dashed var(--rule-strong); }
 .rc--fault { border-top: 3px dotted var(--hold); }
+/* Double above, dashed below: set apart like blocked matter, but open at the foot rather than
+   closed on both sides — the decision is still running, with someone else. */
+.rc--referred { border-top: 3px double var(--hold); border-bottom: 3px dashed var(--hold); }
 .rc--skipped { border-top: 1px solid var(--rule-strong); }
 
 .rc-head {
@@ -1783,6 +2039,7 @@ body.pp-active .console-table td {
 }
 
 .al-row--blocked .al-mark,
+.al-row--referred .al-mark,
 .al-row--tool_error .al-mark {
   color: var(--hold);
 }
