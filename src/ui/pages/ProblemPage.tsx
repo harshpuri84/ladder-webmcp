@@ -104,11 +104,23 @@ export function ProblemPage() {
 
   return (
     <main className="pr">
+      {/* The vignette below is the concrete instance; this is the claim it is an instance of.
+          A judge scanning for thirty seconds was reaching the general argument only after ~150
+          words of air freight, which is a long time to wonder whether any of this is about
+          them. Story-first is still the right order — this just puts the thesis where a scan
+          finds it. */}
+      <p className="pr-standfirst">
+        An agent can now call the tools a web page owns. Ladder is about the other half: what
+        the person accountable for those records sees before the agent's change lands, and what
+        the agent is told when they cut it down.
+      </p>
+
       <section className="pr-sec">
         <h2 className="pr-h">Thursday, <span className="mono">19:40</span></h2>
         <p className="pr-p">
           A flight from {DISRUPTED_FLIGHT.origin} to {DISRUPTED_FLIGHT.destination} is
-          cancelled. {spellOut(consols)} consolidations were on it, so <Fig>{shipments}</Fig>{' '}
+          cancelled. {spellOut(consols)} consolidations were on it. A consolidation is one air
+          waybill covering many separate customers' shipments, so <Fig>{shipments}</Fig>{' '}
           shipments belonging to <Fig>{customers}</Fig> different customers are now unbooked.
           Nobody assembled that list. The cancellation did.
         </p>
@@ -169,10 +181,13 @@ export function ProblemPage() {
           where the work already was.
         </Consequence>
         <Consequence lead="The page owns the state, so it can rehearse against it.">
-          Ladder forks the application's own state with <Code>structuredClone</Code> and
-          runs the real <Code>execute()</Code> against the copy. A server-side tool has no copy
-          of your interface's state to rehearse against, and nowhere to show you the
-          result except a channel you are not watching.
+          Ladder forks the application's own state with <Code>structuredClone</Code> and runs
+          the real <Code>execute()</Code> against the copy. This is the part that cannot be
+          built on a server. A preview there means a second endpoint, hand-written beside the
+          real one, and two implementations of the same change drift apart the first time
+          someone fixes a bug in only one of them. Ladder's preview cannot drift, because it is
+          not a second implementation. It is the same <Code>execute()</Code>, on the same code
+          path that will do the commit.
         </Consequence>
         <Consequence lead="The tool's description can be rewritten at runtime.">
           <Code>unregisterTool</Code>, then <Code>registerTool</Code> with new words. When an
@@ -246,7 +261,10 @@ export function ProblemPage() {
           them asked that question. An outside reader did.
         </Limit>
         <Limit lead="The recorder is two levels deep.">
-          A mutation inside a nested object field is not seen.
+          A mutation inside a nested object field one level past that cannot be previewed, so it
+          is refused rather than performed. Objects read at that depth come back as read-only
+          views that throw on any write, and a commit that hits one rolls back whole and returns
+          denied. The limit is real; what it never does is let an unpreviewed write land quietly.
         </Limit>
         <Limit lead="Tools must be deterministic.">
           A field set from a clock differs between the two runs and aborts the commit rather
@@ -256,11 +274,17 @@ export function ProblemPage() {
           Standing rules, history and the activity log are in memory and a reload clears them.
         </Limit>
         <Limit lead="Approval is per record, not per field." />
+        <Limit lead="Your authoritative state may not be in the page at all.">
+          These records live in the browser, which is what lets the guard see every write. An
+          application whose truth lives on a server would put the same fork, preview and guard
+          around its API client rather than around a store. Ladder does not do that for you
+          today. What is here is a reference implementation of the pattern, not a library that
+          already covers every shape of application.
+        </Limit>
         <p className="pr-p pr-p--after-limits">
-          The spec has a hook for asking the user mid-call. No shipping browser implements it
-          yet, so Ladder renders its own surface and detects for the hook. Measured against
-          Chrome 151 on 26 August 2026: <Code>execute</Code> receives only its first argument,
-          and a pending call survives 96 seconds.
+          One measurement is what made any of this buildable: against Chrome 151 on 26 August
+          2026, a pending <Code>execute()</Code> survives 96 seconds. That is long enough for a
+          person to read a proof sheet and decide, which is the whole bet this design makes.
         </p>
       </section>
 

@@ -2441,6 +2441,21 @@ body.pp-active .console-table td {
   padding-top: 8px;
 }
 
+/*
+ * The standfirst: the general claim, set above the first section so a thirty-second scan meets
+ * it before the freight story. Larger than body and in the full ink, because it is the one
+ * paragraph that has to be read if nothing else is.
+ */
+.pr-standfirst {
+  margin: 0 0 34px;
+  padding-bottom: 26px;
+  border-bottom: 1px solid var(--rule);
+  max-width: 68ch;
+  font-size: 1rem;
+  line-height: 1.55;
+  color: var(--ink);
+}
+
 .pr-sec + .pr-sec {
   margin-top: 40px;
   padding-top: 36px;
