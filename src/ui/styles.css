@@ -204,10 +204,6 @@ body.pp-active .al {
   margin-bottom: 26px;
 }
 
-.app-header hr.rule {
-  margin-top: 12px;
-}
-
 .app-header h1 {
   margin: 0;
   font-size: 2.1rem;
@@ -2370,4 +2366,44 @@ body.pp-active .console-table td {
   .tp-panel {
     max-height: 46vh;
   }
+}
+
+/* ---------- tabs ---------- */
+
+.tab-bar {
+  display: flex;
+  gap: 26px;
+}
+
+.tab-bar-tab {
+  appearance: none;
+  background: none;
+  border: none;
+  border-bottom: 3px double transparent;
+  margin: 0;
+  padding: 0 0 9px;
+  font-family: inherit;
+  font-size: 0.86rem;
+  color: var(--ink-muted);
+  cursor: pointer;
+}
+
+/*
+ * Which tab is open is said by the weight and this double rule — the same "in effect" motif
+ * the printed rule and the spend-authority toggle already use elsewhere in this file — never
+ * by the tint alone. Strip the colour and the weight plus the rule still say which tab is open.
+ */
+.tab-bar-tab--active {
+  border-bottom-color: var(--mark);
+  color: var(--ink);
+  font-weight: 600;
+}
+
+.tab-bar-tab:focus-visible {
+  outline: 2px solid var(--mark);
+  outline-offset: 2px;
+}
+
+.tab-bar-rule {
+  margin: 0 0 22px;
 }

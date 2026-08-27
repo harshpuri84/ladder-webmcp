@@ -17,12 +17,16 @@ describe('App: WebMCP namespace injected after mount', () => {
     vi.resetModules();
     delete (document as any).modelContext;
     delete (navigator as any).modelContext;
+    // The banner and the register now live on the proof tab, not on App directly — send the
+    // page there so the rest of this test still exercises the same registration lifecycle.
+    window.location.hash = '#/proof';
   });
 
   afterEach(() => {
     cleanup();
     delete (document as any).modelContext;
     delete (navigator as any).modelContext;
+    window.location.hash = '';
   });
 
   it('shows the banner while unavailable, then registers and hides it once WebMCP is injected late', async () => {
