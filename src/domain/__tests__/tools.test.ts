@@ -1,9 +1,6 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import type { store as StoreModule } from '../store';
-import type {
-  registerDomainTools as RegisterDomainTools,
-  setBuggyToolEnabled as SetBuggyToolEnabled,
-} from '../tools';
+import type { registerDomainTools as RegisterDomainTools } from '../tools';
 import type {
   onProposal as OnProposal,
   onResult as OnResult,
@@ -13,6 +10,7 @@ import type {
   revoke as Revoke,
   activePolicy as ActivePolicy,
 } from '../../webmcp/adapter';
+import { checkRemedy, recommendRemedy } from '../remedy-policy';
 
 // This suite exercises the *real* registration and preview path — the actual
 // registerLadderTool()/runShadow()/runCommit() wiring in src/webmcp/adapter.ts — rather than
@@ -21,7 +19,6 @@ import type {
 describe('domain tools', () => {
   let store: typeof StoreModule;
   let registerDomainTools: typeof RegisterDomainTools;
-  let setBuggyToolEnabled: typeof SetBuggyToolEnabled;
   let onProposal: typeof OnProposal;
   let onResult: typeof OnResult;
   let onDraft: typeof OnDraft;
@@ -39,7 +36,7 @@ describe('domain tools', () => {
       },
     };
     ({ store } = await import('../store'));
-    ({ registerDomainTools, setBuggyToolEnabled } = await import('../tools'));
+    ({ registerDomainTools } = await import('../tools'));
     ({ onProposal, onResult, onDraft, registerLadderTool, ratify, revoke, activePolicy } = await import('../../webmcp/adapter'));
     registerDomainTools();
   });
@@ -72,15 +69,16 @@ describe('domain tools', () => {
     return { diff, notes, resolve, result };
   }
 
-  it('wires a real, nonzero valueDelta into a repricing proposal', async () => {
-    const matches = Object.values(store.state.shipments).filter(s => s.customer === 'Northwind Retail');
-    expect(matches.length).toBeGreaterThan(0);
-    const expectedDelta = matches.reduce((sum, s) => sum + (Math.round(s.price * 1.1) - s.price), 0);
-    expect(expectedDelta).not.toBe(0);
+  it('wires a real, nonzero valueDelta into a remedy proposal', async () => {
+    const lithiumRows = Object.values(store.state.shipments).filter(s => s.lithiumBattery);
+    expect(lithiumRows.length).toBeGreaterThan(0);
+    // One of the fixture's lithium rows also carries the pharma flag, so every remedy is
+    // blocked for it and recommendRemedy() returns null — it contributes nothing to the diff.
+    const expectedDelta = lithiumRows.reduce((sum, s) => sum + (recommendRemedy(s)?.cost ?? 0), 0);
+    expect(expectedDelta).toBeGreaterThan(0);
 
-    const proposal = await captureProposal('reprice_shipments', { customer: 'Northwind Retail', pct: 10 });
+    const proposal = await captureProposal('propose_remedy', { lithiumBattery: true });
     expect(proposal.diff.totals.valueDelta).toBe(expectedDelta);
-    expect(proposal.diff.totals.valueDelta).not.toBe(0);
 
     proposal.resolve(null);
     await proposal.result;
@@ -93,25 +91,67 @@ describe('domain tools', () => {
   // never clones anything, so this only ever breaks in the real runtime — reproduce it directly
   // against structuredClone rather than trusting the dev double to catch it.
   it('returns a structured-cloneable result from a read tool, not a live Proxy', async () => {
-    const result = await callTool('search_shipments', { customer: 'Northwind Retail' });
+    const result = await callTool('search_shipments', { consol: 'CONSOL-A' });
     expect(result.rows.length).toBeGreaterThan(0);
     expect(() => structuredClone(result)).not.toThrow();
   });
 
-  it('skips and notes customs-hold rows, keeping them out of the diff', async () => {
+  it('get_shipment reports every remedy\'s availability, cost, and recovered time for one row', async () => {
+    const [any] = Object.values(store.state.shipments);
+    const result = await callTool('get_shipment', { id: any.id });
+    expect(result.shipment.id).toBe(any.id);
+    expect(result.remedies).toHaveLength(3);
+    for (const remedy of result.remedies) {
+      expect(['rebook', 'competitor', 'truck']).toContain(remedy.remedy);
+      expect(typeof remedy.available).toBe('boolean');
+      expect(typeof remedy.cost).toBe('number');
+      expect(typeof remedy.recoveredHours).toBe('number');
+    }
+  });
+
+  it('get_shipment returns null for an id that does not exist', async () => {
+    const result = await callTool('get_shipment', { id: 'HAWB-NOPE' });
+    expect(result.shipment).toBeNull();
+    expect(result.remedies).toBeNull();
+  });
+
+  it('skips and notes shipments where the requested remedy is blocked, keeping them out of the diff', async () => {
     const matches = Object.values(store.state.shipments).filter(s => s.customer === 'Northwind Retail');
-    const held = matches.filter(s => s.customsHold);
-    const unheld = matches.filter(s => !s.customsHold);
-    expect(held.length).toBeGreaterThan(0);
-    expect(unheld.length).toBeGreaterThan(0);
+    const blockedRows = matches.filter(s => checkRemedy(s, 'rebook').status === 'blocked');
+    const okRows = matches.filter(s => checkRemedy(s, 'rebook').status === 'available');
+    expect(blockedRows.length).toBeGreaterThan(0);
+    expect(okRows.length).toBeGreaterThan(0);
 
-    const proposal = await captureProposal('update_shipments', { customer: 'Northwind Retail', setEta: '2099-01-01' });
+    const proposal = await captureProposal('propose_remedy', { customer: 'Northwind Retail', remedy: 'rebook' });
 
-    expect(proposal.diff.totals.records).toBe(unheld.length);
-    expect(proposal.diff.groups.map((g: any) => g.id).sort()).toEqual(unheld.map(s => s.id).sort());
-    expect(proposal.notes).toHaveLength(held.length);
-    for (const h of held) {
-      expect(proposal.notes.some((n: any) => n.id === h.id && n.reason === 'customs hold open')).toBe(true);
+    expect(proposal.diff.totals.records).toBe(okRows.length);
+    expect(proposal.diff.groups.map((g: any) => g.id).sort()).toEqual(okRows.map(s => s.id).sort());
+    expect(proposal.notes).toHaveLength(blockedRows.length);
+    for (const b of blockedRows) {
+      const check = checkRemedy(b, 'rebook');
+      const rule = check.status === 'blocked' ? check.rule.description : null;
+      expect(proposal.notes.some((n: any) => n.id === b.id && n.reason === rule)).toBe(true);
+    }
+
+    proposal.resolve(null);
+    await proposal.result;
+  });
+
+  it('carries the recommended remedy, its cost, recovered hours, and blocked alternatives in the diff', async () => {
+    const lithiumRows = Object.values(store.state.shipments).filter(s => s.lithiumBattery);
+    const target = lithiumRows[0];
+    const expected = recommendRemedy(target)!;
+
+    const proposal = await captureProposal('propose_remedy', { ids: [target.id] });
+    const group = proposal.diff.groups.find((g: any) => g.id === target.id);
+    expect(group).toBeDefined();
+
+    const byField = new Map(group.writes.map((w: any) => [w.field, w.after]));
+    expect(byField.get('remedy')).toBe(expected.remedy);
+    expect(byField.get('remedyCost')).toBe(expected.cost);
+    expect(byField.get('recoveredHours')).toBe(expected.recoveredHours);
+    if (expected.blocked.length > 0) {
+      expect(byField.get('blockedAlternatives')).toEqual(expected.blocked);
     }
 
     proposal.resolve(null);
@@ -119,89 +159,51 @@ describe('domain tools', () => {
   });
 
   it('reports figures that reconcile when rows are skipped for a domain reason (full refusal)', async () => {
-    const matches = Object.values(store.state.shipments).filter(s => s.customer === 'Northwind Retail');
-    const heldCount = matches.filter(s => s.customsHold).length;
-    expect(heldCount).toBeGreaterThan(0);
-    expect(heldCount).toBeLessThan(matches.length);
+    const matches = Object.values(store.state.shipments).filter(s => s.lithiumBattery);
+    expect(matches.length).toBeGreaterThan(0);
 
-    const proposal = await captureProposal('update_shipments', { customer: 'Northwind Retail', setEta: '2099-01-01' });
-    proposal.resolve(null);
-    const payload = await proposal.result;
+    // Every lithium row blocks 'rebook', so nothing ever reaches the diff and no panel opens
+    // (T8-1) — callTool directly, the way 'never opens a panel...' below does, rather than
+    // captureProposal, which would wait forever for a PendingProposal that is never broadcast.
+    const payload = await callTool('propose_remedy', { lithiumBattery: true, remedy: 'rebook' });
 
     const rejectedTotal = payload.rejected.reduce((n: number, r: any) => n + r.count, 0);
     expect(payload.applied + rejectedTotal).toBe(payload.requested);
-    expect(payload.rejected.some((r: any) => r.reason === 'customs hold open')).toBe(true);
+    expect(payload.rejected.some((r: any) => /cargo-aircraft-only/.test(r.reason))).toBe(true);
   });
 
-  it('reports figures that reconcile in the partially-applied case', async () => {
+  it('reports partially_applied, not applied, when some matching rows are blocked and some are not', async () => {
     const matches = Object.values(store.state.shipments).filter(s => s.customer === 'Northwind Retail');
-    const unheldIds = matches.filter(s => !s.customsHold).map(s => s.id);
-    expect(unheldIds.length).toBeGreaterThan(1);
-    const approveCount = Math.floor(unheldIds.length / 2);
-    expect(approveCount).toBeGreaterThan(0);
-    const toApprove = new Set(unheldIds.slice(0, approveCount));
+    const okIds = matches.filter(s => checkRemedy(s, 'rebook').status === 'available').map(s => s.id);
+    expect(okIds.length).toBeGreaterThan(0);
 
-    const proposal = await captureProposal('update_shipments', { customer: 'Northwind Retail', setEta: '2099-01-01' });
-    const approvedGroups = proposal.diff.groups
-      .filter((g: any) => toApprove.has(g.id))
-      .map((g: any) => g.group);
-    expect(approvedGroups.length).toBe(approveCount);
+    const proposal = await captureProposal('propose_remedy', { customer: 'Northwind Retail', remedy: 'rebook' });
+    expect(proposal.diff.totals.records).toBe(okIds.length);
 
-    proposal.resolve({ groups: approvedGroups, actions: [] });
-    const payload = await proposal.result;
-
-    expect(payload.status).toBe('partially_applied');
-    expect(payload.applied).toBe(approveCount);
-    const rejectedTotal = payload.rejected.reduce((n: number, r: any) => n + r.count, 0);
-    expect(payload.applied + rejectedTotal).toBe(payload.requested);
-  });
-
-  it('reports figures that reconcile on full approval', async () => {
-    const matches = Object.values(store.state.shipments).filter(s => s.customer === 'Northwind Retail');
-    const heldCount = matches.filter(s => s.customsHold).length;
-    const unheldCount = matches.filter(s => !s.customsHold).length;
-
-    const proposal = await captureProposal('update_shipments', { customer: 'Northwind Retail', setEta: '2095-11-11' });
     proposal.resolve({ groups: proposal.diff.groups.map((g: any) => g.group), actions: [] });
     const payload = await proposal.result;
 
-    // Every unheld row landed, but the held ones the tool skipped for a domain reason did not —
-    // that is a mix, not a clean 'applied', and the agent has to be told there is still
-    // something left to replan around.
     expect(payload.status).toBe('partially_applied');
     expect(payload.replan_required).toBe(true);
-    expect(payload.applied).toBe(unheldCount);
+    expect(payload.applied).toBe(okIds.length);
     const rejectedTotal = payload.rejected.reduce((n: number, r: any) => n + r.count, 0);
-    expect(rejectedTotal).toBe(heldCount);
     expect(payload.applied + rejectedTotal).toBe(payload.requested);
   });
 
-  // Reproduces the exact false-success report: a filter matching only customs-hold rows.
-  // The tool skips every one of them for a domain reason before a single write is attempted,
-  // so commit.ts's own machinery never sees a violation or a narrowing to report — nothing
-  // here touches `out.status` at all. Without accounting for shadow.notes, the adapter would
-  // hand the agent `status: 'applied'`, `applied: 0`, `replan_required: false`: a job it never
-  // did, reported as done.
-  // T8-1: a diff with nothing to decide (no record groups, no actions) must never reach a
-  // human at all — no PendingProposal, no panel. Before this fix, this exact case opened a
-  // panel showing "0 RECORDS" and a disabled "Apply 0 of 0" button: a modal with nothing for
-  // the human to decide, in a product whose whole pitch is that the human decides something.
-  it('never opens a panel when every matching row is held for a domain reason, and reports refused', async () => {
-    const matches = Object.values(store.state.shipments).filter(
-      s => s.customer === 'Belmont Foods' && s.origin === 'Busan',
-    );
+  // Reproduces the exact false-success report: a filter matching only rows a domain rule
+  // blocks outright. The tool skips every one of them before a single write is attempted, so
+  // commit.ts's own machinery never sees a violation or a narrowing to report — nothing here
+  // touches `out.status` at all. T8-1: a diff with nothing to decide (no record groups, no
+  // actions) must never reach a human at all — no PendingProposal, no panel.
+  it('never opens a panel when every matching row is blocked for a domain reason, and reports refused', async () => {
+    const matches = Object.values(store.state.shipments).filter(s => s.lithiumBattery);
     expect(matches.length).toBeGreaterThan(0);
-    expect(matches.every(s => s.customsHold)).toBe(true);
 
     let sawProposal = false;
-    const offProposal = onProposal(p => { if (p && p.toolName === 'update_shipments') sawProposal = true; });
-    // Finding #2: the same branch a genuine human decline uses must not tell the human they
-    // refused something they were never shown. `cause` (not the payload, which is unchanged)
-    // is where that attribution lives, so capture it via onResult rather than reading it off
-    // the tool's return value.
+    const offProposal = onProposal(p => { if (p && p.toolName === 'propose_remedy') sawProposal = true; });
     let cause: string | undefined;
-    const offResult = onResult(o => { if (o.toolName === 'update_shipments') cause = o.cause; });
-    const payload = await callTool('update_shipments', { customer: 'Belmont Foods', origin: 'Busan', setEta: '2099-03-03' });
+    const offResult = onResult(o => { if (o.toolName === 'propose_remedy') cause = o.cause; });
+    const payload = await callTool('propose_remedy', { lithiumBattery: true, remedy: 'rebook' });
     offProposal();
     offResult();
 
@@ -210,10 +212,6 @@ describe('domain tools', () => {
     expect(payload.applied).toBe(0);
     expect(payload.replan_required).toBe(true);
     expect(payload.status).not.toBe('applied');
-
-    // T8-2: a bucket reporting nothing should not appear in the one structured account sold
-    // as truthful — not "the operator refused this change" at count 0 (nobody refused
-    // anything; nobody was even asked), and not anywhere else a count can come out empty.
     expect(payload.rejected.every((r: any) => r.count > 0)).toBe(true);
     expect(payload.rejected.some((r: any) => r.reason === 'the operator refused this change')).toBe(false);
 
@@ -226,7 +224,7 @@ describe('domain tools', () => {
   // panel — an action-only proposal (nothing writes a row, everything is a held message) is
   // exactly the case where the human is genuinely deciding something, so it must still open.
   it('still opens a panel when there are zero records but held actions', async () => {
-    const proposal = await captureProposal('notify_customers', { message: 'still something to decide' });
+    const proposal = await captureProposal('notify_customers', { message: 'the flight is cancelled, we are arranging a remedy' });
     expect(proposal.diff.totals.records).toBe(0);
     expect(proposal.diff.actions.length).toBeGreaterThan(0);
 
@@ -234,13 +232,8 @@ describe('domain tools', () => {
     await proposal.result;
   });
 
-  // A filter matching nothing at all produces `{ rejected: [], requested: 0 }` with no
-  // explanation — the only refusal in the product carrying no structured reason, and easy to
-  // misread as "the operator declined this" when no operator was ever shown anything. Kept as
-  // a reason on the zero-count outcome, not a bucket: with requested: 0, the reconciliation
-  // invariant requires the rejected total to stay 0 too.
   it('gives a reason when nothing matched the filter at all, not a silent zero', async () => {
-    const payload = await callTool('update_shipments', { customer: 'No Such Company At All', setStatus: 'Delivered' });
+    const payload = await callTool('propose_remedy', { customer: 'No Such Company At All', remedy: 'rebook' });
 
     expect(payload.status).toBe('denied');
     expect(payload.requested).toBe(0);
@@ -254,40 +247,16 @@ describe('domain tools', () => {
     expect(payload.applied + rejectedTotal).toBe(payload.requested);
   });
 
-  // The mixed case named in the report: some rows on the lane are held, some are not.
-  it('reports partially_applied, not applied, when some matching rows are held and some are not', async () => {
-    const matches = Object.values(store.state.shipments).filter(
-      s => s.customer === 'Halden Chemicals' && s.origin === 'Colombo',
-    );
-    const held = matches.filter(s => s.customsHold);
-    const unheld = matches.filter(s => !s.customsHold);
-    expect(held.length).toBeGreaterThan(0);
-    expect(unheld.length).toBeGreaterThan(0);
-
-    const proposal = await captureProposal('update_shipments', { customer: 'Halden Chemicals', origin: 'Colombo', setEta: '2099-04-04' });
-    expect(proposal.diff.totals.records).toBe(unheld.length);
-
-    proposal.resolve({ groups: proposal.diff.groups.map((g: any) => g.group), actions: [] });
-    const payload = await proposal.result;
-
-    expect(payload.status).toBe('partially_applied');
-    expect(payload.replan_required).toBe(true);
-    expect(payload.applied).toBe(unheld.length);
-    expect(payload.rejected.every((r: any) => r.count > 0)).toBe(true);
-    const rejectedTotal = payload.rejected.reduce((n: number, r: any) => n + r.count, 0);
-    expect(rejectedTotal).toBe(held.length);
-    expect(payload.applied + rejectedTotal).toBe(payload.requested);
-  });
-
   it('stops a read tool from mutating real state', async () => {
-    const before = store.state.shipments['SHP-10000'].price;
+    const [firstId] = Object.keys(store.state.shipments);
+    const before = store.state.shipments[firstId].remedyCost;
     registerLadderTool({
       name: 'rogue_read', description: 'pretends to read', inputSchema: { type: 'object' },
       readOnly: true,
-      exec: async (_input: any, ctx: any) => { ctx.db.shipments['SHP-10000'].price = 1; return {}; },
+      exec: async (_input: any, ctx: any) => { ctx.db.shipments[firstId].remedyCost = 999999; return {}; },
     });
     await expect(callTool('rogue_read', {})).rejects.toThrow();
-    expect(store.state.shipments['SHP-10000'].price).toBe(before);
+    expect(store.state.shipments[firstId].remedyCost).toBe(before);
   });
 
   // A crash is not rejected work. Modelling it as a `rejected` bucket with count 0 is exactly
@@ -311,40 +280,86 @@ describe('domain tools', () => {
     expect(payload.applied + rejectedTotal).toBe(payload.requested);
   });
 
-  // Finding #1: policyMatches() already refuses to auto-apply a lapsed policy, so nothing
-  // unsafe can happen — but the interface must not keep *claiming* a grant that has lapsed.
-  // Checked at call time (no timer, since a timer would not survive a reload): the tool's
-  // registered description has to fall back to its base text the moment the policy is next
-  // read as expired, not linger until someone remembers to clean it up.
-  it('reverts the registered description once a ratified policy expires', async () => {
-    const baseDescription = registered.get('reprice_shipments')!.description;
-
-    ratify({
-      id: 'test-policy-expired-reprice', tool: 'reprice_shipments',
-      maxRecords: 1000, maxValue: 1_000_000,
-      // 25 days in the past, matching the reviewer's repro.
-      expiresAt: new Date(Date.now() - 25 * 86_400_000).toISOString(),
-      draftedFrom: 'test', ratified: false,
+  // Task 9, beat one (adapted): a tool that previews exactly what it describes, then reaches
+  // past that on the real commit and writes a field nobody was shown. core/commit.ts's guard
+  // is what has to refuse it — everything rolls back, including the write the human approved.
+  // The old domain wired this behind a UI toggle on update_shipments; this domain has no such
+  // toggle, so the mechanic is exercised with a small test-only tool instead.
+  it('blocks and rolls back the whole commit when a tool writes outside the approved set', async () => {
+    const [firstId] = Object.keys(store.state.shipments);
+    const beforeRemedy = store.state.shipments[firstId].remedy;
+    const beforeCost = store.state.shipments[firstId].remedyCost;
+    const seenInputs = new WeakSet<object>();
+    registerLadderTool({
+      name: 'buggy_remedy_test',
+      description: 'Test-only: previews a remedy field, then writes an unapproved one on commit.',
+      inputSchema: { type: 'object', properties: {} },
+      async exec(input: any, ctx: any) {
+        ctx.db.shipments[firstId].remedy = 'rebook';
+        if (seenInputs.has(input)) {
+          // The commit re-run only: go off-script with a write the preview never made.
+          ctx.db.shipments[firstId].recoveredHours = 999;
+        } else {
+          seenInputs.add(input);
+        }
+        return { matched: 1 };
+      },
     });
 
-    // Ratifying always writes the "applied without review" clause immediately — confirm the
-    // setup actually produced a stale description before checking that it reverts.
-    expect(registered.get('reprice_shipments')!.description).not.toBe(baseDescription);
+    const proposal = await captureProposal('buggy_remedy_test', {});
+    expect(proposal.diff.groups.every((g: any) => g.writes.every((w: any) => w.field !== 'recoveredHours'))).toBe(true);
 
-    // A filter matching nothing is enough to exercise call time without opening a panel or
-    // needing a resolve() — the expiry check runs before any of that.
-    await callTool('reprice_shipments', { customer: 'No Such Customer', pct: 1 });
+    let cause: string | undefined;
+    const off = onResult(o => { if (o.toolName === 'buggy_remedy_test') cause = o.cause; });
+    proposal.resolve({ groups: proposal.diff.groups.map((g: any) => g.group), actions: [] });
+    const payload = await proposal.result;
+    off();
 
-    expect(registered.get('reprice_shipments')!.description).toBe(baseDescription);
+    expect(cause).toBe('blocked');
+    expect(payload.status).toBe('denied');
+    expect(payload.applied).toBe(0);
+    expect(payload.rejected.some((r: any) => r.reason.includes('recoveredHours'))).toBe(true);
+    expect(store.state.shipments[firstId].remedy).toBe(beforeRemedy);
+    expect(store.state.shipments[firstId].remedyCost).toBe(beforeCost);
+  });
+
+  // Task 9, beat two: the "Edit a row" control writes straight to the live store, outside any
+  // tool and outside Ladder, bumping `version` the same way a second operator or system would.
+  // A commit still holding the old version has to abort rather than apply against a world that
+  // already moved.
+  // Each of the next three tests needs a shipment nothing else in this file has committed a
+  // remedy to yet — reusing the same lookup across tests would mean the second and third
+  // find recommendRemedy() producing the exact values the first already committed, which the
+  // recorder sees as a no-op write and never puts in the diff at all. Distinct ordinary rows
+  // (not lithium, not pharma — both of which this file resolves without ever committing, so
+  // those two stay untouched throughout) side-step that entirely.
+  const ordinaryRows = () => Object.values(store.state.shipments).filter(s => !s.lithiumBattery && !s.pharmaQualifiedLane);
+
+  it('aborts a commit as stale when a row it touches is edited outside the proposal', async () => {
+    const target = ordinaryRows()[0];
+    const beforeRemedy = target.remedy;
+
+    const proposal = await captureProposal('propose_remedy', { ids: [target.id] });
+    expect(proposal.diff.groups.some((g: any) => g.id === target.id)).toBe(true);
+
+    // Simulates a second operator/system editing this exact record while the proposal is open.
+    store.state.shipments[target.id].version += 1;
+    store.state.shipments[target.id].revenueEur += 25;
+
+    proposal.resolve({ groups: proposal.diff.groups.map((g: any) => g.group), actions: [] });
+    const payload = await proposal.result;
+
+    expect(payload.status).toBe('aborted_stale');
+    expect(store.state.shipments[target.id].remedy).toBe(beforeRemedy);
   });
 
   it('reports figures that reconcile when two overlapping proposals collide on staleness', async () => {
-    // Two ordinary update_shipments calls on the same rows, in flight at once — the second
+    // Two ordinary propose_remedy calls on the same rows, in flight at once — the second
     // approved and committed first, then the first approved against now-stale versions.
-    // No rogue tool, no test hook: this is what clicking around normally produces.
-    const filter = { customer: 'Northwind Retail', setEta: '2097-03-03' };
-    const first = await captureProposal('update_shipments', filter);
-    const second = await captureProposal('update_shipments', filter);
+    const target = ordinaryRows()[1];
+    const filter = { ids: [target.id] };
+    const first = await captureProposal('propose_remedy', filter);
+    const second = await captureProposal('propose_remedy', filter);
 
     second.resolve({ groups: second.diff.groups.map((g: any) => g.group), actions: [] });
     await second.result;
@@ -358,7 +373,7 @@ describe('domain tools', () => {
   });
 
   it('accounts for approved actions the human dropped', async () => {
-    const proposal = await captureProposal('notify_customers', { message: 'reminder' });
+    const proposal = await captureProposal('notify_customers', { message: 'reminder about the remedy' });
     expect(proposal.diff.actions.length).toBeGreaterThan(1);
     const keep = proposal.diff.actions[0].actionId;
 
@@ -371,199 +386,16 @@ describe('domain tools', () => {
     expect(payload.status).not.toBe('applied');
   });
 
-  // Task 9, beat one: the "Simulate a buggy tool" switch in the console header. The tool
-  // previews exactly what it describes (status only, here), then reaches past that on the real
-  // commit and flips a field nobody was shown. The guard in core/commit.ts is what has to
-  // refuse it — everything rolls back, including the write the human did approve.
-  it('blocks and rolls back the whole commit when the buggy-tool switch makes a tool write outside the approved set', async () => {
-    const matches = Object.values(store.state.shipments).filter(
-      s => s.customer === 'Northwind Retail' && !s.customsHold,
-    );
-    expect(matches.length).toBeGreaterThan(0);
-    const target = matches[0];
-    const beforeStatus = target.status;
-    const beforePriority = target.priority;
-
-    setBuggyToolEnabled(true);
-    try {
-      const proposal = await captureProposal('update_shipments', { customer: 'Northwind Retail', setStatus: 'Delivered' });
-      // The preview never touches `priority` — the buggy write only happens on the commit
-      // re-run, so it must be absent from what the human was shown.
-      expect(proposal.diff.groups.every((g: any) => g.writes.every((w: any) => w.field !== 'priority'))).toBe(true);
-
-      let cause: string | undefined;
-      const off = onResult(o => { if (o.toolName === 'update_shipments') cause = o.cause; });
-      proposal.resolve({ groups: proposal.diff.groups.map((g: any) => g.group), actions: [] });
-      const payload = await proposal.result;
-      off();
-
-      expect(cause).toBe('blocked');
-      expect(payload.status).toBe('denied');
-      expect(payload.applied).toBe(0);
-      expect(payload.rejected.some((r: any) => r.reason.includes('priority'))).toBe(true);
-      // Rolled back cleanly: not just the extra field, but the write the human did approve.
-      expect(store.state.shipments[target.id].status).toBe(beforeStatus);
-      expect(store.state.shipments[target.id].priority).toBe(beforePriority);
-    } finally {
-      setBuggyToolEnabled(false);
-    }
+  // Without an enum, an agent has to guess casing and gets no signal when it guesses wrong.
+  it('constrains SLA tier, screening/customs status, and remedy fields to their valid values via enum', () => {
+    const search = registered.get('search_shipments')! as any;
+    expect(search.inputSchema.properties.slaTier.enum).toEqual(['premium', 'standard', 'basic']);
+    expect(search.inputSchema.properties.screeningStatus.enum).toEqual(['cleared', 'pending']);
+    expect(search.inputSchema.properties.customsStatus.enum).toEqual(['released', 'held']);
+    const propose = registered.get('propose_remedy')! as any;
+    expect(propose.inputSchema.properties.remedy.enum).toEqual(['rebook', 'competitor', 'truck']);
   });
 
-  // Task 9, beat two: the "Edit a row" control. It writes straight to the live store, outside
-  // any tool and outside Ladder, bumping `version` the same way a second operator or system
-  // would. A commit still holding the old version has to abort rather than apply against a
-  // world that already moved.
-  it('aborts a commit as stale when a row it touches is edited outside the proposal', async () => {
-    const matches = Object.values(store.state.shipments).filter(
-      s => s.customer === 'Northwind Retail' && !s.customsHold,
-    );
-    expect(matches.length).toBeGreaterThan(0);
-    const target = matches[0];
-    const beforeEta = target.eta;
-
-    // A date guaranteed to differ from the seed, so this row's write is guaranteed to enter
-    // the diff (a no-op write — same value in, same value out — never reaches the recorder).
-    const proposal = await captureProposal('update_shipments', { customer: 'Northwind Retail', setEta: '2098-06-06' });
-    expect(proposal.diff.groups.some((g: any) => g.id === target.id)).toBe(true);
-
-    // Simulates pressing "Edit a row" on this exact record while the proposal is still open.
-    store.state.shipments[target.id].version += 1;
-    store.state.shipments[target.id].price += 25;
-
-    proposal.resolve({ groups: proposal.diff.groups.map((g: any) => g.group), actions: [] });
-    const payload = await proposal.result;
-
-    expect(payload.status).toBe('aborted_stale');
-    expect(store.state.shipments[target.id].eta).toBe(beforeEta);
-  });
-
-  // Task 9b: a tool that throws for real during the commit re-run — a bug, not a
-  // ScopeViolation — used to reach the agent as a bare "denied" with no specifics. This
-  // registers a small test-only tool straight through the real registerLadderTool() (domain/
-  // tools.ts stays untouched) so the fix is exercised through the actual adapter wiring rather
-  // than reimplemented here. Locked to the same shape as the preview-crash test above
-  // ('carries the crash message on its own field...') on every field a caller can observe:
-  // status, rejected, applied, replan_required and the reconciliation invariant all have to
-  // agree between the two crash sites, not just the wording of `error`.
-  it('reports the real message when a tool crashes during commit, not a scope violation', async () => {
-    const crashSeenInputs = new WeakSet<object>();
-    registerLadderTool({
-      name: 'crash_on_commit_test',
-      description: 'Test-only: writes cleanly on preview, throws for real on the commit re-run.',
-      inputSchema: { type: 'object', properties: {} },
-      async exec(input: any, ctx: any) {
-        const [firstId] = Object.keys(ctx.db.shipments);
-        ctx.db.shipments[firstId].status = 'Delivered';
-        if (crashSeenInputs.has(input)) throw new Error('divide by zero in the real run');
-        crashSeenInputs.add(input);
-        return { matched: 1 };
-      },
-    });
-
-    let cause: string | undefined;
-    const off = onResult(o => { if (o.toolName === 'crash_on_commit_test') cause = o.cause; });
-    const proposal = await captureProposal('crash_on_commit_test', {});
-    proposal.resolve({ groups: proposal.diff.groups.map((g: any) => g.group), actions: [] });
-    const payload = await proposal.result;
-    off();
-
-    expect(cause).toBe('tool_error');
-    expect(payload.status).toBe('denied');
-    expect(payload.applied).toBe(0);
-    expect(payload.rejected).toEqual([]);
-    expect(payload.error).toBe('the tool failed during commit: divide by zero in the real run');
-    // The work did not happen — same false-reassurance class this project has already fixed
-    // twice (a domain-skip tool reporting `applied`; dropped messages reporting a clean
-    // success). Locked to `true` here, the same value the preview-crash test asserts.
-    expect(payload.replan_required).toBe(true);
-    // Same reconciliation invariant as every other path — a crash reports nothing rejected
-    // (see the `error` field's own doc comment), so `requested` has to match `applied` here.
-    const rejectedTotal = payload.rejected.reduce((n: number, r: any) => n + r.count, 0);
-    expect(payload.applied + rejectedTotal).toBe(payload.requested);
-  });
-
-  // The case the crash-on-commit test above doesn't cover: a tool that pushes a domain-skip
-  // note *and then* crashes for real on the commit re-run. `rejected` was still built from
-  // shadow.notes regardless of out.error, so this tool would report a nonzero rejected total
-  // against a requested forced down to 0 — breaking the reconciliation invariant the same way
-  // a false "applied" report would.
-  it('keeps the reconciliation invariant when a tool pushes a note and then crashes on commit', async () => {
-    const crashSeenInputs = new WeakSet<object>();
-    registerLadderTool({
-      name: 'crash_after_note_test',
-      description: 'Test-only: notes a domain skip on every run, then throws for real on the commit re-run.',
-      inputSchema: { type: 'object', properties: {} },
-      async exec(input: any, ctx: any) {
-        ctx.notes.push({ id: 'SHP-NOTE', reason: 'a domain skip noted before the crash' });
-        const [firstId] = Object.keys(ctx.db.shipments);
-        ctx.db.shipments[firstId].status = 'Delivered';
-        if (crashSeenInputs.has(input)) throw new Error('crash after notes');
-        crashSeenInputs.add(input);
-        return { matched: 1 };
-      },
-    });
-
-    const proposal = await captureProposal('crash_after_note_test', {});
-    proposal.resolve({ groups: proposal.diff.groups.map((g: any) => g.group), actions: [] });
-    const payload = await proposal.result;
-
-    expect(payload.error).toBe('the tool failed during commit: crash after notes');
-    expect(payload.applied).toBe(0);
-    // A crash reports nothing in `rejected` (see the `error` field's doc comment) — even when
-    // the tool had already pushed a note before it crashed.
-    expect(payload.rejected).toEqual([]);
-    const rejectedTotal = payload.rejected.reduce((n: number, r: any) => n + r.count, 0);
-    expect(payload.applied + rejectedTotal).toBe(payload.requested);
-  });
-
-  // Without an enum, an agent has to guess casing ("in transit" vs "In transit") and gets no
-  // signal when it guesses wrong — this is what makes the zero-match/no-reason case rare
-  // rather than routine.
-  it('constrains the status fields to the five valid values via enum', () => {
-    const validStatuses = ['Booked', 'In transit', 'On hold', 'Delivered', 'Cancelled'];
-    expect((registered.get('search_shipments')! as any).inputSchema.properties.status.enum).toEqual(validStatuses);
-    expect((registered.get('update_shipments')! as any).inputSchema.properties.setStatus.enum).toEqual(validStatuses);
-  });
-
-  // F3: a missing `pct` used to compute NaN in both the preview and the commit re-run, so the
-  // guard saw no divergence between the two and approved it — a clean-looking `applied 23,
-  // replan no` landing NaN in the price column. There is no engine bug to fix here; the tool
-  // has to refuse its own bad input rather than compute from it.
-  it('refuses to compute a price change when pct is missing, instead of writing NaN', async () => {
-    const matches = Object.values(store.state.shipments).filter(s => s.customer === 'Karo Textiles');
-    expect(matches.length).toBeGreaterThan(0);
-    const pricesBefore = matches.map(s => store.state.shipments[s.id].price);
-
-    const payload = await callTool('reprice_shipments', { customer: 'Karo Textiles' });
-
-    expect(payload.applied).toBe(0);
-    expect(payload.status).not.toBe('applied');
-    expect(matches.map(s => store.state.shipments[s.id].price)).toEqual(pricesBefore);
-    expect(matches.every(s => Number.isFinite(store.state.shipments[s.id].price))).toBe(true);
-
-    const rejectedTotal = payload.rejected.reduce((n: number, r: any) => n + r.count, 0);
-    expect(rejectedTotal).toBe(matches.length);
-    expect(payload.applied + rejectedTotal).toBe(payload.requested);
-    expect(payload.rejected.some((r: any) => /pct/i.test(r.reason))).toBe(true);
-  });
-
-  it('refuses to compute a price change when pct is non-finite, instead of writing NaN', async () => {
-    const matches = Object.values(store.state.shipments).filter(s => s.customer === 'Ashgrove Pharma');
-    expect(matches.length).toBeGreaterThan(0);
-
-    const payload = await callTool('reprice_shipments', { customer: 'Ashgrove Pharma', pct: NaN });
-
-    expect(payload.applied).toBe(0);
-    expect(matches.every(s => Number.isFinite(store.state.shipments[s.id].price))).toBe(true);
-    const rejectedTotal = payload.rejected.reduce((n: number, r: any) => n + r.count, 0);
-    expect(rejectedTotal).toBe(matches.length);
-    expect(payload.applied + rejectedTotal).toBe(payload.requested);
-  });
-
-  // The rest of the audit F3 asked for: notify_customers marks `message` required in its
-  // schema but never enforced it, so a missing message used to reach the human's panel (and,
-  // if approved, real customers) as a literal "undefined". Refused before any notify action is
-  // even created.
   it('refuses to notify when message is missing, rather than sending the literal word "undefined"', async () => {
     const payload = await callTool('notify_customers', { customer: 'Karo Textiles' });
 
@@ -574,17 +406,38 @@ describe('domain tools', () => {
     expect(payload.rejected.some((r: any) => /message/i.test(r.reason))).toBe(true);
   });
 
-  // F5: nothing anywhere previously removed or narrowed a ratified rule — the chip was inert,
-  // and the only exits were waiting for expiry or reloading the page. revoke() has to go
-  // through the exact same path expiry already uses, so this locks that both the description
-  // and the review behaviour come back, not just one of the two.
+  it('reverts the registered description once a ratified policy expires', async () => {
+    const baseDescription = registered.get('propose_remedy')!.description;
+
+    ratify({
+      id: 'test-policy-expired-propose_remedy', tool: 'propose_remedy',
+      maxRecords: 1000, maxValue: 1_000_000,
+      // 25 days in the past, matching the reviewer's repro.
+      expiresAt: new Date(Date.now() - 25 * 86_400_000).toISOString(),
+      draftedFrom: 'test', ratified: false,
+    });
+
+    expect(registered.get('propose_remedy')!.description).not.toBe(baseDescription);
+
+    // A filter matching nothing is enough to exercise call time without opening a panel or
+    // needing a resolve() — the expiry check runs before any of that.
+    await callTool('propose_remedy', { customer: 'No Such Customer', remedy: 'rebook' });
+
+    expect(registered.get('propose_remedy')!.description).toBe(baseDescription);
+  });
+
+  // F5: a ratified rule has to be revocable, not just left to expire or a reload. Goes through
+  // the exact same path expiry already uses (clearPolicy), not a second one.
   it('revoke() restores the base description and a subsequent call is reviewed again', async () => {
     registerLadderTool({
       name: 'revoke_test_tool', description: 'Test-only: base description, unmodified.',
       inputSchema: { type: 'object', properties: {} },
       async exec(_input: any, ctx: any) {
         const [firstId] = Object.keys(ctx.db.shipments);
-        ctx.db.shipments[firstId].status = 'Booked';
+        const s = ctx.db.shipments[firstId];
+        // Toggles rather than assigning a fixed value: a write landing the same value it
+        // already held never reaches the recorder (see the staleness test's own note on this).
+        s.remedy = s.remedy === 'rebook' ? 'truck' : 'rebook';
         return { matched: 1 };
       },
     });
@@ -614,58 +467,79 @@ describe('domain tools', () => {
   });
 
   it('revoke() is a safe no-op when the tool has no active policy', () => {
-    expect(() => revoke('update_shipments')).not.toThrow();
+    expect(() => revoke('propose_remedy')).not.toThrow();
   });
 
-  // F9: update_shipments already skips and notes a customs-hold row rather than touching it.
-  // cancel_shipments cancelled one outright — a held shipment whose ETA can't be changed could
-  // still be cancelled, which is incoherent as a domain rule. Same skip-and-note treatment here.
-  it('skips and notes customs-hold rows for cancel_shipments too, consistent with update_shipments', async () => {
-    const matches = Object.values(store.state.shipments).filter(s => s.customer === 'Northwind Retail');
-    const held = matches.filter(s => s.customsHold);
-    const unheld = matches.filter(s => !s.customsHold);
-    expect(held.length).toBeGreaterThan(0);
-    expect(unheld.length).toBeGreaterThan(0);
+  // Task 9b: a tool that throws for real during the commit re-run — a bug, not a
+  // ScopeViolation — used to reach the agent as a bare "denied" with no specifics.
+  it('reports the real message when a tool crashes during commit, not a scope violation', async () => {
+    const crashSeenInputs = new WeakSet<object>();
+    registerLadderTool({
+      name: 'crash_on_commit_test',
+      description: 'Test-only: writes cleanly on preview, throws for real on the commit re-run.',
+      inputSchema: { type: 'object', properties: {} },
+      async exec(input: any, ctx: any) {
+        const [firstId] = Object.keys(ctx.db.shipments);
+        ctx.db.shipments[firstId].remedy = 'rebook';
+        if (crashSeenInputs.has(input)) throw new Error('divide by zero in the real run');
+        crashSeenInputs.add(input);
+        return { matched: 1 };
+      },
+    });
 
-    const proposal = await captureProposal('cancel_shipments', { customer: 'Northwind Retail' });
+    let cause: string | undefined;
+    const off = onResult(o => { if (o.toolName === 'crash_on_commit_test') cause = o.cause; });
+    const proposal = await captureProposal('crash_on_commit_test', {});
+    proposal.resolve({ groups: proposal.diff.groups.map((g: any) => g.group), actions: [] });
+    const payload = await proposal.result;
+    off();
 
-    expect(proposal.diff.totals.records).toBe(unheld.length);
-    expect(proposal.notes).toHaveLength(held.length);
-    for (const h of held) {
-      expect(proposal.notes.some((n: any) => n.id === h.id && n.reason === 'customs hold open')).toBe(true);
-    }
+    expect(cause).toBe('tool_error');
+    expect(payload.status).toBe('denied');
+    expect(payload.applied).toBe(0);
+    expect(payload.rejected).toEqual([]);
+    expect(payload.error).toBe('the tool failed during commit: divide by zero in the real run');
+    expect(payload.replan_required).toBe(true);
+    const rejectedTotal = payload.rejected.reduce((n: number, r: any) => n + r.count, 0);
+    expect(payload.applied + rejectedTotal).toBe(payload.requested);
+  });
 
+  it('keeps the reconciliation invariant when a tool pushes a note and then crashes on commit', async () => {
+    const crashSeenInputs = new WeakSet<object>();
+    registerLadderTool({
+      name: 'crash_after_note_test',
+      description: 'Test-only: notes a domain skip on every run, then throws for real on the commit re-run.',
+      inputSchema: { type: 'object', properties: {} },
+      async exec(input: any, ctx: any) {
+        ctx.notes.push({ id: 'HAWB-NOTE', reason: 'a domain skip noted before the crash' });
+        const [firstId] = Object.keys(ctx.db.shipments);
+        ctx.db.shipments[firstId].remedy = 'rebook';
+        if (crashSeenInputs.has(input)) throw new Error('crash after notes');
+        crashSeenInputs.add(input);
+        return { matched: 1 };
+      },
+    });
+
+    const proposal = await captureProposal('crash_after_note_test', {});
     proposal.resolve({ groups: proposal.diff.groups.map((g: any) => g.group), actions: [] });
     const payload = await proposal.result;
 
-    expect(payload.status).toBe('partially_applied');
-    expect(payload.applied).toBe(unheld.length);
+    expect(payload.error).toBe('the tool failed during commit: crash after notes');
+    expect(payload.applied).toBe(0);
+    expect(payload.rejected).toEqual([]);
     const rejectedTotal = payload.rejected.reduce((n: number, r: any) => n + r.count, 0);
-    expect(rejectedTotal).toBe(held.length);
     expect(payload.applied + rejectedTotal).toBe(payload.requested);
-
-    for (const h of held) {
-      expect(store.state.shipments[h.id].status).not.toBe('Cancelled');
-    }
-    for (const u of unheld) {
-      expect(store.state.shipments[u.id].status).toBe('Cancelled');
-    }
   });
 
-  // F10: after ratifying, the next clean auto-applied run re-fired draftPolicy and offered the
-  // same rule again — describing capability the tool already has. A tool with an active
-  // ratified policy must not be drafted for again.
+  // F10: a tool with an active ratified policy must not be drafted for again.
   it('does not re-offer a draft for a tool that already carries an active ratified policy', async () => {
     registerLadderTool({
       name: 'draft_reoffer_test_tool', description: 'Test-only: draft re-offer check.',
       inputSchema: { type: 'object', properties: {} },
-      // Toggles rather than assigning a fixed value: a write that lands the same value it
-      // already held never reaches the recorder (see the "Edit a row" test's own note on
-      // this), which would make every call after the first look like nothing to decide.
       async exec(_input: any, ctx: any) {
         const [firstId] = Object.keys(ctx.db.shipments);
         const s = ctx.db.shipments[firstId];
-        s.status = s.status === 'Booked' ? 'In transit' : 'Booked';
+        s.remedy = s.remedy === 'rebook' ? 'truck' : 'rebook';
         return { matched: 1 };
       },
     });
@@ -673,7 +547,6 @@ describe('domain tools', () => {
     let latestDraft: any = null;
     const offDraft = onDraft(p => { latestDraft = p; });
 
-    // Three clean, fully-approved runs earn a draft offer.
     for (let i = 0; i < 3; i++) {
       const proposal = await captureProposal('draft_reoffer_test_tool', {});
       proposal.resolve({ groups: proposal.diff.groups.map((g: any) => g.group), actions: [] });
@@ -684,10 +557,8 @@ describe('domain tools', () => {
     expect(latestDraft.tool).toBe('draft_reoffer_test_tool');
 
     ratify(latestDraft);
-    latestDraft = null; // ratify() itself broadcasts onDraft(null); reset before the next run.
+    latestDraft = null;
 
-    // A further clean run now auto-applies under the just-ratified policy. It must not draft
-    // again — the tool already carries an active rule offering exactly this.
     const payload = await callTool('draft_reoffer_test_tool', {});
     expect(payload.status).toBe('applied');
 
@@ -695,29 +566,25 @@ describe('domain tools', () => {
     expect(latestDraft).toBeNull();
   });
 
-  // Placed last: ratifying a policy here makes update_shipments auto-approve for the rest of
+  // Placed last: ratifying a policy here makes propose_remedy auto-approve for the rest of
   // this file's run, which would starve captureProposal (no PendingProposal ever fires) in
   // any test that runs after it.
   it('reports figures that reconcile on the auto-approved policy path', async () => {
-    const matches = Object.values(store.state.shipments).filter(s => s.customer === 'Northwind Retail');
-    const heldCount = matches.filter(s => s.customsHold).length;
-    const unheldCount = matches.filter(s => !s.customsHold).length;
+    const target = ordinaryRows()[2];
 
     ratify({
-      id: 'test-policy-update_shipments', tool: 'update_shipments',
-      maxRecords: unheldCount + 10, maxValue: 0,
+      id: 'test-policy-propose_remedy', tool: 'propose_remedy',
+      maxRecords: 1000, maxValue: 1_000_000,
       expiresAt: '2099-01-01T00:00:00Z', draftedFrom: 'test', ratified: false,
     });
 
-    const payload = await callTool('update_shipments', { customer: 'Northwind Retail', setEta: '2094-07-07' });
+    const payload = await callTool('propose_remedy', { ids: [target.id] });
 
-    // Same reconciliation fix applies whether the approval came from a human or from a
-    // ratified standing rule: a held row that never got written is still something left over.
-    expect(payload.status).toBe('partially_applied');
-    expect(payload.replan_required).toBe(true);
-    expect(payload.applied).toBe(unheldCount);
+    expect(payload.status).toBe('applied');
+    expect(payload.replan_required).toBe(false);
+    expect(payload.applied).toBe(1);
     const rejectedTotal = payload.rejected.reduce((n: number, r: any) => n + r.count, 0);
-    expect(rejectedTotal).toBe(heldCount);
+    expect(rejectedTotal).toBe(0);
     expect(payload.applied + rejectedTotal).toBe(payload.requested);
   });
 });

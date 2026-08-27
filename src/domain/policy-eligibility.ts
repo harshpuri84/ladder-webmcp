@@ -9,4 +9,7 @@
  * files onto this one instead has no cycle to trip over, regardless of import order or how
  * either file evolves later.
  */
-export const NEVER_ELIGIBLE: string[] = ['cancel_shipments', 'notify_customers'];
+// notify_customers is the only externally-visible write left in this domain: once a message is
+// sent, it cannot be recalled. propose_remedy only ever rewrites in-app fields (remedy, cost,
+// recovered hours) and stays reversible, so it can still earn a standing rule the ordinary way.
+export const NEVER_ELIGIBLE: string[] = ['notify_customers'];

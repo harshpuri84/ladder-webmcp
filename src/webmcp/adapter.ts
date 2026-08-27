@@ -246,7 +246,7 @@ export function reregister(name: string, description: string) {
 let seq = 0;
 const versionOf = (_e: string, id: string) => store.state.shipments[id]?.version ?? -1;
 const bumpVersion = (_e: string, id: string) => { const s = store.state.shipments[id]; if (s) s.version += 1; };
-const deltaOf = (w: WriteRecord) => (w.field === 'price' ? (w.after as number) - (w.before as number) : 0);
+const deltaOf = (w: WriteRecord) => (w.field === 'remedyCost' ? (w.after as number) - (w.before as number) : 0);
 
 /** A read tool sees real state but cannot change it. A write from a read tool is a bug, loudly. */
 const readOnlyView = () => recordingProxy(store.state, {
