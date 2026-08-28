@@ -5,19 +5,29 @@ import { convergeWords, modeWord, pct, type DetentRead } from './words';
  * One latch per site. The control is the whole cell, and the latch square is the state: filled
  * when this site is going out tonight, hollow when the operator has taken it off. The struck-out
  * target release on an unlatched cell says the same thing a second time, with no colour involved.
+ *
+ * `referredTo` names the role this site is above the operator's exposure authority for. Such a
+ * cell is not theirs to latch — it arrives unlatched, it cannot be toggled, and it says in words
+ * why, because a disabled control with no reason on it reads as a broken one. The enforcement is
+ * not here: `execute()` in webmcp/adapter.ts filters these out of the write set whatever comes
+ * back from this field.
  */
 export function Detent({
-  read, checked, onToggle,
+  read, checked, referredTo, onToggle,
 }: {
   read: DetentRead;
   checked: boolean;
+  referredTo?: string;
   onToggle(): void;
 }) {
+  const referred = referredTo !== undefined;
   return (
     <button
       type="button"
-      className={checked ? 'dt dt--on' : 'dt dt--off'}
+      className={`dt ${checked ? 'dt--on' : 'dt--off'}${referred ? ' dt--referred' : ''}`}
       aria-pressed={checked}
+      disabled={referred}
+      aria-label={referred ? `${read.id} — not yours to authorise; goes to the ${referredTo}` : undefined}
       onClick={onToggle}
     >
       <span className="dt-top">
@@ -33,6 +43,9 @@ export function Detent({
       <span className="dt-ver rd">
         {read.from} <span className="to">→ {read.to ?? '—'}</span>
       </span>
+      {referred && (
+        <span className="dt-referred">Not yours — goes to the {referredTo}</span>
+      )}
     </button>
   );
 }

@@ -200,7 +200,7 @@ export function ProposalPanel() {
   const authorisable = diff.groups.filter(g => !referredKeys.has(g.group));
   const referredGroups = diff.groups.filter(g => referredKeys.has(g.group));
   const referredSpend = referredGroups.reduce((n, g) => n + g.valueDelta, 0);
-  const referredTo = { limitEur: authority.role.spendLimitEur, role: authority.target?.label ?? 'second approver' };
+  const referredTo = { limitEur: authority.role.limit, role: authority.target?.label ?? 'second approver' };
   const selectedGroups = diff.groups.filter(g => groups.has(g.group));
   const selectedActions = diff.actions.filter(a => actions.has(a.actionId));
   const valueDelta = selectedGroups.reduce((n, g) => n + g.valueDelta, 0);
@@ -296,7 +296,7 @@ export function ProposalPanel() {
               <p className="pp-refer-line">
                 <span className="mono">{referredGroups.length}</span>{' '}
                 {referredGroups.length === 1 ? 'shipment costs' : 'shipments cost'} more than
-                your EUR <span className="mono">{authority.role.spendLimitEur}</span> limit
+                your EUR <span className="mono">{authority.role.limit}</span> limit
                 {referredSpend > 0 && (
                   <> — <span className="mono">{money(referredSpend)}</span> in total</>
                 )}

@@ -4,7 +4,7 @@ import { onProposal, onResult } from '../../webmcp/adapter';
 import { edgeStore } from '../store';
 import { CANDIDATE_RELEASE } from '../seed';
 import type { RolloutMode } from '../types';
-import { modeFull, modeWord, readDetent } from './words';
+import { modeFull, modeWord, pct, readDetent } from './words';
 import { ExposureMeter } from './ExposureMeter';
 import { Detent, PageDetent } from './Detent';
 import { RunRecord } from './RunRecord';
@@ -134,10 +134,13 @@ export function BenchDrawer() {
   }, [head]);
 
   // Everything the agent asked for starts latched: unlatching is the human act, and starting from
-  // nothing would make "commit 0 of 22" the resting state.
+  // nothing would make "commit 0 of 22" the resting state. Everything except a site above this
+  // operator's exposure authority — that one was never theirs to latch or to unlatch, so it must
+  // not arrive marked as though committing would send it.
   if (head && head.diff.proposalId !== selectedFor) {
+    const cannot = new Set(head.authority.referred);
     setSelectedFor(head.diff.proposalId);
-    setGroups(new Set(head.diff.groups.map(g => g.group)));
+    setGroups(new Set(head.diff.groups.map(g => g.group).filter(k => !cannot.has(k))));
     setActions(new Set(head.diff.actions.map(a => a.actionId)));
   }
 
@@ -147,7 +150,14 @@ export function BenchDrawer() {
 
   if (!head) return record;
 
-  const { diff, notes } = head;
+  const { diff, notes, authority } = head;
+  // The two halves of the field: what this operator can decide, and what a second person has to.
+  // Referred sites stay in the field — the operator is accountable for the whole rollout and has
+  // to see all of it — they are simply not theirs to latch.
+  const referredKeys = new Set(authority.referred);
+  const referredGroups = diff.groups.filter(g => referredKeys.has(g.group));
+  const authorisable = diff.groups.filter(g => !referredKeys.has(g.group));
+  const referredTo = authority.target?.label.toLowerCase() ?? 'second approver';
   const selectedGroups = diff.groups.filter(g => groups.has(g.group));
   const selectedActions = diff.actions.filter(a => actions.has(a.actionId));
   const reads = diff.groups.map(g => readDetent(g, edgeStore.state.pops[g.id]));
@@ -162,8 +172,10 @@ export function BenchDrawer() {
   );
 
   const nothingPicked = selectedGroups.length === 0 && selectedActions.length === 0;
+  // Counted against what was theirs to decide, never against the whole diff: "2 / 2 sites" with
+  // one more referred is the truth; "2 / 3" would read as the operator having struck a site out.
   const whole =
-    selectedGroups.length === diff.groups.length && selectedActions.length === diff.actions.length;
+    selectedGroups.length === authorisable.length && selectedActions.length === diff.actions.length;
   const decided = resolvedIds.current.has(diff.proposalId);
   const waiting = queue.length - 1;
 
@@ -217,6 +229,21 @@ export function BenchDrawer() {
               </div>
             </div>
 
+            {referredGroups.length > 0 && (
+              <div className="rail-block">
+                <span className="lg">Not yours to authorise — referred, not refused</span>
+                <p className="skip-line">
+                  <b className="rd">{referredGroups.length}</b>{' '}
+                  {referredGroups.length === 1 ? 'site exposes' : 'sites expose'} more than your{' '}
+                  <b className="rd">{pct(authority.role.limit)}</b> limit
+                  {authority.target
+                    ? `. Committing sends ${referredGroups.length === 1 ? 'it' : 'them'} to a ${referredTo}, who decides ${referredGroups.length === 1 ? 'it' : 'them'} separately.`
+                    : '. There is nobody above you to refer them to.'}
+                </p>
+                <p className="skip-ids rd">{referredGroups.map(g => g.id).join(', ')}</p>
+              </div>
+            )}
+
             {notes.length > 0 && (
               <div className="rail-block">
                 <span className="lg">Closed by a rule — skipped by the tool</span>
@@ -241,6 +268,7 @@ export function BenchDrawer() {
                 key={g.group}
                 read={readById.get(g.id)!}
                 checked={groups.has(g.group)}
+                referredTo={referredKeys.has(g.group) ? referredTo : undefined}
                 onToggle={() => setGroups(s => toggle(s, g.group))}
               />
             ))}
@@ -266,7 +294,7 @@ export function BenchDrawer() {
             <span className="commit-count">
               {diff.groups.length === 0 && diff.actions.length > 0
                 ? `${selectedActions.length} / ${diff.actions.length} pages`
-                : `${selectedGroups.length} / ${diff.groups.length} sites`}
+                : `${selectedGroups.length} / ${authorisable.length} sites`}
             </span>
             <span className="commit-sub">
               {nothingPicked
@@ -274,6 +302,11 @@ export function BenchDrawer() {
                 : `${selectedExposure.toFixed(2)}% of production traffic`}
               {selectedActions.length > 0 && diff.groups.length > 0 &&
                 ` · ${selectedActions.length} page${selectedActions.length === 1 ? '' : 's'} released`}
+              {/* Reconciles the count on this button with the one on the meter: the meter reads
+                  the whole proposal, this reads what was theirs, and the difference is named
+                  rather than left for the operator to work out. */}
+              {referredGroups.length > 0 &&
+                ` · ${referredGroups.length} referred to a ${referredTo}`}
             </span>
           </button>
           <button className="abort" type="button" disabled={decided} onClick={() => decide(null)}>

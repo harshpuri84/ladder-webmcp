@@ -3,6 +3,7 @@ import { seedPops, seedReleases } from './seed';
 import type { WriteRecord } from '../core/types';
 import { configureHost, type HostBinding } from '../webmcp/adapter';
 import { NEVER_ELIGIBLE } from './policy-eligibility';
+import { edgeAuthority } from './authority';
 
 type Listener = () => void;
 
@@ -54,15 +55,19 @@ export const edgeHost: HostBinding<EdgeState> = {
     if (p) p.version += 1;
   },
   /**
-   * Nothing in this domain carries money, so every write moves a value of zero and no row is
-   * ever above an operator's spend authority. That is the honest answer here, and it is also the
-   * only one the binding can give: `HostBinding` takes a number and the adapter renders it in a
-   * fixed unit (see the note in `task-edge-report.md`). Exposure — the share of production
-   * traffic a rollout puts in front of an unproven release — is the figure this product would
-   * want a standing rule capped against, and it is surfaced in the interface instead.
+   * Nothing in this domain carries money, and the boundary does not need it to. The figure that
+   * bounds a decision here is `exposedPct`: the share of *production* traffic this rollout puts
+   * in front of an unproven release at this one site. It is what the standing rule's cap is
+   * measured against, what the drawer's meter shows, and what the authority limit bites on.
+   *
+   * Every other field a rollout writes — the pending version, the mode, the convergence time,
+   * the blocked-mode list — moves no traffic on its own and is worth zero here.
    */
-  valueDeltaOf: (_w: WriteRecord) => 0,
+  valueDeltaOf: (w: WriteRecord) =>
+    w.field === 'exposedPct' ? (w.after as number) - (w.before as number) : 0,
   neverEligible: NEVER_ELIGIBLE,
+  // The roles, the unit and the word for one record. See ./authority.ts.
+  authority: edgeAuthority,
 };
 
 configureHost(edgeHost);

@@ -72,7 +72,7 @@ describe('spend authority: two humans, one boundary', () => {
     expect(referred.size).toBeGreaterThan(0);
     expect(referred.size).toBeLessThan(diff.groups.length);
     for (const g of diff.groups) {
-      expect(referred.has(g.group)).toBe(Math.abs(g.valueDelta) > authority.role.spendLimitEur);
+      expect(referred.has(g.group)).toBe(Math.abs(g.valueDelta) > authority.role.limit);
     }
 
     pending.resolve(null);
@@ -119,7 +119,7 @@ describe('spend authority: two humans, one boundary', () => {
     expect(queue[0].toolName).toBe('propose_remedy');
     expect(queue[0].fromRole).toBe(ROLES[0].label);
     expect(queue[0].toRoleId).toBe(ROLES[1].id);
-    expect(queue[0].spendEur).toBeGreaterThan(ROLES[0].spendLimitEur);
+    expect(queue[0].spendEur).toBeGreaterThan(ROLES[0].limit);
   });
 
   it('lets the second approver decide the referred set through the ordinary proof path', async () => {
@@ -153,12 +153,12 @@ describe('spend authority: two humans, one boundary', () => {
 
   it('tells the agent about the boundary in the tool description, and re-registers when the role changes', () => {
     const asOperator = registered.get('propose_remedy')!.description;
-    expect(asOperator).toContain(`EUR ${ROLES[0].spendLimitEur}`);
+    expect(asOperator).toContain(`EUR ${ROLES[0].limit}`);
     expect(asOperator).toContain(ROLES[1].label.toLowerCase());
 
     setRole(ROLES[1].id);
     const asManager = registered.get('propose_remedy')!.description;
-    expect(asManager).toContain(`EUR ${ROLES[1].spendLimitEur}`);
+    expect(asManager).toContain(`EUR ${ROLES[1].limit}`);
     expect(asManager).not.toBe(asOperator);
 
     setRole(ROLES[0].id);
@@ -204,7 +204,7 @@ describe('spend authority: two humans, one boundary', () => {
     // without quietly emptying this one's diff.
     const target = Object.values(store.state.shipments).find(s => {
       const rec = recommendRemedy(s);
-      return s.remedy === null && rec !== null && rec.cost > ROLES[0].spendLimitEur;
+      return s.remedy === null && rec !== null && rec.cost > ROLES[0].limit;
     })!;
     expect(target).toBeTruthy();
 

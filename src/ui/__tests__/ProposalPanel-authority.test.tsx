@@ -45,7 +45,7 @@ describe('ProposalPanel under a spend authority boundary', () => {
       async exec(_input: any, ctx: any) {
         ctx.db.shipments[CHEAP].remedy = 'rebook';
         ctx.db.shipments[DEAR].remedy = 'competitor';
-        ctx.db.shipments[DEAR].remedyCost = ROLES[0].spendLimitEur * 4;
+        ctx.db.shipments[DEAR].remedyCost = ROLES[0].limit * 4;
         return { matched: 2 };
       },
     });

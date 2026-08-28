@@ -2,6 +2,11 @@ import { useEffect, useState } from 'react';
 import { activePolicy, listTools, onToolsChange } from '../webmcp/adapter';
 import type { ToolSummary } from '../webmcp/adapter';
 import { currentRole, describeAuthority } from '../webmcp/authority';
+// Side-effect import: `domain/store.ts` is where this product hands the adapter its host
+// binding, and the binding is what carries the roles and the words this pill prints. Rendered on
+// its own — in a suite, or on a page that mounts nothing else from the domain — nothing else in
+// this module's graph reaches it, and the boundary would print in no product's language.
+import '../domain/store';
 import { NEVER_ELIGIBLE } from '../domain/policy-eligibility';
 import { ProofMark } from './ProofMark';
 import type { MarkName } from './ProofMark';

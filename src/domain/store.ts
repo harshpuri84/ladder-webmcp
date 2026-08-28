@@ -3,6 +3,7 @@ import { seedShipments } from './seed';
 import type { WriteRecord } from '../core/types';
 import { configureHost, type HostBinding } from '../webmcp/adapter';
 import { NEVER_ELIGIBLE } from './policy-eligibility';
+import { freightAuthority } from './authority';
 
 type Listener = () => void;
 
@@ -58,6 +59,9 @@ export const freightHost: HostBinding<AppState> = {
   valueDeltaOf: (w: WriteRecord) =>
     w.field === 'remedyCost' ? (w.after as number) - (w.before as number) : 0,
   neverEligible: NEVER_ELIGIBLE,
+  // The roles, the unit and the word for one record. See ./authority.ts — the adapter composes
+  // every sentence the agent reads about the boundary out of these and knows none of them.
+  authority: freightAuthority,
 };
 
 configureHost(freightHost);

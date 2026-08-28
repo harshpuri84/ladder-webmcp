@@ -275,6 +275,67 @@ body.rk-drawn .rk-body {
 .au-btn:active { box-shadow: inset 0 2px 3px rgba(0, 0, 0, 0.6); }
 .au-btn--held { border-color: var(--mark-line); color: var(--mark); }
 
+/* ── Authority bar ────────────────────────────────────────────────────────────────────────── */
+
+/* The second bound, under the first. Same sunk plate as the autonomy bar so the two read as one
+   pair of grants rather than two unrelated strips. */
+.ar {
+  padding: 9px 22px 10px;
+  background: var(--panel-sunk);
+  border-bottom: 1px solid var(--score);
+  box-shadow: inset 0 1px 0 rgba(0, 0, 0, 0.5);
+}
+
+.ar-top { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
+
+.ar-roles { display: flex; gap: 1px; background: var(--score); }
+
+.ar-role {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 11px;
+  border: 0;
+  background: var(--panel);
+  color: var(--legend-dim);
+  font: inherit;
+  font-size: 11.5px;
+  cursor: pointer;
+}
+.ar-role:hover { background: var(--panel-hi); }
+
+/* Which role is in effect is said three ways — a filled latch, a bright label and a rule down
+   the leading edge — so it never rests on colour alone. */
+.ar-role--on {
+  background: var(--panel-hi);
+  color: var(--legend);
+  box-shadow: inset 2px 0 0 var(--mark), inset 0 1px 0 var(--bezel-hi);
+}
+.ar-role--on .dt-latch { background: var(--mark); border-color: var(--mark); }
+.ar-role-limit { font-size: 11px; color: var(--legend-mid); }
+.ar-role--on .ar-role-limit { color: var(--mark); }
+
+.ar-state { flex: 1 1 320px; }
+.ar-state strong { color: var(--legend); font-weight: 600; }
+
+.ar-note { margin: 7px 0 0; font-size: 11px; color: var(--legend-dim); max-width: 78ch; }
+
+.ar-refs { list-style: none; margin: 9px 0 0; padding: 0; display: grid; gap: 1px; background: var(--score); }
+
+.ar-ref {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 8px 12px;
+  background: var(--panel);
+  box-shadow: inset 2px 0 0 var(--lamp-line);
+}
+.ar-ref-body { min-width: 0; flex: 1; }
+.ar-ref-line { margin: 0; font-size: 11.5px; color: var(--legend-mid); }
+.ar-ref-line b { color: var(--legend); }
+.ar-ref-ids { margin: 3px 0 0; font-size: 11px; color: var(--legend-dim); }
+.ar-ref .au-btn:disabled { color: var(--legend-dim); cursor: not-allowed; }
+
 /* ── The rack ─────────────────────────────────────────────────────────────────────────────── */
 
 .rack { padding: 0 0 96px; }
@@ -651,6 +712,27 @@ body.rk-drawn .rk-body {
 
 /* An unlatched site is struck through, so "not going out tonight" is legible with no colour. */
 .dt--off .dt-ver .to { text-decoration: line-through; text-decoration-thickness: 1px; }
+
+/* A site above this operator's exposure authority. Never latchable, and it says so in words on
+   the cell — a dimmed control with no reason on it reads as a broken one, and the reason must
+   not be carried by colour. */
+.dt--referred {
+  cursor: not-allowed;
+  background: var(--panel-sunk);
+  box-shadow: inset 3px 0 0 var(--lamp-line), inset 0 1px 0 rgba(255, 255, 255, 0.02);
+}
+.dt--referred:hover { background: var(--panel-sunk); }
+.dt--referred .dt-id, .dt--referred .dt-mode, .dt--referred .dt-ver { color: var(--legend-dim); }
+.dt--referred .dt-latch { border-style: dashed; }
+.dt-referred {
+  display: block;
+  margin: 6px 0 0;
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+  color: var(--lamp);
+}
 
 /* A held page. Same field, different instrument: it is not a record and is never a diff. */
 .dt--page { background: var(--panel-sunk); }

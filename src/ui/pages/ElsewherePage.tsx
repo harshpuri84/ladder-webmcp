@@ -11,7 +11,7 @@ import { ProofMark } from '../ProofMark';
  * a reader sees it before a judge does; and `ElsewherePage.test.tsx` asserts this constant is a
  * real `https:` address and fails until it is. Replace the value and both go quiet together.
  */
-export const SECOND_PRODUCT_HREF: string = 'TODO';
+export const SECOND_PRODUCT_HREF: string = 'https://ladder-webmcp.vercel.app/edge.html';
 
 /** Where the interface quoted below actually lives, for a reader who wants to check the quote. */
 const ADAPTER_URL =
@@ -33,6 +33,7 @@ export const HOST_BINDING_QUOTE = `interface HostBinding<S> {
   bumpVersion(entity: string, id: string): void;
   valueDeltaOf(w: WriteRecord): number;
   neverEligible: string[];
+  authority: AuthorityVocabulary;
 }`;
 
 /** An identifier a reader could type into an editor, set apart from the description of it. */
@@ -108,11 +109,14 @@ export function ElsewherePage() {
         <p className="pr-p">
           A way to read the state and say when it changed. A way to version a record, so a commit
           can refuse one that moved while the operator was deciding. A way to say what a write is
-          worth, so an approval limit means something. And the tool names no standing rule may
-          ever cover. Six members, none of which mentions freight.
+          worth, so an approval limit means something. The tool names no standing rule may ever
+          cover. And the words for the boundary between two of this application&rsquo;s humans —
+          its roles, its unit, its name for one record — because the engine has to write that
+          sentence into every guarded tool&rsquo;s description and has no vocabulary of its own.
+          Seven members, none of which mentions freight.
         </p>
         <p className="pr-p">
-          The freight application answers those six at the foot of{' '}
+          The freight application answers those seven at the foot of{' '}
           <Code>src/domain/store.ts</Code>. That binding is the whole of what the engine knows
           about air cargo.
         </p>

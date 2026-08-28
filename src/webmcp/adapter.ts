@@ -4,8 +4,9 @@ import { buildWriteSet } from '../core/writeset';
 import { draftPolicy, policyMatches, type Disposition, type Policy } from '../core/policy';
 import { recordingProxy } from '../core/recorder';
 import {
-  currentRole, describeAuthority, isReferable, onRoleChange, referralTarget,
-  type AuthorityRole,
+  authorityConfigured, authorityVocabulary, configureAuthority, currentRole, describeAuthority,
+  isReferable, onRoleChange, referralTarget,
+  type AuthorityRole, type AuthorityVocabulary,
 } from './authority';
 import type { Diff } from '../core/diff';
 import type { Note, WriteRecord } from '../core/types';
@@ -108,6 +109,14 @@ export interface HostBinding<S> {
   valueDeltaOf(w: WriteRecord): number;
   /** Tool names that may never be covered by a standing rule. */
   neverEligible: string[];
+  /**
+   * This product's words for the authority boundary between two of its humans: its roles, its
+   * unit, and its word for one record. Every agent-facing sentence about that boundary is
+   * composed from these — see `describeAuthority`, `describePolicy` and the referral reason in
+   * `execute` — so that a second product gets the same mechanic stated in its own terms rather
+   * than in the first product's.
+   */
+  authority: AuthorityVocabulary;
 }
 
 let binding: HostBinding<any> | null = null;
@@ -128,6 +137,10 @@ let binding: HostBinding<any> | null = null;
  */
 export function configureHost<S>(b: HostBinding<S>): void {
   binding = b as HostBinding<any>;
+  // The vocabulary lives in authority.ts, which owns the role ladder and its listeners. Pushed
+  // in from here rather than configured separately so a host has exactly one call to make and
+  // cannot bind its state while leaving the boundary speaking somebody else's language.
+  configureAuthority(b.authority);
 }
 
 /** The binding, or a loud failure. Reached on every path that touches host state, so an
@@ -136,7 +149,7 @@ export function configureHost<S>(b: HostBinding<S>): void {
 function host(): HostBinding<any> {
   if (!binding) {
     throw new Error(
-      'Ladder has no host configured: call configureHost({ state, notify, versionOf, bumpVersion, valueDeltaOf, neverEligible }) once at startup, before any tool runs.',
+      'Ladder has no host configured: call configureHost({ state, notify, versionOf, bumpVersion, valueDeltaOf, neverEligible, authority }) once at startup, before any tool runs.',
     );
   }
   return binding;
@@ -379,7 +392,7 @@ export function ratify(p: Policy) {
   policyListeners.forEach(fn => fn());
 }
 export const describePolicy = (p: Policy) =>
-  `up to ${p.maxRecords} records, up to EUR ${p.maxValue}, reversible only, expires ${p.expiresAt.slice(0, 10)}`;
+  `up to ${p.maxRecords} records, up to ${authorityVocabulary().amount(p.maxValue)}, reversible only, expires ${p.expiresAt.slice(0, 10)}`;
 
 /**
  * The agent's own description of a guarded write tool, composed from the three things that
@@ -400,13 +413,21 @@ function composedDescription(name: string, policy?: Policy): string {
     ? ` Changes within the standing rule (${describePolicy(pol)}) are applied without review.`
     : '';
   const role = currentRole();
-  const target = referralTarget(role);
+  // Omitted entirely while unbound: a module with no host has no boundary it could honestly
+  // state, and a tool may be registered before configureHost runs. configureAuthority() fires
+  // the role listeners, so every such tool is re-registered with this sentence the moment a
+  // host arrives.
+  const bound = authorityConfigured();
+  const target = bound ? referralTarget(role) : null;
   // Opened on the condition rather than stated flat, so it reads correctly on a tool whose
-  // changes never carry a cost at all — where nothing costs anything, nothing is ever referred.
-  const authority = ` Where a proposed change carries a cost, the operator on shift is a ${role.label.toLowerCase()} and ${describeAuthority(role)}` +
-    (target
-      ? `; anything above that is referred to a ${target.label.toLowerCase()} and is not applied by this call.`
-      : '.');
+  // changes never carry value at all — where nothing carries value, nothing is ever referred.
+  // Every noun in it is the host's: its word for the condition, its role labels, its unit.
+  const authority = bound
+    ? ` Where a proposed change ${authorityVocabulary().carries}, the operator on shift is a ${role.label.toLowerCase()} and ${describeAuthority(role)}` +
+      (target
+        ? `; anything above that is referred to a ${target.label.toLowerCase()} and is not applied by this call.`
+        : '.')
+    : '';
   // What the agent should do when one of those two boundaries bites. `rejected` is inert to an
   // agent that reads any non-success as "call it again the same way": the reasons and the ids
   // are there so the next call can be a narrower, different one, and nothing but a sentence in
@@ -477,6 +498,10 @@ export interface Referral {
   /** The original call's arguments, narrowed to the referred rows when it is picked up. */
   input: unknown;
   ids: string[];
+  /** The magnitude referred, in the host's own units — euros in the freight console, share of
+   *  production traffic in the edge one. Named for the first host that had one; the number is
+   *  whatever `HostBinding.valueDeltaOf` measures, and only that host's own interface renders
+   *  it, so nothing agent-facing ever reads a unit off this name. */
   spendEur: number;
   /** Who referred it, and who it is waiting on, in the words the strip and receipts use. */
   fromRole: string;
@@ -641,8 +666,8 @@ export function registerLadderTool(spec: LadderToolSpec) {
     // is not theirs to approve, so it is separated here — before the panel is opened, so they
     // are never shown a control over something they cannot do — and enforced below, after the
     // decision comes back, so nothing the interface does (or a standing rule does) can put it
-    // back. Read off `valueDelta`, which is already the per-record money figure the diff
-    // carries and the same one the extent panel and the standing-rule cap are read from.
+    // back. Read off `valueDelta`, which is already the per-record figure the diff carries, in
+    // the host's own units, and the same one the extent panel and the standing-rule cap read.
     const role = currentRole();
     const target = referralTarget(role);
     const referredGroups = shadow.diff.groups.filter(g => isReferable(g.valueDelta, role));
@@ -751,7 +776,7 @@ export function registerLadderTool(spec: LadderToolSpec) {
       ...rejectedFrom(shadow.notes),
       ...(referredCount > 0 ? [{
         count: referredCount,
-        reason: `above the ${role.label.toLowerCase()}'s EUR ${role.spendLimitEur} spend authority — referred to a ${awaiting}, not refused`,
+        reason: `above the ${role.label.toLowerCase()}'s ${authorityVocabulary().amount(role.limit)} ${authorityVocabulary().bound} — referred to a ${awaiting}, not refused`,
         ids: referredIds,
         pending: awaiting,
       }] : []),

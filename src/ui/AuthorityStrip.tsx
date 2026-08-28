@@ -3,7 +3,8 @@ import {
   listReferrals, onReferralsChange, reviewReferral, type Referral,
 } from '../webmcp/adapter';
 import {
-  ROLES, currentRole, describeAuthority, onRoleChange, referralTarget, setRole,
+  ROLES, authorityVocabulary, currentRole, describeAuthority, onRoleChange, referralTarget,
+  setRole,
 } from '../webmcp/authority';
 import { ProofMark } from './ProofMark';
 import { money } from './remedy-words';
@@ -77,7 +78,7 @@ export function AuthorityStrip() {
             >
               {active && <ProofMark name="insert" size={12} />}
               <span className="au-role-name">{r.label}</span>
-              <span className="au-role-limit mono">EUR {r.spendLimitEur}</span>
+              <span className="au-role-limit mono">{authorityVocabulary().amount(r.limit)}</span>
             </button>
           );
         })}

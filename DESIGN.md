@@ -136,7 +136,7 @@ panel.
 |---|---|---|
 | The proof (console + panel) | **Operate** | The operator decides fast and correctly, cold, mid-shift |
 | The problem | **Read** | A judge understands the mechanism and its limits without being sold to |
-| Same engine, other work | **Read** | A judge believes the engine is domain-free, and can tell a mockup from the real thing |
+| Same engine, other work | **Read** | A judge believes the engine is domain-free, and can go and open the second product that proves it |
 
 
 ---

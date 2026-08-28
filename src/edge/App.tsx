@@ -4,6 +4,7 @@ import { registerEdgeTools } from './tools';
 import { edgeStore } from './store';
 import { HeadPanel } from './ui/HeadPanel';
 import { AutonomyBar } from './ui/AutonomyBar';
+import { AuthorityBar } from './ui/AuthorityBar';
 import { Rack } from './ui/Rack';
 import { BenchDrawer } from './ui/BenchDrawer';
 import { EventLog } from './ui/EventLog';
@@ -23,6 +24,7 @@ export default function EdgeApp() {
       <div className="rk-body">
         <HeadPanel />
         <AutonomyBar />
+        <AuthorityBar />
         <Rack />
       </div>
       <EventLog />

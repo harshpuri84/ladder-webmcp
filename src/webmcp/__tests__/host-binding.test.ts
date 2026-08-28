@@ -62,6 +62,15 @@ describe('adapter with no host configured', () => {
       bumpVersion: (_e, id) => { if (rows[id]) rows[id].version += 1; },
       valueDeltaOf: w => (w.field === 'cost' ? (w.after as number) - (w.before as number) : 0),
       neverEligible: [],
+      // The sixth question a host answers: its own roles, its own unit, its own word for one
+      // record. Neither product's words — this suite never imports either.
+      authority: {
+        roles: [{ id: 'keeper', label: 'Keeper', limit: 5 }],
+        record: 'row',
+        bound: 'authority',
+        carries: 'carries value',
+        amount: (n: number) => `${n} units`,
+      },
     });
 
     configureHost(bind({ 'row-1': { version: 0, cost: 10 } }));
