@@ -88,6 +88,14 @@ spec-conformant; neither is exercised in the runtime a judge will open.
 We also measured that a pending `execute` survives 96 seconds and returns its structured result
 intact, which is why the approval can take as long as a person needs.
 
+**On what the demo video shows.** Chrome's flag registers a page's tools with the browser, but no
+shipping runtime lets a third-party agent invoke them, so the calls in the video go through the
+page's own registration rather than the browser's transport. Everything after the call is the
+production path unchanged: the fork, the preview against a `structuredClone`, the recording
+Proxy, the human's edit, the guarded re-run, the rollback and the structured refusal. We would
+rather state that here than have you find it. The dev-only test double that makes it possible
+says the same thing in its own source, and it is gated out of the production build.
+
 ## Why the recommendation differs per shipment
 
 Every alternative a rule removed is shown with the rule that removed it, and the rule carries an
