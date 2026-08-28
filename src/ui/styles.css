@@ -2474,7 +2474,7 @@ body.pp-active .console-table td {
   display: none;
 }
 
-/* ---------- the problem: long-form reading ---------- */
+/* ---------- the reading tabs: long-form ---------- */
 
 /*
  * Mode is Read, so the page is set as a page and not as a dashboard: sections separated by a
@@ -2769,6 +2769,51 @@ body.pp-active .console-table td {
 
 .pr-onward a:hover {
   text-decoration-thickness: 2px;
+}
+
+/*
+ * A link inside the run. Underlined first and blue second: the operator this is built for has
+ * red-green colour vision deficiency, so the rule under the word is what says "link" and the
+ * hue only agrees with it. Set the page in greyscale and every link is still a link.
+ */
+.pr-link {
+  color: var(--mark);
+  text-decoration-line: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 3px;
+}
+
+.pr-link:hover {
+  text-decoration-thickness: 2px;
+}
+
+/*
+ * A hole where a link will go, with its edges marked.
+ *
+ * Everything that says "this is not finished" is said three times over before the colour is
+ * reached: the word TODO, the proofreader's query mark that has meant "the reader cannot settle
+ * this, pass it on" for as long as anyone has marked up a proof, and a dashed rule, which is
+ * the one rule form in this file that means a thing not yet set. The amber is the fourth signal
+ * and the only optional one — it is `--hold`, which already means held and set apart, and it
+ * carries nothing here on its own.
+ *
+ * `ElsewherePage.test.tsx` fails while this element can render at all, so it is not possible to
+ * ship the site with the hole still in it and nobody the wiser.
+ */
+.ew-todo {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 1px 7px 2px;
+  border: 1px dashed var(--hold);
+  background: var(--hold-wash);
+  font-size: 0.78rem;
+  letter-spacing: 0.01em;
+  color: var(--hold);
+}
+
+.ew-todo-mark {
+  vertical-align: 0;
 }
 
 /* ---------- the engine, drawn ---------- */
