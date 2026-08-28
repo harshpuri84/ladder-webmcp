@@ -12,6 +12,7 @@ import { ProofMark, RegistrationCorners } from './ProofMark';
 import { readProofRow, summariseRemedies } from './remedy-diff';
 import { TABPANEL_ID } from './TabBar';
 import { money, remedyFull } from './remedy-words';
+import { followUpTail, followUpTime } from './follow-up-words';
 
 // 8s read back as "already fading" from a paused frame two seconds in — that turned out to be
 // an opaque-background bug on the auto-apply tone (see .rc--auto in styles.css), not the hold
@@ -38,7 +39,6 @@ interface Filter {
  */
 function where(f: Filter): string {
   const bits: string[] = [];
-  if (f.ids?.length) bits.push(`${f.ids.length === 1 ? 'one shipment' : `${f.ids.length} shipments`} by id`);
   if (f.consol) bits.push(`on ${f.consol}`);
   if (f.customer) bits.push(`for ${f.customer}`);
   if (f.slaTier) bits.push(`on the ${f.slaTier} tier`);
@@ -51,8 +51,18 @@ function where(f: Filter): string {
   return bits.join(' ');
 }
 
+/**
+ * A named list of ids is a *subject*, not a modifier, so it cannot sit behind "everything" the
+ * way the other clauses do — that read "everything 4 shipments by id". It matters more than
+ * grammar usually would: a narrowed follow-up is exactly the call an agent makes after a
+ * refusal, so this is the line above the figures in the one frame that shows the loop closing.
+ */
 const scoped = (f: Filter) => {
   const w = where(f);
+  if (f.ids?.length) {
+    const head = f.ids.length === 1 ? 'one shipment, by id' : `${f.ids.length} shipments, by id`;
+    return w ? `${head}, ${w}` : head;
+  }
   return w ? `everything ${w}` : 'every shipment on the cancelled flight';
 };
 
@@ -309,6 +319,27 @@ export function ProposalPanel() {
             )}
           </div>
           <p className="pp-request">“{describeRequest(head.toolName, head.input)}”</p>
+          {/*
+            * The loop closing, stated as observed fact and nowhere near an inference. Every word
+            * of it is read off two calls this panel actually received: the earlier one's clock
+            * time, and the fact that this one names only records that call was refused on. It
+            * says nothing about the agent, because nothing about the agent is visible from here.
+            * When there is no such relationship this renders nothing at all — an empty state is
+            * the correct answer, and the one this feature must be able to give.
+            *
+            * The dagger is the reference mark: it points at something set apart from the main
+            * run, which is exactly what a line about an earlier run is. Colour carries none of
+            * it — the mark and the words say it on their own.
+            */}
+          {head.followUp && (
+            <p className="pp-followup">
+              <ProofMark name="dagger" size={12} className="pp-followup-mark" />
+              <span>
+                Follows the <span className="mono">{followUpTime(head.followUp)}</span> run — asks
+                only about {followUpTail(head.followUp)}.
+              </span>
+            </p>
+          )}
           <p className="pp-slug">
             <span className="pp-slug-caps">Proof for approval</span>
             <span className="pp-slug-tail"> · nothing here has been applied yet</span>

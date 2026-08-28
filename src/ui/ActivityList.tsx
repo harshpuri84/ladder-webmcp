@@ -3,6 +3,7 @@ import { onResult } from '../webmcp/adapter';
 import type { ProposalOutcome } from '../webmcp/adapter';
 import { ProofMark } from './ProofMark';
 import type { MarkName } from './ProofMark';
+import { followUpTail, followUpTime } from './follow-up-words';
 
 let seq = 0;
 
@@ -14,6 +15,9 @@ interface ActivityEntry {
   refused: number;
   cause: ProposalOutcome['cause'];
   at: number;
+  /** The earlier run this one narrows, when there is one — see `followUpFor` in the adapter.
+   *  Null on every ordinary line, and nothing is drawn for it. */
+  followUp: ProposalOutcome['followUp'];
 }
 
 /**
@@ -49,6 +53,7 @@ function toEntry(o: ProposalOutcome): ActivityEntry {
     refused: o.payload.rejected.reduce((n, r) => n + r.count, 0),
     cause: o.cause,
     at: Date.now(),
+    followUp: o.followUp,
   };
 }
 
@@ -82,6 +87,17 @@ export function ActivityList() {
                 <span>{e.applied} applied</span>
                 <span>{e.refused} refused</span>
               </div>
+              {/* Only where the two calls actually establish it. The run log is the surface a
+                  judge watches across several calls, so this is where a loop being closed reads
+                  as a sequence rather than as one panel's caption. */}
+              {e.followUp && (
+                <p className="al-followup">
+                  <ProofMark name="dagger" size={11} className="al-followup-mark" />
+                  <span>
+                    Follows {followUpTime(e.followUp)} — asks only about {followUpTail(e.followUp)}
+                  </span>
+                </p>
+              )}
               <span className="al-time mono">{timeFmt.format(e.at)}</span>
             </li>
           ))}

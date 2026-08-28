@@ -62,6 +62,10 @@ describe('adapter with no host configured', () => {
       bumpVersion: (_e, id) => { if (rows[id]) rows[id].version += 1; },
       valueDeltaOf: w => (w.field === 'cost' ? (w.after as number) - (w.before as number) : 0),
       neverEligible: [],
+      targetedIds: (input: unknown) => {
+        const ids = (input as { ids?: unknown } | null | undefined)?.ids;
+        return Array.isArray(ids) ? (ids as string[]) : null;
+      },
       // The sixth question a host answers: its own roles, its own unit, its own word for one
       // record. Neither product's words — this suite never imports either.
       authority: {

@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { onResult } from '../../webmcp/adapter';
+import { followUpTail, followUpTime } from './follow-up-words';
 
 interface Entry { id: number; at: string; text: string; }
 
@@ -19,7 +20,12 @@ export function EventLog() {
     const text =
       `${o.toolName} · ${o.payload.applied} of ${o.payload.requested} applied` +
       (o.payload.actions_released > 0 ? ` · ${o.payload.actions_released} paged` : '') +
-      (o.cause === 'auto_applied' ? ' · under the standing rule' : '');
+      (o.cause === 'auto_applied' ? ' · under the standing rule' : '') +
+      // Appended rather than given a line of its own: this strip is one nowrap line per run, and
+      // a run that answers an earlier refusal is still one run. Absent on every ordinary line.
+      (o.followUp
+        ? ` · follows ${followUpTime(o.followUp)}, asks only about ${followUpTail(o.followUp)}`
+        : '');
     setEntries(list => [{ id: list.length, at, text }, ...list].slice(0, 4));
   }), []);
 

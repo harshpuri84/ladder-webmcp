@@ -5,6 +5,7 @@ import { edgeStore } from '../store';
 import { CANDIDATE_RELEASE } from '../seed';
 import type { RolloutMode } from '../types';
 import { modeFull, modeWord, pct, readDetent } from './words';
+import { followUpTail, followUpTime } from './follow-up-words';
 import { ExposureMeter } from './ExposureMeter';
 import { Detent, PageDetent } from './Detent';
 import { RunRecord } from './RunRecord';
@@ -27,7 +28,6 @@ interface Filter {
 /** The slice of the estate the agent named, in the words an engineer would use. */
 function where(f: Filter): string {
   const bits: string[] = [];
-  if (f.ids?.length) bits.push(`${f.ids.length === 1 ? 'one site' : `${f.ids.length} sites`} by code`);
   if (f.region) bits.push(`in ${f.region}`);
   if (f.running) bits.push(`still running ${f.running}`);
   if (f.canary === true) bits.push('on the canary ring');
@@ -40,8 +40,13 @@ function where(f: Filter): string {
   return bits.join(' ');
 }
 
+/** A named list of codes is a subject, not a modifier — see the same note in the freight panel. */
 const scoped = (f: Filter) => {
   const w = where(f);
+  if (f.ids?.length) {
+    const head = f.ids.length === 1 ? 'one site, by code' : `${f.ids.length} sites, by code`;
+    return w ? `${head}, ${w}` : head;
+  }
   return w ? `every site ${w}` : 'every site in the estate';
 };
 
@@ -241,6 +246,18 @@ export function BenchDrawer() {
           <p className="dw-ask">{describeRequest(head.toolName, head.input)}</p>
           <span className="dw-state">Proposed · nothing applied</span>
           {waiting > 0 && <span className="dw-waiting">{waiting} more waiting</span>}
+          {/*
+            * Stated only where the two calls establish it, and nothing at all where they do not.
+            * Every word is read off calls this drawer actually received — the earlier one's clock
+            * time, and the fact that this one names only sites that call was refused on. Nothing
+            * about the agent, because a tool call shows nothing about the agent.
+            */}
+          {head.followUp && (
+            <p className="dw-follows">
+              Follows the <span className="rd">{followUpTime(head.followUp)}</span> run — asks only
+              about {followUpTail(head.followUp)}.
+            </p>
+          )}
         </header>
 
         <div className="dw-main">

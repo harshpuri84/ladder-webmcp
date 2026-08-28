@@ -48,7 +48,7 @@ describe('ElsewherePage', () => {
 
     const quoted = HOST_BINDING_QUOTE.split('{')[1].split('\n}')[0];
     expect(membersOf(quoted)).toEqual(membersOf(declared!));
-    expect(membersOf(quoted).length).toBe(7);
+    expect(membersOf(quoted).length).toBe(8);
   });
 
   it('renders the quoted interface where a reader can reach it with a keyboard', () => {

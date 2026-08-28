@@ -66,6 +66,13 @@ export const edgeHost: HostBinding<EdgeState> = {
   valueDeltaOf: (w: WriteRecord) =>
     w.field === 'exposedPct' ? (w.after as number) - (w.before as number) : 0,
   neverEligible: NEVER_ELIGIBLE,
+  // `ids` is this application's own way of narrowing a call to named sites — the only argument
+  // that names records outright rather than describing a set. The adapter asks this question of
+  // every host and learns nothing about the field from either answer.
+  targetedIds: (input: unknown) => {
+    const ids = (input as { ids?: unknown } | null | undefined)?.ids;
+    return Array.isArray(ids) && ids.every(x => typeof x === 'string') ? (ids as string[]) : null;
+  },
   // The roles, the unit and the word for one record. See ./authority.ts.
   authority: edgeAuthority,
 };

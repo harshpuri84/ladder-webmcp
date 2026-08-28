@@ -33,6 +33,7 @@ export const HOST_BINDING_QUOTE = `interface HostBinding<S> {
   bumpVersion(entity: string, id: string): void;
   valueDeltaOf(w: WriteRecord): number;
   neverEligible: string[];
+  targetedIds(input: unknown): string[] | null;
   authority: AuthorityVocabulary;
 }`;
 
@@ -113,10 +114,12 @@ export function ElsewherePage() {
           cover. And the words for the boundary between two of this application&rsquo;s humans —
           its roles, its unit, its name for one record — because the engine has to write that
           sentence into every guarded tool&rsquo;s description and has no vocabulary of its own.
-          Seven members, none of which mentions freight.
+          And a way to ask which records a call names outright, so that a call narrowed to
+          exactly the records an earlier one was refused on can be recognised as the narrowing it
+          is. Eight members, none of which mentions freight.
         </p>
         <p className="pr-p">
-          The freight application answers those seven at the foot of{' '}
+          The freight application answers those eight at the foot of{' '}
           <Code>src/domain/store.ts</Code>. That binding is the whole of what the engine knows
           about air cargo.
         </p>

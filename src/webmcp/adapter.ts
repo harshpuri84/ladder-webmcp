@@ -110,6 +110,17 @@ export interface HostBinding<S> {
   /** Tool names that may never be covered by a standing rule. */
   neverEligible: string[];
   /**
+   * The record ids a call names outright, or `null` when it names none — the host's own filter
+   * argument, read by the host because only it knows which of its arguments narrows a call.
+   *
+   * This is the one question that lets the interface state, as observed fact, that a later call
+   * is an answer to an earlier refusal: a call whose named ids are all ids an earlier call was
+   * refused on is verifiably a narrowing of that earlier call, from the two calls alone. The
+   * module never learns that `ids` is the field — see `followUpFor` below, which knows only
+   * that a host can sometimes answer this and often cannot.
+   */
+  targetedIds(input: unknown): string[] | null;
+  /**
    * This product's words for the authority boundary between two of its humans: its roles, its
    * unit, and its word for one record. Every agent-facing sentence about that boundary is
    * composed from these — see `describeAuthority`, `describePolicy` and the referral reason in
@@ -149,7 +160,7 @@ export function configureHost<S>(b: HostBinding<S>): void {
 function host(): HostBinding<any> {
   if (!binding) {
     throw new Error(
-      'Ladder has no host configured: call configureHost({ state, notify, versionOf, bumpVersion, valueDeltaOf, neverEligible, authority }) once at startup, before any tool runs.',
+      'Ladder has no host configured: call configureHost({ state, notify, versionOf, bumpVersion, valueDeltaOf, neverEligible, targetedIds, authority }) once at startup, before any tool runs.',
     );
   }
   return binding;
@@ -187,6 +198,10 @@ export interface AuthorityScope {
 export interface PendingProposal {
   toolName: string; input: unknown; diff: Diff; notes: Note[];
   authority: AuthorityScope;
+  /** Set when this call names only ids an earlier call was refused on — see `followUpFor`.
+   *  Null is the ordinary case and means exactly nothing extra is known, never that a call
+   *  stands alone for some other reason. */
+  followUp: FollowUp | null;
   resolve(d: Decision | null): void;
 }
 
@@ -212,6 +227,12 @@ export type OutcomeCause =
   | 'blocked' | 'tool_error';
 export interface ProposalOutcome {
   toolName: string; cause: OutcomeCause; payload: ToolPayload;
+  /** The same observed relationship the panel was given, carried through to the run log so a
+   *  call that never opened a panel (a standing rule firing, a call with nothing to decide) can
+   *  still be read against the run it narrows. `null` — and, on a hand-built outcome that never
+   *  came through `execute`, absent — both mean the same thing: no such relationship is known.
+   *  Optional for the same reason `ruleDescription` is, and read the same way. */
+  followUp?: FollowUp | null;
   /** Set only for 'auto_applied': the standing rule's own words, so the receipt can name it. */
   ruleDescription?: string;
 }
@@ -544,14 +565,104 @@ export function reviewReferral(id: string): Promise<unknown> | null {
   return reg.execute({ ...(ref.input as Record<string, unknown> ?? {}), ids: ref.ids });
 }
 
+/**
+ * The three ways a call can be told no, kept apart because an agent answering one of them means
+ * a different thing each time. A row the operator struck out is a judgement about that row; a
+ * row referred upwards is not a refusal at all, only a decision someone else has to take; a row
+ * the tool itself left alone was never a decision anybody made — a domain rule closed it.
+ *
+ * The abort paths (stale, diverged, scope violation) are deliberately absent. Nothing about them
+ * is a refusal of the rows they name: nothing was decided and nothing landed, so a later call
+ * over the same ids is a retry rather than an answer, and saying otherwise would be exactly the
+ * overclaim this whole feature has to be incapable of making.
+ */
+export type RefusalKind = 'removed' | 'referred' | 'blocked';
+
+interface RefusalBucket {
+  kind: RefusalKind;
+  ids: string[];
+  /** Set on 'referred' only: whoever the rows went to, in the host's own words. */
+  awaiting?: string;
+}
+
+interface RefusalRun { toolName: string; at: number; buckets: RefusalBucket[] }
+
+// Enough to outlive any plausible run of calls in one sitting, bounded so a long-lived page
+// cannot grow this without limit. Only the newest matching run is ever reported anyway.
+const REFUSAL_MEMORY = 40;
+const refusalRuns: RefusalRun[] = [];
+
+/** Called once per outcome that actually refused something, from `finish` below. Buckets with
+ *  no ids are dropped here rather than at each call site, and a run that refused nothing at all
+ *  is never recorded — an empty run could not be the answer to anything. */
+function recordRefusals(toolName: string, buckets: RefusalBucket[]): void {
+  const real = buckets.filter(b => b.ids.length > 0);
+  if (real.length === 0) return;
+  refusalRuns.push({ toolName, at: Date.now(), buckets: real });
+  if (refusalRuns.length > REFUSAL_MEMORY) refusalRuns.splice(0, refusalRuns.length - REFUSAL_MEMORY);
+}
+
+/** How many of a follow-up's ids each kind of earlier refusal accounts for. */
+export interface FollowUpPart { kind: RefusalKind; count: number; awaiting?: string }
+
+/**
+ * An observed relationship between two calls, and nothing more. Every field here is read off
+ * calls that were actually received: `at` and `toolName` are the earlier call's, `ids` are the
+ * ones this call named, and `parts` is how that earlier call disposed of them. Nothing about an
+ * agent's reasoning, intent or understanding is represented, because none of it is observable
+ * from here — a surface rendering this may say what the two calls are, never why.
+ */
+export interface FollowUp {
+  /** When the earlier call returned. */
+  at: number;
+  /** The earlier call's tool. Not necessarily this call's — a narrowing may change tool. */
+  toolName: string;
+  /** The ids this call named. Every one of them was refused by that earlier call. */
+  ids: string[];
+  parts: FollowUpPart[];
+}
+
+/**
+ * Whether this call is a narrowing of an earlier refusal, decided from the two calls alone.
+ *
+ * The test is deliberately strict in one direction: *every* id this call names must have been
+ * refused by one single earlier run. A call that names a refused id alongside a fresh one is not
+ * a follow-up to that run — it is a new ask that happens to overlap — and returns null, as does
+ * a call that names no ids at all. A false negative here costs a line of interface; a false
+ * positive would have the page assert a loop closed that did not.
+ */
+export function followUpFor(input: unknown): FollowUp | null {
+  const named = binding ? binding.targetedIds(input) : null;
+  if (!named || named.length === 0) return null;
+  const want = new Set(named);
+  for (let i = refusalRuns.length - 1; i >= 0; i--) {
+    const run = refusalRuns[i];
+    // One bucket per id: the first that claims it wins, so an id that somehow appeared twice in
+    // one run is still counted once and the parts below still sum to the ids named.
+    const byId = new Map<string, RefusalBucket>();
+    for (const b of run.buckets) {
+      for (const id of b.ids) if (want.has(id) && !byId.has(id)) byId.set(id, b);
+    }
+    if (byId.size !== want.size) continue;
+    const parts: FollowUpPart[] = [];
+    for (const b of byId.values()) {
+      const seen = parts.find(p => p.kind === b.kind && p.awaiting === b.awaiting);
+      if (seen) seen.count += 1;
+      else parts.push(b.awaiting ? { kind: b.kind, count: 1, awaiting: b.awaiting } : { kind: b.kind, count: 1 });
+    }
+    return { at: run.at, toolName: run.toolName, ids: [...want], parts };
+  }
+  return null;
+}
+
 async function decide(
   toolName: string, input: unknown, diff: Diff, notes: Note[],
-  authority: AuthorityScope, agent: any, signal?: AbortSignal,
+  authority: AuthorityScope, followUp: FollowUp | null, agent: any, signal?: AbortSignal,
 ) {
   let resolveFn!: (d: Decision | null) => void;
   const decision = new Promise<Decision | null>(r => { resolveFn = r; });
   signal?.addEventListener('abort', () => resolveFn(null), { once: true });
-  const pending: PendingProposal = { toolName, input, diff, notes, authority, resolve: resolveFn };
+  const pending: PendingProposal = { toolName, input, diff, notes, authority, followUp, resolve: resolveFn };
 
   const show = async () => {
     // Counted and announced here, at creation, regardless of which branch below actually
@@ -607,12 +718,22 @@ export function registerLadderTool(spec: LadderToolSpec) {
 
   const execute = async (input: any, agent?: any, options?: { signal?: AbortSignal }) => {
     const proposalId = `prop-${++seq}`;
+    // Read before this call can record any refusal of its own, so a call can never be found to
+    // be a follow-up to itself, and before the preview runs, so the panel has it the moment it
+    // opens rather than a frame later.
+    const followUp = followUpFor(input);
     // T8-2: a bucket reporting zero is noise, not information, in the one structured account
     // this product sells as truthful — suppress it here, once, so every branch that builds a
     // `rejected` array is covered without each call site having to remember the guard itself.
-    const finish = (cause: OutcomeCause, payload: ToolPayload, ruleDescription?: string) => {
+    const finish = (
+      cause: OutcomeCause, payload: ToolPayload, ruleDescription?: string, refused?: RefusalBucket[],
+    ) => {
       const cleaned: ToolPayload = { ...payload, rejected: payload.rejected.filter(r => r.count > 0) };
-      resultListeners.forEach(fn => fn({ toolName: spec.name, cause, payload: cleaned, ruleDescription }));
+      // Recorded from the same facts the payload was built from, and never from the payload
+      // itself: the buckets there are the agent's account and carry no kind, and reading a kind
+      // back out of a reason string would be a guess where this has the real one to hand.
+      if (refused) recordRefusals(spec.name, refused);
+      resultListeners.forEach(fn => fn({ toolName: spec.name, cause, payload: cleaned, followUp, ruleDescription }));
       return toolResult(cleaned);
     };
     const run: Exec<State, unknown> = ctx => spec.exec(input, ctx);
@@ -678,7 +799,7 @@ export function registerLadderTool(spec: LadderToolSpec) {
       ? { groups: shadow.diff.groups.map(g => g.group), actions: [] }
       : nothingToDecide
       ? null
-      : await decide(spec.name, input, shadow.diff, shadow.notes, authority, agent, options?.signal);
+      : await decide(spec.name, input, shadow.diff, shadow.notes, authority, followUp, agent, options?.signal);
 
     if (!approved) {
       history.push({ tool: spec.name, proposalId, proposed: requested, approved: 0,
@@ -702,7 +823,13 @@ export function registerLadderTool(spec: LadderToolSpec) {
         actions_released: 0, actions_dropped: shadow.diff.actions.length,
         replan_required: true, rule_offered: null,
         ...(noMatch ? { reason: 'no records or actions matched this request; nothing was found to change' } : {}),
-      });
+      }, undefined, [
+        // On the `nothing_to_decide` path both id lists are empty by construction (it is
+        // conditioned on there being no groups and no actions), so nothing there is ever
+        // recorded as an operator refusal — only the tool's own domain skips are.
+        { kind: 'blocked', ids: shadow.notes.map(n => n.id) },
+        { kind: 'removed', ids: [...recordIds, ...actionIds] },
+      ]);
     }
 
     // Enforcement, not presentation. The panel already withholds these controls, and a ratified
@@ -788,6 +915,17 @@ export function registerLadderTool(spec: LadderToolSpec) {
     ];
     const rejectedTotal = rejected.reduce((n, r) => n + r.count, 0);
 
+    // The same refusals as above, kept apart by kind rather than by reason wording, and drawn
+    // from the identical sources — so anything the interface later says a later call answers is
+    // something the agent was genuinely told. The abort buckets have no counterpart here on
+    // purpose (see RefusalKind), and a commit crash records nothing at all, matching `rejected`.
+    const refusedBuckets: RefusalBucket[] = out.error !== undefined ? [] : [
+      { kind: 'blocked', ids: shadow.notes.map(n => n.id) },
+      ...(referredCount > 0 ? [{ kind: 'referred' as const, ids: referredIds, awaiting }] : []),
+      ...(removedByOperator > 0 ? [{ kind: 'removed' as const, ids: removedIds }] : []),
+      ...(droppedActions > 0 ? [{ kind: 'removed' as const, ids: out.dropped }] : []),
+    ];
+
     // A domain skip (e.g. a customs hold) never touches commit.ts's own narrowing machinery —
     // the tool excludes those rows before a single write is attempted, so `out.status` alone
     // would still read 'applied' even when every requested row was actually held. Anything
@@ -859,7 +997,7 @@ export function registerLadderTool(spec: LadderToolSpec) {
         : {}),
       rule_offered: draft ? describePolicy(draft) : null,
       ...(out.error !== undefined ? { error: `the tool failed during commit: ${out.error}` } : {}),
-    }, auto ? describePolicy(pol!) : undefined);
+    }, auto ? describePolicy(pol!) : undefined, refusedBuckets);
   };
 
   // Registered before the description is composed, because composedDescription() reads the

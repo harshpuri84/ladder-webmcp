@@ -59,6 +59,13 @@ export const freightHost: HostBinding<AppState> = {
   valueDeltaOf: (w: WriteRecord) =>
     w.field === 'remedyCost' ? (w.after as number) - (w.before as number) : 0,
   neverEligible: NEVER_ELIGIBLE,
+  // `ids` is this application's own way of narrowing a call to named shipments — every write
+  // tool takes it, and it is the only argument that names records outright rather than
+  // describing a set. The adapter asks; it never learns the field.
+  targetedIds: (input: unknown) => {
+    const ids = (input as { ids?: unknown } | null | undefined)?.ids;
+    return Array.isArray(ids) && ids.every(x => typeof x === 'string') ? (ids as string[]) : null;
+  },
   // The roles, the unit and the word for one record. See ./authority.ts — the adapter composes
   // every sentence the agent reads about the boundary out of these and knows none of them.
   authority: freightAuthority,
