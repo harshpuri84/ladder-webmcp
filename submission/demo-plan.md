@@ -103,6 +103,15 @@ Run the beats end to end twice against the live URLs before recording anything. 
 not the picture; it is to catch a figure that moved and a beat that takes longer than its
 narration allows. Time each beat and write the real duration next to it in `demo-script.md`.
 
+## Hard-reload before every take
+
+A stale Vite hot-reload module graph leaves the page with two instances of the adapter: the demo
+double registers into one, the panel subscribes to the other, and a tool call goes pending with no
+panel ever opening. It looks exactly like a broken build and is not. Caught twice on 28 August.
+
+Navigate with a cache-busting query (`?demo&fresh=1`) or hard-reload before each take, and wait
+about 1.5 seconds after load before the first call so registration has completed.
+
 ## Known failure modes
 
 - **The buggy-tool toggle survives a reload but not a fixture reset.** Confirm it is off before
