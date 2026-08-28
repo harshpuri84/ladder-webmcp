@@ -479,8 +479,30 @@ onRoleChange(() => {
 export function reregister(name: string, description: string) {
   const r = registrations.get(name);
   if (!r) return;
-  mc.unregisterTool(name);
-  mc.registerTool({ name, description, inputSchema: r.spec.inputSchema, execute: r.execute });
+  /*
+   * A host may implement half the namespace. Measured against Codex's built-in browser on
+   * 28 August 2026: it provides `registerTool` and no `unregisterTool` at all, so this line threw
+   * and took the caller down with it — which meant switching the role on shift, ratifying a
+   * standing rule and revoking one all failed in that runtime, silently, because the throw
+   * happened before the listeners below ever fired. The role state had already changed
+   * internally; only the re-registration and the re-render were lost, so the strip looked stuck.
+   *
+   * Re-registering the same name without unregistering first is the correct fallback: the spec
+   * has registration keyed by name, so a host that accepts it replaces the entry, and a host
+   * that rejects it leaves the previous description standing — stale words, not a broken page.
+   * Whatever happens here, the listeners below must still run.
+   */
+  try {
+    if (typeof mc.unregisterTool === 'function') mc.unregisterTool(name);
+  } catch {
+    // A host that advertises the method and refuses it is the same case as not having it.
+  }
+  try {
+    mc.registerTool({ name, description, inputSchema: r.spec.inputSchema, execute: r.execute });
+  } catch {
+    // The tool stays registered with its previous description. The UI below still updates, so
+    // the human sees the truth even where the agent's copy of it could not be refreshed.
+  }
   // Every path that changes what the agent reads goes through here — ratifying a rule, revoking
   // one, a rule lapsing, the role on shift changing. Firing from this one place is what lets the
   // inventory panel hold a single subscription instead of tracking each of those separately and
