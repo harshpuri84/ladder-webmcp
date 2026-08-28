@@ -46,6 +46,27 @@ Everything downstream of the call is identical to production.
 model calls one, re-shoot beats 3 to 6 there and the transport caveat disappears entirely. It was
 fixed but never verified, so treat it as a bonus, not the plan.
 
+## What the 28 August rehearsal found
+
+Every beat was driven end to end against the running build. All nine work. Three things the
+script had wrong or missing:
+
+1. **The referral beat is four steps, not two.** The script said "switch to duty manager and
+   apply". It cannot: the follow-up opens with the stamp reading **Refer 4 of 4**, because a
+   gateway operator cannot authorise any of those rows. The real chain is Refer → switch role →
+   the run-log line offers **Review as duty manager** → a four-row sheet → Apply 4 of 4. Longer,
+   and much better: it is the only place both humans and the agent are visible in one sequence.
+2. **The closing line was on screen and not in the script.** After the duty manager signs, the
+   receipt reads *replan required: no — propose_remedy did exactly what you approved*. That is
+   the loop shutting, in the product's own words. It now ends beat 6.
+3. **Beat 4 was explaining the referral twice.** Folded into beat 3, which paid for the longer
+   beat 6.
+
+Everything else held: the buggy-tool guard returns **Blocked · Ladder blocked this** with nothing
+applied, and the edge rollout returns 36 requested, 23 applied, 7 referred to a traffic lead, with
+the other 6 closed by named rules — a change freeze, an incident, two drained sites, and one
+already serving the candidate.
+
 ## Pre-flight, in order
 
 1. `git pull`, `npm ci`, `npx vitest run` — **check the exit code directly, do not pipe it**.

@@ -43,88 +43,81 @@ Second product, `roll_config {}` — no filter, no mode:
 
 ## The shot list
 
-### 1 — 0:00 to 0:22 · The problem
+### 1 — 0:00 to 0:20 · The problem
 
-**Screen:** `#/problem`, top of the page. Hold on the standfirst, then the opening paragraph.
+**Screen:** `#/problem`, top. The standfirst, then the opening paragraph.
 
 > Thursday, nineteen forty. A flight from Frankfurt to Chicago is cancelled. Two consolidations
 > were on it — one air waybill covering many separate customers' shipments — so forty-two
 > shipments belonging to thirty-one different customers are now unbooked. Nobody assembled that
-> list. The cancellation did. There are ninety minutes to the first cutoff.
+> list. The cancellation did. Ninety minutes to the first cutoff.
 
-### 2 — 0:22 to 0:40 · What WebMCP left
+### 2 — 0:20 to 0:35 · What WebMCP left
 
-**Screen:** cut to the agent pane. The prompt is typed and sent.
+**Screen:** cut to the terminal. The prompt is sent.
 
 > An agent can call the tools this page owns. WebMCP settled that. What it did not settle is what
 > happens when the agent is wrong. You see a function call and a name. You can take it or refuse
 > it. You cannot take part of it.
 
-### 3 — 0:40 to 1:05 · Consequences, not arguments
+### 3 — 0:35 to 1:05 · Consequences, not arguments
 
-**Screen:** the panel arrives. Hold on the figures, then scroll the rows slowly enough to read
-two or three.
+**Screen:** the panel arrives. Hold on **23**, the caption *struck down from 27*, then the four
+disabled rows. Scroll two or three live rows.
 
 > Ladder runs the tool's real execute against a copy of the page's state first. Nothing real is
-> touched. What the tool would do becomes this: twenty-seven shipments matched, and exactly which
-> remedy lands on which one.
+> touched. Twenty-seven shipments matched — and four of them cost more than a gateway operator
+> may authorise, so those are already set aside. Struck down to twenty-three. Referred, not
+> refused. Every euro in this run is in those four.
 
-### 4 — 1:05 to 1:20 · Referred, not refused
+### 4 — 1:05 to 1:30 · The sculpt
 
-**Screen:** the count reading **23**, the caption *struck down from 27*, then the four disabled
-rows. Hover one to show it cannot be ticked.
+**Screen:** untick three, slowly. Every figure moves. The stamp changes grade.
 
-> Four cost more than a gateway operator may authorise, so Ladder has already set those aside.
-> Twenty-seven, struck down to twenty-three. Referred, not refused. Every euro in this run is in
-> those four.
+> The operator cuts the rest down. Every figure moves as I strike three out — and the stamp
+> changes grade. It said "OK to run". It now says "OK with changes": apply twenty of twenty-three,
+> and refer four.
 
-### 5 — 1:20 to 1:45 · The sculpt. The money shot.
+### 5 — 1:30 to 1:48 · A refusal is a message
 
-**Screen:** untick three rows, slowly. Every figure moves. The stamp changes to **Apply 20 of 27**.
-Press it.
+**Screen:** cut to the terminal. The returned payload.
 
-> And the operator can cut the rest down. Every figure moves as I strike three out — and the
-> stamp changes grade. It said "OK to run". It now says "OK with changes": apply twenty of
-> twenty-three, and refer four.
+> The agent is not told "success". Requested twenty-seven. Applied twenty. Three the operator
+> removed. Four waiting on a duty manager. Each refusal names the exact shipments it covers.
 
-### 6 — 1:45 to 2:05 · A refusal is a message
+### 6 — 1:48 to 2:20 · The agent answers, and a second person signs
 
-**Screen:** cut to the agent pane. Let the returned payload land.
+**Four steps, and the reason this video exists. Do not rush it.**
 
-> The agent is not told "success". It is told what happened and why the rest did not. Requested
-> twenty-seven. Applied twenty. Three the operator removed. Four waiting on a duty manager. Each
-> refusal names the exact shipments it covers, so the agent can propose a corrected follow-up
-> instead of guessing which half of its request survived.
+**Screen:** the agent's second call opens a panel carrying *Follows the 19:41 run — asks only
+about 4 rows sent to a duty manager.* The stamp reads **Refer 4 of 4** — this operator cannot
+authorise any of them. Press it. Switch the strip to **Duty manager**. The run-log line now offers
+**Review as duty manager**. Press it: a four-row sheet, **Apply 4 of 4**. Sign it.
 
-### 6b — 2:05 to 2:22 · The agent answers
+> So the agent comes back, and asks only about the four it was told a duty manager holds. The page
+> says so, because it can check: those are the same four ids that run refused. This operator still
+> cannot authorise them, so they go up. The duty manager gets a proof sheet with four rows on it,
+> signs, and the receipt closes it out: replan required, no.
 
-**Screen:** the agent makes a second call, narrowed to the four referred ids. The panel opens
-carrying the link line: *Follows the 19:41 run — asks only about 4 rows sent to a duty manager.*
-Switch the authority strip to **Duty manager** and apply.
-
-> So the agent comes back, and asks only about the four it was told a duty manager holds. The
-> page says so, because it can check: those are the same four ids that run refused. The duty
-> manager sees a proof sheet with four rows on it, and signs.
-
-### 7 — 2:22 to 2:34 · The guard
+### 7 — 2:20 to 2:32 · The guard
 
 **Screen:** tick "Simulate a buggy tool" — let the label read, it is labelled deliberate — run a
-proposal, approve it, hold on the denial card. **No row in the table changes.**
+proposal, approve it, hold on **Blocked · Ladder blocked this**. No row changes.
 
 > And if the tool goes off script at commit time and writes a field nobody was shown, the whole
 > commit rolls back. Nothing lands.
 
-### 8 — 2:34 to 2:52 · The same engine, a different product
+### 8 — 2:32 to 2:50 · The same engine, a different product
 
-**Screen:** cut to `/edge.html`. Hold on the rack. Then the drawer, and the referral line.
+**Screen:** cut to `/edge.html`. The rack, then the drawer and its commit bar.
 
 > None of this is about freight. Same engine, different product: a config rollout across
-> thirty-six points of presence. Stage a release everywhere, and seven sites put more production
-> traffic in front of it than a release engineer may authorise. Those go to a traffic lead — the
-> same boundary, measured in traffic instead of money. The two share the engine and nothing else,
-> and a test walks the import graph both ways to keep it that way.
+> thirty-six points of presence. Twenty-three go. Six are closed by a rule — a change freeze, an
+> incident, a drained site. Seven put more production traffic in front of the release than a
+> release engineer may authorise, so those go to a traffic lead. The same boundary, measured in
+> traffic instead of money.
 
-### 9 — 2:52 to 3:00 · The limit, and the link
+### 9 — 2:50 to 3:00 · The limit, and the link
 
 **Screen:** the "What this does not do" section, then both URLs.
 
