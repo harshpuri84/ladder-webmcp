@@ -56,9 +56,9 @@ Second product, `roll_config {}` — no filter, no mode:
 
 **Screen:** cut to the agent pane. The prompt is typed and sent.
 
-> An agent can call the tools this page owns. WebMCP settled that, and it is the hard part. What
-> it did not settle is what happens when the agent is wrong. You see a function call and a name.
-> You can take it or refuse it. You cannot take part of it.
+> An agent can call the tools this page owns. WebMCP settled that. What it did not settle is what
+> happens when the agent is wrong. You see a function call and a name. You can take it or refuse
+> it. You cannot take part of it.
 
 ### 3 — 0:40 to 1:05 · Consequences, not arguments
 
@@ -74,10 +74,9 @@ two or three.
 **Screen:** the count reading **23**, the caption *struck down from 27*, then the four disabled
 rows. Hover one to show it cannot be ticked.
 
-> Four of them cost more than a gateway operator may authorise, so Ladder has already set those
-> aside. Twenty-seven, struck down to twenty-three. They are referred, not refused — a duty
-> manager decides them, and the agent is told exactly which four. Every euro in this run is in
-> those four; everything the operator may authorise tonight is free.
+> Four cost more than a gateway operator may authorise, so Ladder has already set those aside.
+> Twenty-seven, struck down to twenty-three. Referred, not refused. Every euro in this run is in
+> those four.
 
 ### 5 — 1:20 to 1:45 · The sculpt. The money shot.
 
@@ -97,25 +96,35 @@ Press it.
 > refusal names the exact shipments it covers, so the agent can propose a corrected follow-up
 > instead of guessing which half of its request survived.
 
-### 7 — 2:05 to 2:20 · The guard
+### 6b — 2:05 to 2:22 · The agent answers
+
+**Screen:** the agent makes a second call, narrowed to the four referred ids. The panel opens
+carrying the link line: *Follows the 19:41 run — asks only about 4 rows sent to a duty manager.*
+Switch the authority strip to **Duty manager** and apply.
+
+> So the agent comes back, and asks only about the four it was told a duty manager holds. The
+> page says so, because it can check: those are the same four ids that run refused. The duty
+> manager sees a proof sheet with four rows on it, and signs.
+
+### 7 — 2:22 to 2:34 · The guard
 
 **Screen:** tick "Simulate a buggy tool" — let the label read, it is labelled deliberate — run a
 proposal, approve it, hold on the denial card. **No row in the table changes.**
 
-> If the tool goes off script at commit time and writes a field the operator was never shown,
-> the whole commit rolls back. Nothing lands.
+> And if the tool goes off script at commit time and writes a field nobody was shown, the whole
+> commit rolls back. Nothing lands.
 
-### 8 — 2:20 to 2:48 · The same engine, a different product
+### 8 — 2:34 to 2:52 · The same engine, a different product
 
 **Screen:** cut to `/edge.html`. Hold on the rack. Then the drawer, and the referral line.
 
 > None of this is about freight. Same engine, different product: a config rollout across
 > thirty-six points of presence. Stage a release everywhere, and seven sites put more production
-> traffic in front of it than a release engineer may authorise. Those go to a traffic lead. The
+> traffic in front of it than a release engineer may authorise. Those go to a traffic lead — the
 > same boundary, measured in traffic instead of money. The two share the engine and nothing else,
 > and a test walks the import graph both ways to keep it that way.
 
-### 9 — 2:48 to 3:00 · The limit, and the link
+### 9 — 2:52 to 3:00 · The limit, and the link
 
 **Screen:** the "What this does not do" section, then both URLs.
 
