@@ -29,7 +29,19 @@ const PAYLOAD = `{
  * off the register, and `ProblemPage.test.tsx` asserts the sample's `requested` still equals
  * that count. Drift fails there instead of shipping.
  */
-const SAMPLE = JSON.parse(PAYLOAD) as { requested: number; applied: number };
+const SAMPLE = JSON.parse(PAYLOAD) as {
+  requested: number;
+  applied: number;
+  rejected: { count: number }[];
+};
+
+/**
+ * The sample's arithmetic, done rather than asserted. The paragraph beside it claims the parts
+ * add up to the whole; the margin does the sum, off the sample itself, so a reader can check
+ * the claim in the margin instead of in their head — which is exactly what a figure carried
+ * out beside the text is for.
+ */
+const CHECK_TERMS = [SAMPLE.applied, ...SAMPLE.rejected.map(r => r.count)];
 
 const NUMBER_WORDS = ['No', 'One', 'Two', 'Three', 'Four', 'Five', 'Six'];
 
@@ -40,6 +52,34 @@ const NUMBER_WORDS = ['No', 'One', 'Two', 'Three', 'Four', 'Five', 'Six'];
  */
 function spellOut(n: number): string {
   return NUMBER_WORDS[n] ?? String(n);
+}
+
+/**
+ * A note in the sheet's margin, keyed to the paragraph it follows.
+ *
+ * This is where the page's own furniture lives — the measurements, the arithmetic, the note
+ * saying where the figures came from. It stays a sibling of the paragraph it belongs to in the
+ * DOM, so it is read in the right place by anyone who cannot see the margin, and CSS folds it
+ * back into the run on a viewport too narrow to have one.
+ */
+function MarginNote(
+  { caption, mark, children }:
+  { caption: string; mark?: 'query'; children: React.ReactNode },
+) {
+  return (
+    <aside className="pr-note">
+      <span className="pr-note-caption">
+        {mark ? <ProofMark name={mark} size={12} className="pr-note-mark" /> : null}
+        {caption}
+      </span>
+      {children}
+    </aside>
+  );
+}
+
+/** One line of a measurement record. Mono, because every one of them is a reading. */
+function NoteLine({ children }: { children: React.ReactNode }) {
+  return <span className="pr-note-line mono">{children}</span>;
 }
 
 /** A figure that came off the register, set in mono so a reader can tell it from a word. */
@@ -117,6 +157,10 @@ export function ProblemPage() {
 
       <section className="pr-sec">
         <h2 className="pr-h">Thursday, <span className="mono">19:40</span></h2>
+        <MarginNote caption="Counted, not typed">
+          Every figure in this scene is read off the same register the proof tab operates on.
+          Change the fixture and this paragraph changes with it.
+        </MarginNote>
         <p className="pr-p">
           A flight from {DISRUPTED_FLIGHT.origin} to {DISRUPTED_FLIGHT.destination} is
           cancelled. {spellOut(consols)} consolidations were on it. A consolidation is one air
@@ -180,6 +224,11 @@ export function ProblemPage() {
           no approval queue to build, no second device to reach for. The interruption lands
           where the work already was.
         </Consequence>
+        <MarginNote caption="The load-bearing one">
+          Three of these four are conveniences a determined team could work around. This one
+          cannot be had on a server at any price, and it is the reason the preview cannot drift
+          from the commit.
+        </MarginNote>
         <Consequence lead="The page owns the state, so it can rehearse against it.">
           Ladder forks the application's own state with <Code>structuredClone</Code> and runs
           the real <Code>execute()</Code> against the copy. This is the part that cannot be
@@ -206,6 +255,12 @@ export function ProblemPage() {
           receives only its first argument, so there is no agent object to call it on. Ladder
           detects for the hook and renders its own surface until it lands.
         </p>
+        <MarginNote caption="Measured">
+          <NoteLine>Chrome 151.0 &middot; 26 Aug 2026</NoteLine>
+          <NoteLine>execute(args) &mdash; arity 1</NoteLine>
+          <NoteLine>agent &mdash; undefined</NoteLine>
+          <span className="pr-note-say">Taken in the browser, not read off the spec.</span>
+        </MarginNote>
         <p className="pr-p">
           And where it does land, it can ask a question. What a question cannot express is the
           three things this actually needs: consequences instead of arguments, part of a change
@@ -228,6 +283,14 @@ export function ProblemPage() {
           skips the ones that were narrowed out, and throws if the tool goes anywhere the
           preview never showed. A violation rolls the entire commit back.
         </p>
+        {/* A proofreader's query is raised where it occurs and passed on to whoever can settle
+            it — which is exactly what this is. Any engineer reads "runs it twice" and asks it,
+            and a page that waits three sections to acknowledge the question has already lost
+            the reader who asked it. */}
+        <MarginNote caption="Query" mark="query">
+          Two runs of the same function only agree if the function is the same twice. What if
+          it is not? Settled under <em>What this does not do</em>, below.
+        </MarginNote>
         <p className="pr-p">
           The developer writes one function, the way they already do. Ladder runs it twice.
         </p>
@@ -242,6 +305,11 @@ export function ProblemPage() {
         {/* The only element on the page that can scroll sideways, so it takes a tab stop
             rather than being unreachable to anyone driving the page from the keyboard. */}
         <pre className="pr-payload mono" tabIndex={0}>{PAYLOAD}</pre>
+        <MarginNote caption="Check the sum">
+          <NoteLine>{CHECK_TERMS.join(' + ')} = {SAMPLE.requested}</NoteLine>
+          <span className="pr-note-say">applied, plus every rejected count, is what was asked
+            for. Done here off the sample itself so it cannot come to disagree with it.</span>
+        </MarginNote>
         <p className="pr-p">
           Different refusals carry different reasons and the agent can tell them apart. A row
           the tool itself declined comes back with the exact ids. A record that changed while
@@ -281,11 +349,18 @@ export function ProblemPage() {
           today. What is here is a reference implementation of the pattern, not a library that
           already covers every shape of application.
         </Limit>
+        <MarginNote caption="Measured">
+          <NoteLine>Chrome 151.0 &middot; 26 Aug 2026</NoteLine>
+          <NoteLine>pending execute() &mdash; 96 s</NoteLine>
+          <span className="pr-note-say">The budget the whole design is spent against. Nothing
+            below it is a design choice; it is what the browser allows.</span>
+        </MarginNote>
         <p className="pr-p pr-p--after-limits">
           One measurement is what made any of this buildable: against Chrome 151 on 26 August
           2026, a pending <Code>execute()</Code> survives 96 seconds. That is long enough for a
           person to read a proof sheet and decide, which is the whole bet this design makes.
         </p>
+
       </section>
 
       <p className="pr-onward">

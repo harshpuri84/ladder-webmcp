@@ -110,6 +110,13 @@ describe('App: the shell is as wide as the tab under it needs', () => {
       const app = container.querySelector('.app');
       expect(app).toBeTruthy();
       expect(app!.classList.contains('app--reading')).toBe(reading);
+
+      // The tabpanel is the sheet the index tabs are cut into. Without a surface below them
+      // there is nothing for the open tab to be continuous with, and the tabs go back to being
+      // three words in a row — so the class that makes it a surface is load-bearing for whether
+      // a judge can tell there are other tabs at all.
+      const panel = container.querySelector('[role="tabpanel"]');
+      expect(panel!.classList.contains('app-sheet')).toBe(true);
       unmount();
     }
   });

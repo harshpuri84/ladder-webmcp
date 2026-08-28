@@ -3,6 +3,7 @@ import { ProposalPanel } from './ui/ProposalPanel';
 import { ActivityList } from './ui/ActivityList';
 import { ToolPill } from './ui/ToolPill';
 import { TabBar, TABPANEL_ID, tabButtonId } from './ui/TabBar';
+import { RegistrationCorners } from './ui/ProofMark';
 import { useTab } from './ui/useTab';
 import { ProofPage } from './ui/pages/ProofPage';
 import { ProblemPage } from './ui/pages/ProblemPage';
@@ -43,11 +44,16 @@ function App() {
   return (
     <div className="app-shell">
       {/*
-        * The shell is as wide as the tab under it needs to be. The proof is a register and
-        * genuinely wants the full 1100px; the two reading tabs are prose and want a reading
-        * measure, and a header rule spanning 1100px over a sheet that stops at 724px is a
-        * ragged edge on the first thing a reader looks at. Widening the prose to match the
-        * rule would fix the edge by breaking the measure, so the rule moves instead.
+        * One width for all three tabs. The register genuinely needs the full 1100px, and the
+        * two reading tabs used to stop at 724px — which is what left every rule on the problem
+        * page ending short of the tab bar's own rule, and left two thirds of a wide screen
+        * empty beside a column of prose. Both are the same defect: a measure was standing in
+        * for a composition.
+        *
+        * So the shell keeps one width and the reading sheet spends it properly — the prose
+        * still sits at its measure, and the space beside it is the sheet's margin, where the
+        * figures, the measurements and the notes go. `app--reading` no longer moves the right
+        * edge; it says which mode the sheet inside is set for.
         */}
       <div className={tab === 'proof' ? 'app' : 'app app--reading'}>
         <header className="app-header">
@@ -57,7 +63,20 @@ function App() {
           </p>
         </header>
         <TabBar tab={tab} setTab={setTab} />
-        <div id={TABPANEL_ID} role="tabpanel" aria-labelledby={tabButtonId(tab)} tabIndex={0}>
+        {/*
+          * The sheet the index tabs are cut into. It is stock on the desk, not a card: one
+          * ground, the head rule the tab bar used to draw for itself, and the shadow recipe of
+          * a slip lying on a surface. Making it a real surface is what lets the active tab be
+          * continuous with it, which is the whole reason a tab reads as a tab.
+          */}
+        <div
+          id={TABPANEL_ID}
+          className="app-sheet"
+          role="tabpanel"
+          aria-labelledby={tabButtonId(tab)}
+          tabIndex={0}
+        >
+          <RegistrationCorners />
           {page}
         </div>
       </div>

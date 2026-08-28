@@ -134,6 +134,46 @@ describe('ProblemPage', () => {
     }
   });
 
+  /**
+   * The sheet's margin is where the page's own furniture now lives — the measurements, the
+   * arithmetic and the note saying where the figures came from. A note is positioned out of
+   * flow, so the only thing that keeps it beside what it is about is its place in the DOM;
+   * hoist one out of its section to tidy the markup and it lands beside the wrong paragraph
+   * on screen and reads in the wrong place to anyone who cannot see the margin.
+   */
+  it('keeps every margin note inside the section it is keyed to', () => {
+    const { container } = render(<ProblemPage />);
+    const notes = [...container.querySelectorAll('.pr-note')];
+    expect(notes.length).toBeGreaterThan(0);
+    for (const note of notes) expect(note.closest('.pr-sec')).toBeTruthy();
+  });
+
+  /**
+   * The margin does the sum the paragraph beside it only claims. Doing it off the quoted sample
+   * is the whole point: a typed "27 + 1 + 14 = 42" would go on reading correctly for exactly as
+   * long as nobody edited the payload.
+   */
+  it('does the payload arithmetic in the margin rather than asserting it', () => {
+    const { container } = render(<ProblemPage />);
+    const sample = JSON.parse(container.querySelector('.pr-payload')?.textContent ?? '') as {
+      requested: number;
+      applied: number;
+      rejected: { count: number }[];
+    };
+    const sum = [sample.applied, ...sample.rejected.map(r => r.count)].join(' + ');
+    const margins = [...container.querySelectorAll('.pr-note')].map(flat);
+    expect(margins.some(t => t.includes(`${sum} = ${sample.requested}`))).toBe(true);
+  });
+
+  /** The one measurement the whole design is spent against, carried out beside the sentence
+   *  that makes the claim so a reader can see the reading rather than take the sentence. */
+  it('carries the browser measurements out into the margin', () => {
+    const { container } = render(<ProblemPage />);
+    const margins = [...container.querySelectorAll('.pr-note')].map(flat);
+    expect(margins.some(t => t.includes('96 s'))).toBe(true);
+    expect(margins.filter(t => t.includes('Chrome 151.0')).length).toBe(2);
+  });
+
   it('hands the reader on to the proof with a plain link, not a pitch', () => {
     render(<ProblemPage />);
     const link = screen.getByRole('link', { name: /proof/i });

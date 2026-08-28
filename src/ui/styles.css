@@ -149,6 +149,7 @@ hr.rule {
 .au-state-caps,
 .au-refs-caption-caps,
 .pp-refer-caption-caps,
+.pr-note-caption,
 .ac-struck-note {
   text-transform: uppercase;
   /* 11.5px, not 10.5px: below an 11px floor a letterspaced caps label stops being
@@ -228,11 +229,10 @@ body.pp-active .al {
   flex-wrap: wrap;
   align-items: baseline;
   gap: 0 14px;
-  /* No border-top/padding-top of its own: the docket now sits directly under the tab bar's own
-     double rule (App.tsx renders it first inside the proof tab), and a second hairline ~22px
-     below that one doubled up a line the shipped design never had. This rule's own top margin
-     absorbs what the removed padding used to (10px + 9px), so the spacing reads the same. */
-  margin: 19px 0 0;
+  /* No border-top/padding-top and no top margin of its own: the docket is now the first line
+     printed on the sheet, and the sheet's own top padding is the space above it. A hairline
+     here would double up the head rule the tabs are cut into a few pixels above. */
+  margin: 0 0 14px;
   font-size: 0.84rem;
   color: var(--ink-muted);
 }
@@ -2370,45 +2370,102 @@ body.pp-active .console-table td {
   }
 }
 
-/* ---------- tabs ---------- */
+/* ---------- tabs, cut into the head of the sheet ---------- */
 
+/*
+ * Three words in a row were not tabs. They had no shape, no hit target and nothing but a
+ * hairline under one of them, and at a wide viewport a reader could miss that the other two
+ * existed at all — which meant the reusability argument on the third tab was never read.
+ *
+ * A proof sheet in a job bag already solves this, so the tabs are index tabs cut into the head
+ * of that sheet. Four signals say which one is open, and none of them is a hue:
+ *
+ *   stock       the open tab is on the same paper as the sheet, the closed ones on the duller
+ *               stock behind it;
+ *   continuity  the open tab breaks the sheet's head rule — tab and sheet are one surface —
+ *               while the rule runs straight past a closed tab and shuts it off;
+ *   height      a closed tab sits lower, the way a tab behind another one does;
+ *   weight      the open tab's label is 600 in the full ink, the closed ones 400 in muted.
+ *
+ * The blue top edge is a fifth signal and the only optional one: it agrees with the four and is
+ * never asked to carry the state alone. Render the page with no colour at all and every one of
+ * the four above still says which tab is open.
+ */
 .tab-bar {
   display: flex;
   flex-wrap: wrap;
-  gap: 10px 26px;
+  align-items: flex-end;
+  /* The row gap is exactly the overlap each tab takes onto the sheet below it, so a bar narrow
+     enough to wrap stacks its rows edge to edge instead of one row biting into the next. */
+  gap: 3px;
 }
 
 .tab-bar-tab {
   appearance: none;
-  background: none;
-  border: none;
-  border-bottom: 3px double transparent;
-  margin: 0;
-  padding: 0 0 9px;
+  position: relative;
+  /* Over the sheet's own head rule, so a tab and the sheet are one piece of stock rather than
+     two objects that happen to touch. The sheet paints over a closed tab; the open one paints
+     over the sheet. That single 3px overlap is what the whole index-tab reading rests on. */
+  margin: 0 0 -3px;
+  /* ~44px of target. The old tabs had none at all: the hit box was the word. */
+  padding: 12px 20px 14px;
+  background: var(--paper-sunk);
+  border: 1px solid var(--rule);
+  border-bottom: none;
   font-family: inherit;
   font-size: 0.86rem;
   color: var(--ink-muted);
   cursor: pointer;
 }
 
-/*
- * Which tab is open is said by the weight and this double rule — the same "in effect" motif
- * the printed rule and the spend-authority toggle already use elsewhere in this file — never
- * by the tint alone. Strip the colour and the weight plus the rule still say which tab is open.
- */
+/* Lifted, not opened: the raised stock says a hand is on this tab, and it stays a step apart
+   from the open tab's own stock so hovering one never looks like opening it. */
+.tab-bar-tab:hover:not(.tab-bar-tab--active) {
+  background: var(--paper-raised);
+  color: var(--ink);
+}
+
 .tab-bar-tab--active {
-  border-bottom-color: var(--mark);
+  /* Above the sheet, so this tab's own stock covers the head rule and the two read as one
+     surface. A closed tab stays below it and the rule crosses in front of it instead. */
+  z-index: 2;
+  background: var(--paper);
+  border-color: var(--rule-strong);
+  border-top: 3px solid var(--mark);
+  padding: 14px 20px 20px;
   color: var(--ink);
   font-weight: 600;
 }
 
 .tab-bar-tab:focus-visible {
   outline: 2px solid var(--mark);
-  outline-offset: 2px;
+  outline-offset: -4px;
+  z-index: 3;
 }
 
-.tab-bar-rule {
-  margin: 0 0 22px;
+/*
+ * The sheet itself: stock on the desk, carrying the head rule the tab bar used to draw for
+ * itself and the one shadow recipe in this file — a tight contact shadow plus a soft lift, a
+ * slip lying on a desk rather than a card glowing at it.
+ *
+ * Above the closed tabs (so the head rule crosses in front of them) and below the open one.
+ */
+.app-sheet {
+  position: relative;
+  z-index: 1;
+  background: var(--paper);
+  border-top: 3px double var(--rule-strong);
+  padding: 34px 40px 46px;
+  box-shadow:
+    0 1px 2px rgba(23, 21, 15, 0.10),
+    0 7px 14px -6px rgba(23, 21, 15, 0.24);
+}
+
+/* The sheet is the focus target for the tabs; a ring inside its own trim, not around the whole
+   slab, since the slab's edge is already a drawn thing. */
+.app-sheet:focus-visible {
+  outline: 2px solid var(--mark);
+  outline-offset: -6px;
 }
 
 /* Kept mounted (not removed from the tree) on a non-proof tab, so its state and subscriptions
@@ -2420,46 +2477,195 @@ body.pp-active .console-table td {
 /* ---------- the problem: long-form reading ---------- */
 
 /*
- * Mode is Read, so the page is set as a page and not as a dashboard: one column at a reading
- * measure, sections separated by a rule and by space rather than parcelled into cards, and
- * nothing on it that asks to be clicked until the very end.
+ * Mode is Read, so the page is set as a page and not as a dashboard: sections separated by a
+ * rule and by space rather than parcelled into cards, and nothing on it that asks to be
+ * clicked until the very end.
  *
- * The measure is the only reason this column is narrow. Sixty-eight characters is where a
- * serif line stops costing the reader a return sweep, and every prose element here is capped
- * at it; the two elements that are not prose — the engine drawing and the returned payload —
- * are deliberately allowed to run wider, which is also what puts a rhythm on the page.
- */
-
-/*
- * The sheet's own width. Every rule, the drawing and the payload share this right edge, so the
- * page has an edge at all; the prose sits at its measure inside it rather than the rules
- * running off to a margin the text never reaches.
+ * ── The margin ────────────────────────────────────────────────────────────────────────────
+ * This page used to be one column of prose at a reading measure and nothing else, which on a
+ * wide screen left two thirds of the sheet empty and read as a raw document rather than a set
+ * page. Widening the measure would have been the wrong fix — a long serif line costs the
+ * reader a return sweep, and 68 characters is where that stops.
+ *
+ * A proof sheet already owns the right answer and it is the one thing this page was not
+ * using: the margin. A real proof carries its corrections, queries and figures out beside the
+ * text they refer to, so the page's own furniture goes there — the measurements, the
+ * arithmetic a reader is invited to check, the note that says where the figures came from, and
+ * the section's number. The prose keeps its measure and the width is spent on something that
+ * earns it.
+ *
+ * The two columns and the space between them, in one place. The measure column is wider than
+ * the prose inside it on purpose: the prose self-caps at 68ch and the two things that are not
+ * prose — the drawings and the returned payload — run out to the column's full width, which is
+ * what puts a rhythm on the page. Nothing crosses into the margin.
  */
 .pr {
-  max-width: 724px;
-  /* The tab bar's double rule is a strong line; the first heading should not sit on it. */
-  padding-top: 8px;
+  --pr-measure: 700px;
+  --pr-gutter: 56px;
+  --pr-margin: 264px;
+
+  /*
+   * The sheet's ruled width: both columns and the gutter. Every rule on this page spans
+   * exactly this, so they share one right edge instead of stopping at three different places —
+   * which is what made the old page's rules look ragged against the tab bar's.
+   */
+  max-width: calc(var(--pr-measure) + var(--pr-gutter) + var(--pr-margin));
+  counter-reset: pr-sec;
 }
 
 /*
  * The standfirst: the general claim, set above the first section so a thirty-second scan meets
  * it before the freight story. Larger than body and in the full ink, because it is the one
  * paragraph that has to be read if nothing else is.
+ *
+ * No rule of its own any more. It used to carry a `border-bottom` that stopped at 68ch while
+ * every section rule below ran on to the sheet's edge — two rules, two right edges, twenty
+ * lines apart. The rule that separates it from the first section now belongs to that section,
+ * where it spans the full ruled width like every other one.
  */
 .pr-standfirst {
   margin: 0 0 34px;
-  padding-bottom: 26px;
-  border-bottom: 1px solid var(--rule);
   max-width: 68ch;
   font-size: 1rem;
   line-height: 1.55;
   color: var(--ink);
 }
 
-.pr-sec + .pr-sec {
+.pr-sec {
+  /* Containing block for everything the section hangs in the margin — the note and the
+     section's own number both position against this box's left edge. */
+  position: relative;
+  counter-increment: pr-sec;
   margin-top: 40px;
   padding-top: 36px;
   border-top: 1px solid var(--rule);
+}
+
+/*
+ * A note in the margin is out of flow, so it adds no height to the section it belongs to. In
+ * the middle of the page that costs nothing — the next section's rule is a long way down. At
+ * the foot it does: the last section's note would otherwise hang across the imprint rule and
+ * off the bottom of the sheet. So the last section reserves the room its note needs. Nothing
+ * to reserve once the notes are back in the run, below the fold-in width.
+ */
+.pr-sec:last-of-type {
+  padding-bottom: 60px;
+}
+
+/*
+ * The section's number, out in the margin beside the heading rather than above it. This is a
+ * folio reference, which is the one thing a marginal number legitimately is: on a proof it is
+ * how a correction is keyed to the place it belongs. Set at the heading's own first baseline
+ * by its static position, so nothing here has to know how tall a heading is.
+ *
+ * It is also the thread that keeps the margin column from reading as a second empty space. The
+ * notes are deliberately few; the numbers run the length of the page.
+ */
+.pr-h::before {
+  content: counter(pr-sec);
+  position: absolute;
+  left: calc(var(--pr-measure) + var(--pr-gutter));
+  font-family: var(--face-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: 0.76rem;
+  font-weight: 400;
+  color: var(--ink-muted);
+}
+
+/*
+ * A note in the margin, keyed to the paragraph it follows.
+ *
+ * Absolutely positioned with `top` left at auto, so the browser puts it at its own static
+ * position — exactly the height it would have been in the flow — and only the horizontal
+ * position moves. That keeps the note next to what it is about without anyone measuring
+ * anything, and it keeps the DOM order honest: a screen reader reads the note straight after
+ * the paragraph it belongs to, which is what a margin note is.
+ */
+.pr-note {
+  position: absolute;
+  left: calc(var(--pr-measure) + var(--pr-gutter));
+  width: var(--pr-margin);
+  /* Optically level with the first line of the paragraph it sits beside, not with the leading
+     above it. */
+  margin-top: -0.35em;
+  font-size: 0.76rem;
+  line-height: 1.55;
+  color: var(--ink-muted);
+}
+
+.pr-note-caption {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 5px;
+  padding-bottom: 4px;
+  border-bottom: 1px solid var(--rule);
+  color: var(--ink);
+}
+
+/* The query mark, on the one note that is a question rather than a record. Redundant by
+   design: the caption already reads "Qy?", so nothing depends on seeing the mark. */
+.pr-note-mark {
+  vertical-align: 0;
+  color: var(--ink-muted);
+}
+
+/* A figure carried out into the margin sits in the full ink — it is the thing being pointed
+   at, and the words around it are the caption. */
+.pr-note .mono {
+  color: var(--ink);
+}
+
+.pr-note-line {
+  display: block;
+}
+
+.pr-note-line + .pr-note-line {
+  margin-top: 2px;
+}
+
+.pr-note-say {
+  display: block;
+  margin-top: 7px;
+}
+
+/*
+ * Below this the margin cannot exist without taking the measure apart, so it stops being a
+ * margin. The notes fold back into the run as matter set apart by rules above and below —
+ * which is the same move `.webmcp-banner` makes on the proof tab — and the folio numbers go,
+ * because a folio number with no folio to sit in is decoration.
+ */
+@media (max-width: 1160px) {
+  .pr {
+    --pr-measure: 100%;
+    --pr-gutter: 0px;
+    --pr-margin: 0px;
+    max-width: 700px;
+  }
+
+  .pr-h::before {
+    content: none;
+  }
+
+  .pr-note {
+    position: static;
+    width: auto;
+    max-width: 68ch;
+    margin: 20px 0 22px;
+    padding: 12px 0 13px;
+    border-top: 1px solid var(--rule);
+    border-bottom: 1px solid var(--rule);
+  }
+
+  .pr-note-caption {
+    border-bottom: none;
+    padding-bottom: 0;
+    margin-bottom: 3px;
+  }
+
+  .pr-sec:last-of-type {
+    padding-bottom: 0;
+  }
 }
 
 /* More air above a heading than below it: the space belongs to the section it opens. */
@@ -2497,7 +2703,10 @@ body.pp-active .console-table td {
  */
 .pr-payload {
   margin: 18px 0;
-  max-width: 720px;
+  /* The measure column's full width, like the drawings — the payload is a figure, not prose,
+     and the rhythm on this page comes from the figures running wider than the text. It stops
+     at the column's edge because past that is the margin. */
+  max-width: var(--pr-measure);
   padding: 14px 16px;
   background: var(--paper-sunk);
   border: 1px solid var(--rule);
@@ -2699,17 +2908,44 @@ body.pp-active .console-table td {
 }
 
 /*
- * The reading tabs' shell width.
+ * The reading tabs' sheet.
  *
- * Deliberately the same 724px `.pr` caps itself at, so the header, the tab bar's rule and
- * every rule on the sheet below it share one right edge. The proof tab keeps `.app`'s full
- * 1100px, which its register needs. Set after the 1080px block on purpose: below that width
- * the register is what wants `max-width: 100%`, and prose still wants its measure — a
- * `max-width` already yields the full width on any viewport narrower than the cap.
+ * The width no longer differs from the proof tab's: all three sheets are the same piece of
+ * stock, so the tabs cut into the head of it do not change length when a reader switches, and
+ * the head rule has one right edge across the whole site. What used to be a 724px cap here is
+ * now the prose measure inside the sheet, where it belongs, with the space beside it spent as
+ * the margin (see `.pr`).
  *
- * This changes only how wide `.app` is allowed to be. The panel's right-margin reservation
- * lives on `.app-shell` (`body.pp-active .app-shell`), which nothing here touches.
+ * This class no longer moves an edge; it says which mode the sheet is set for. The reading
+ * sheet takes more air at the head and foot than the register does, because prose wants it and
+ * a register wants the rows.
+ *
+ * Nothing here touches the panel's right-margin reservation, which lives on `.app-shell`
+ * (`body.pp-active .app-shell`).
  */
-.app--reading {
-  max-width: 724px;
+.app--reading .app-sheet {
+  padding: 40px 40px 52px;
+}
+
+/*
+ * Once the margin has folded back into the run (see `.pr`), the sheet has nothing left to hold
+ * beside the text, so it stops being 1100px of stock with a column of prose down one side and
+ * becomes the width of what is set on it. Every rule then ends at the sheet's own trim, which
+ * is the point: one right edge, whatever the viewport.
+ */
+@media (max-width: 1160px) {
+  .app--reading {
+    max-width: 780px;
+  }
+}
+
+@media (max-width: 720px) {
+  .app-sheet,
+  .app--reading .app-sheet {
+    padding: 24px 20px 34px;
+  }
+
+  .app--reading .pr {
+    max-width: 100%;
+  }
 }
