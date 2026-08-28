@@ -22,7 +22,7 @@ Three tabs on the existing app. One URL, deep-linkable by hash.
 |---|---|---|
 | `#/problem` | The problem | The disruption. What WebMCP solved and what it left. How the engine works, as a diagram. The refusal payload. What Ladder does **not** do. |
 | `#/proof` | The proof | The app exactly as it stands. Nothing in it changes. |
-| `#/elsewhere` | Same engine, other work | Three domains — freight, catalogue, infrastructure — as **labelled mockups**. Same panel vocabulary, different nouns. |
+| `#/elsewhere` | Same engine, other work | What the engine needs from an application, named as the actual `HostBinding` interface, and a link to the second product that runs on it. Prose, no drawn UI. |
 
 Default landing is `#/problem`: a cold judge needs the story before the
 instrument.
@@ -42,9 +42,12 @@ it is built first and tested first.
 
 ## Honesty constraints
 
-- The catalogue and infrastructure domains are **mockups** and every one of them
-  says so on its face. They are not wired to the engine. A judge must never be
-  able to mistake a picture for a running system.
+- **Nothing on the site is drawn.** This started as three labelled mockups. They
+  were cut on 28 August: a drawing has to be captioned as a drawing, and a judge
+  who reads that caption immediately asks why nothing is real. The reusability
+  claim is now carried by a second product — an edge config rollout, its own Vite
+  entry, its own design language — wired to the same engine and running. A claim a
+  judge can open beats a claim a judge has to be told to discount.
 - The "what Ladder does not do" section is not optional and is not softened. A
   tool that reaches around `ctx.db` and `ctx.effects` to touch state directly is
   ungoverned. Ladder is a guard, not a sandbox. This is already in the README;
