@@ -664,7 +664,9 @@ async function decide(
   signal?.addEventListener('abort', () => resolveFn(null), { once: true });
   const pending: PendingProposal = { toolName, input, diff, notes, authority, followUp, resolve: resolveFn };
 
+  let shown = false;
   const show = async () => {
+    shown = true;
     // Counted and announced here, at creation, regardless of which branch below actually
     // delivers the proposal — this is what lets a second surface (App.tsx) learn a proposal
     // exists without becoming another `onProposal` subscriber itself. See the two exports'
@@ -685,9 +687,29 @@ async function decide(
     return d;
   };
 
-  return typeof agent?.requestUserInteraction === 'function'
-    ? await agent.requestUserInteraction(show)
-    : await show();
+  /**
+   * Presence is not support, and finding that out the hard way is what this guard is for.
+   *
+   * Measured against Codex's built-in browser on 28 August 2026: its WebMCP shim *exposes*
+   * `requestUserInteraction` and then throws `requestUserInteraction is not supported by the
+   * Codex WebMCP shim` the moment it is called. A `typeof === 'function'` check passes, the
+   * call dies, and the whole tool call fails in the one runtime an OpenAI judge is most likely
+   * to open. Chrome 151 has the opposite shape — no agent object at all — which is why the
+   * original detection only ever considered absence.
+   *
+   * So: try the platform hook, and fall back to rendering our own surface when it refuses. The
+   * `shown` flag is what keeps that safe. If the hook threw *after* already running `show`, the
+   * proposal is live on screen and the failure is downstream of us; opening a second one would
+   * leave the first hanging forever. In that case the error is rethrown rather than swallowed.
+   */
+  if (typeof agent?.requestUserInteraction === 'function') {
+    try {
+      return await agent.requestUserInteraction(show);
+    } catch (err) {
+      if (shown) throw err;
+    }
+  }
+  return await show();
 }
 
 export function registerLadderTool(spec: LadderToolSpec) {
