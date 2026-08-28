@@ -913,16 +913,35 @@ body.pp-active .console-table td {
   cursor: not-allowed;
 }
 
+/*
+ * A dim, and only a dim. `pointer-events: auto` here used to swallow every click in the register
+ * — `elementFromPoint` returned the scrim at every row coordinate — which made the panel modal
+ * in fact while DESIGN.md said the register stayed clickable, and left "Marta edits this"
+ * unpressable during exactly the decision it exists to interrupt. The panel is a non-modal dialog
+ * (no `aria-modal`, focus moved in but not trapped), so the scrim states that visually and takes
+ * no input at all.
+ */
 .pp-scrim {
   position: fixed;
   inset: 0;
   background: rgba(23, 21, 15, 0.34);
   animation: pp-fade 180ms var(--ease);
+  pointer-events: none;
   z-index: 10;
 }
 
 @keyframes pp-fade {
   from { opacity: 0; }
+}
+
+/*
+ * The panel takes focus when it opens, so it has to show it. Inset, because the panel is glued to
+ * the viewport's right edge and an offset ring would be cut in half by it. Two solid pixels: the
+ * indicator is form and thickness, legible with every hue removed.
+ */
+.pp:focus-visible {
+  outline: 2px solid var(--mark);
+  outline-offset: -3px;
 }
 
 .pp {

@@ -10,6 +10,7 @@ import { ActionCard } from './ActionCard';
 import { ResultCard } from './ResultCard';
 import { ProofMark, RegistrationCorners } from './ProofMark';
 import { readProofRow, summariseRemedies } from './remedy-diff';
+import { TABPANEL_ID } from './TabBar';
 import { money, remedyFull } from './remedy-words';
 
 // 8s read back as "already fading" from a paused frame two seconds in — that turned out to be
@@ -127,6 +128,11 @@ export function ProposalPanel() {
   // guards against deciding the same head twice.
   const resolvedIds = useRef<Set<string>>(new Set());
 
+  // The panel is where the operator has to be the moment it opens, and where they must not be
+  // stuck. Both refs below serve that: one to put focus in, one to know where to hand it back.
+  const panelRef = useRef<HTMLElement | null>(null);
+  const openerRef = useRef<HTMLElement | null>(null);
+
   // Shared by the footer buttons and the Escape handler below, so both go through the exact
   // same guard rather than Escape reimplementing decide() and drifting from it.
   const decideOn = (p: PendingProposal, d: Decision | null) => {
@@ -161,6 +167,41 @@ export function ProposalPanel() {
   useEffect(() => {
     document.body.classList.toggle('pp-active', Boolean(head));
     return () => { document.body.classList.remove('pp-active'); };
+  }, [head]);
+
+  /*
+   * F2: the panel arrived with `document.activeElement` still on <body>. Measured with real key
+   * dispatch, the first row checkbox was tab stop 51 — past the tab bar, the sheet, the authority
+   * strip, the filter, and forty-two register buttons — to reach the decision the operator had
+   * just been interrupted for. So focus moves onto the panel itself: it is last in the document,
+   * so one Tab from there is the first row.
+   *
+   * Moved, never trapped. This dialog is deliberately not modal (see the scrim in styles.css and
+   * the Layout note in DESIGN.md Part I): the register behind it stays live, because a colleague
+   * editing a record mid-decision is the thing the stale abort exists to catch, and a judge has
+   * to be able to do it while the panel is open.
+   */
+  useEffect(() => {
+    if (head) {
+      // Recorded once per opening, not once per queued proposal: two proposals back to back are
+      // one interruption, and the second must not overwrite where the first came from.
+      if (!openerRef.current) {
+        const a = document.activeElement;
+        openerRef.current = a instanceof HTMLElement && a !== document.body ? a : null;
+      }
+      panelRef.current?.focus();
+      return;
+    }
+    const opener = openerRef.current;
+    openerRef.current = null;
+    // An operator who tabbed out into the register while deciding keeps their place; the browser
+    // parks focus on <body> when a focused panel unmounts, and that is the only case worth
+    // catching. Without this, closing the panel would yank them out of the row they had moved to.
+    if (document.activeElement && document.activeElement !== document.body) return;
+    if (opener?.isConnected) { opener.focus(); return; }
+    // Nowhere to go back to — the agent opened this, not a click. The register is the sensible
+    // place to land, and the tab panel is its focusable frame.
+    document.getElementById(TABPANEL_ID)?.focus();
   }, [head]);
 
   // F11: the panel carries role="dialog" and aria-modal="true", which sets the expectation
@@ -246,11 +287,17 @@ export function ProposalPanel() {
   return (
     <>
       <div className="pp-scrim" />
+      {/*
+        * A dialog, and deliberately not a modal one. `aria-modal` would promise that everything
+        * behind the scrim is out of reach — and the register behind it is the one thing that must
+        * stay reachable, so the promise would be false the moment it was made.
+        */}
       <aside
         className="pp"
         key={diff.proposalId}
+        ref={panelRef}
+        tabIndex={-1}
         role="dialog"
-        aria-modal="true"
         aria-label="Review this change"
       >
         <RegistrationCorners />

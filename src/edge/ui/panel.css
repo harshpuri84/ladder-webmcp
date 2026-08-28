@@ -621,6 +621,16 @@ body.rk-drawn .rk-body {
   background: rgba(6, 7, 9, 0.55);
 }
 
+/*
+ * The drawer takes focus when it rises, so it has to show it. Inset, because the drawer is flush
+ * to three viewport edges and the global 1px offset ring would be cut away on all three. Two solid
+ * pixels of bone against graphite: form and thickness, legible with every hue removed.
+ */
+.dw:focus-visible {
+  outline: 2px solid var(--mark);
+  outline-offset: -3px;
+}
+
 .dw {
   position: fixed;
   left: 0;

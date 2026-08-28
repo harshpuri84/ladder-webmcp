@@ -113,7 +113,10 @@ first; almost always one of the six already means it.
 
 `--ease: cubic-bezier(0.16, 0.84, 0.28, 1)`. Durations 180–260ms. Entrances are an 8px rise with
 an opacity fade. Motion never carries meaning on its own — the figures that change during a
-decision must be legible without seeing them move.
+decision must be legible without seeing them move, and audible without seeing them at all. The
+extent caption under the bar (`.br-caption`) carries `role="status"`, so unticking a row is spoken
+as well as drawn. It is the only live region on the panel: the hero count, the struck original and
+the bar are the same fact drawn, and announcing each of them would read one untick out four times.
 
 ## Voice
 
@@ -125,10 +128,28 @@ from a description. No exclamation, no marketing verbs, no emoji.
 
 `--panel-width: 560px`. The proposal panel is `position: fixed` at the right edge; the shell
 reserves that width as a right margin whenever `body.pp-active` is set, so the register stays
-both visible and clickable during a decision. Below `1500px` the register hides five columns
-rather than the panel narrowing. The activity list is `position: fixed` bottom-right and hides
+both visible and clickable during a decision — the scrim dims the register but does not take
+pointer events, because the external-edit control has to be reachable *while* a proposal is open
+or the stale-abort cannot be demonstrated by hand at all. Below `1638px`, which is where nine
+columns stop fitting beside the panel, the register hides five columns rather than the panel
+narrowing. The activity list is `position: fixed` bottom-right and hides
 entirely during a decision; the tool inventory chip is bottom-left at `z-index: 9`, under the
 panel.
+
+**The panel is a dialog and deliberately not a modal one.** It carries `role="dialog"` and no
+`aria-modal`, and `.pp-scrim` is `pointer-events: none` — a dim, not a barrier. That is what the
+sentence above is for: the register behind the scrim is not decoration, it is the world the
+decision is about, and it has to keep moving while the decision is open. "Marta edits this" is the
+proof of it — a judge presses it *during* an open proposal to make a colleague change a record
+mid-decision, and the commit then aborts stale. A modal panel would make the product's own
+stale-abort beat unreachable with a mouse, which is exactly what it did until 28 Aug 2026.
+
+Focus is **moved, never trapped**. The panel takes focus when it opens — it is last in the
+document, so the first row control is one Tab away rather than the fifty-one it was — and shows a
+2px inset ring while it holds it. When it closes, focus goes back where it came from, or to the
+register's tab panel when the agent opened the panel with nobody focused; an operator who tabbed
+out into the register mid-decision keeps their place. Escape resolves the proposal with a real
+refusal, never a silent dismiss.
 
 ## Modes by surface
 
@@ -269,8 +290,10 @@ Adding an icon set here is a system change, not a local decision.
 drawer — it rises 28px over 260ms — and the rack behind it loses the light rather than moving
 (`opacity 0.34`, `saturate(0.5)`, 240ms). No transform on the rack: this is furniture, not a modal.
 The only other transition in the product is the exposure bar's 160ms `scaleX`, and it never carries
-meaning on its own — the figure above it is legible at rest. All of it is disabled under
-`prefers-reduced-motion`.
+meaning on its own — the figure above it is legible at rest, and announced: the exposure readout
+and its `x of y sites latched` line sit in one `role="status"`, so unlatching a site is spoken as
+well as drawn. One live region, not several — the bar, the hatched band and the axis are the same
+reading drawn. All of it is disabled under `prefers-reduced-motion`.
 
 ## Voice
 
@@ -287,6 +310,18 @@ down the whole face. The run log is `position: fixed` at the bottom. The bench d
 `position: fixed` at the bottom edge at `min(66vh, 640px)`, full width, with a measurement rail on
 the left and the detent field on the right; the run record sits at the same edge and shifts above
 the drawer when both are open.
+
+**The drawer is modal, and unlike Part I's panel it means it.** The rack behind it was already
+`pointer-events: none` while `body.rk-drawn` is set — nothing back there was ever meant to be
+worked during a decision — so `aria-modal="true"` is kept and made true: `.rk-body` is given
+`inert` while the drawer is out, which takes the whole estate out of the tab order and out of the
+accessibility tree as well as out of reach of the pointer. Focus moves onto the drawer as it
+rises, showing a 2px inset ring, and returns to the rack's first control when it shuts. Escape
+resolves the proposal with a real refusal.
+
+The two products differ here on purpose. The freight console's register is the subject of the
+decision and stays live; the rack is the *object* of one, and an engineer reaching past an open
+drawer to change a site by hand at 02:40 is a mistake, not a demonstration.
 
 Below `1180px` the rack sheds requests/sec, nodes and utilisation. Below `900px` it also sheds city
 and the traffic graticule, the drawer goes to `82vh` and stacks its rail above the field, and the

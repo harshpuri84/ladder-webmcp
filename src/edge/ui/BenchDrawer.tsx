@@ -92,6 +92,10 @@ export function BenchDrawer() {
   // second proposal being dropped from the queue with its promise never settled.
   const resolvedIds = useRef<Set<string>>(new Set());
 
+  // Where focus goes when the drawer rises, and where it is handed back when it shuts.
+  const drawerRef = useRef<HTMLElement | null>(null);
+  const openerRef = useRef<HTMLElement | null>(null);
+
   const decideOn = (p: PendingProposal, d: Decision | null) => {
     const id = p.diff.proposalId;
     if (resolvedIds.current.has(id)) return;
@@ -120,6 +124,40 @@ export function BenchDrawer() {
   useEffect(() => {
     document.body.classList.toggle('rk-drawn', Boolean(head));
     return () => { document.body.classList.remove('rk-drawn'); };
+  }, [head]);
+
+  /*
+   * F2, this product's half. The drawer opened with `document.activeElement` still on <body>, so
+   * the engineer tabbed through the autonomy and authority bars behind it to reach the latches,
+   * and could tab straight back out of a panel marked `aria-modal="true"`.
+   *
+   * Unlike the freight console's proof panel, this drawer really is modal: the rack behind it is
+   * already `pointer-events: none` while `body.rk-drawn` is set, so nothing back there was ever
+   * meant to be worked during a decision. `inert` is what makes the rest of that claim true — it
+   * takes the rack out of the tab order and out of the accessibility tree, which is what
+   * `aria-modal` has been asserting all along. Set on the node rather than in CSS because inertness
+   * is not a style; read off the class the rack already carries, so there is still one signal.
+   */
+  useEffect(() => {
+    const rack = document.querySelector('.rk-body');
+    if (head) {
+      if (!openerRef.current) {
+        const a = document.activeElement;
+        openerRef.current = a instanceof HTMLElement && a !== document.body ? a : null;
+      }
+      rack?.setAttribute('inert', '');
+      drawerRef.current?.focus();
+      return () => rack?.removeAttribute('inert');
+    }
+    const opener = openerRef.current;
+    openerRef.current = null;
+    // The browser parks focus on <body> when a focused drawer unmounts. Anything else means the
+    // engineer has already put focus somewhere deliberate, and it is not ours to move.
+    if (document.activeElement && document.activeElement !== document.body) return;
+    if (opener?.isConnected) { opener.focus(); return; }
+    // Nothing to go back to — the agent opened this, not a click. The rack is where the engineer
+    // was reading before it rose, so its first control is where they are put down.
+    rack?.querySelector<HTMLElement>('button,[href],input,select,textarea,[tabindex]:not([tabindex="-1"])')?.focus();
   }, [head]);
 
   useEffect(() => {
@@ -192,6 +230,8 @@ export function BenchDrawer() {
       <aside
         className="dw"
         key={diff.proposalId}
+        ref={drawerRef}
+        tabIndex={-1}
         role="dialog"
         aria-modal="true"
         aria-label="Review this rollout"

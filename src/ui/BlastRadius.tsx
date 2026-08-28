@@ -117,7 +117,15 @@ export function BlastRadius(props: BlastRadiusProps) {
         <div className="br-bar-tick" style={{ left: `${share(requested, datasetSize) * 100}%` }} />
       </div>
 
-      <p className="br-caption">
+      {/*
+        * The one announced sentence on this panel. Everything above it — the hero count, the
+        * struck original, the bar — is the same fact drawn; the caption is the same fact in
+        * words, so it is the half worth speaking. `role="status"` is polite: it waits for a gap
+        * rather than cutting across the operator, and it is the only live region here, because
+        * two would read one untick out twice. It is driven by the selection, never by the
+        * register's filter, so it cannot fire on a keystroke.
+        */}
+      <p className="br-caption" role="status">
         <span className="mono">{records}</span> of <span className="mono">{datasetSize}</span>{' '}
         shipments in the register
         {narrowed && (

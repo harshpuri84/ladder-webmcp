@@ -29,12 +29,22 @@ export function ExposureMeter({
   return (
     <section aria-label="Exposure">
       <span className="lg">Production traffic exposed</span>
-      <span className="mtr-val">{pct(selectedPct)}</span>
-      <span className="mtr-unit">
-        of <span className="rd">{pct(requestedPct)}</span> proposed{' · '}
-        <span className="rd">{marked}</span> of <span className="rd">{requested}</span>{' '}
-        {requested === 1 ? 'site' : 'sites'} latched
-      </span>
+      {/*
+        * The readout, and the only announced thing in the drawer. Everything else here is this
+        * same reading drawn — the bar, the hatched band, the axis — and DESIGN.md Part II's rule
+        * is that the figure above the bar is legible at rest, without watching it move. A screen
+        * reader gets the same guarantee: `role="status"` is polite, so it waits for a gap rather
+        * than cutting across the engineer, and there is exactly one of it, because two would read
+        * one unlatch out twice. It moves only when a latch moves, never on a keystroke.
+        */}
+      <div role="status">
+        <span className="mtr-val">{pct(selectedPct)}</span>
+        <span className="mtr-unit">
+          of <span className="rd">{pct(requestedPct)}</span> proposed{' · '}
+          <span className="rd">{marked}</span> of <span className="rd">{requested}</span>{' '}
+          {requested === 1 ? 'site' : 'sites'} latched
+        </span>
+      </div>
 
       <div className="mtr-scale" role="img" aria-label={`${pct(selectedPct)} of production traffic, on a ${range} percent range`}>
         {TICKS.map(t => <span className="mtr-tick" key={t} style={{ left: `${t}%` }} />)}
