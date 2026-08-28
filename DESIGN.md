@@ -6,6 +6,18 @@ Documented from the shipped implementation on 2026-08-27, not invented. Ladder a
 coherent visual world in code before this file existed. New surfaces **inherit** it. Nothing
 here may be replaced without the user; a new page is an extension, never an identity exercise.
 
+**Two worlds live in this repository, and they are separate on purpose.** Part I, The Printer's
+Proof, governs the air-freight console at `index.html` (`src/ui/`). Part II, The Instrument Rack,
+governs the edge config console at `edge.html` (`src/edge/ui/`). A surface inherits the world of
+the product it belongs to and never borrows from the other one: two products on one engine that
+looked alike would be the strongest possible argument that they are one product wearing two hats,
+which is the opposite of what this repository is trying to show. The binding accessibility
+constraint below is the only thing they share, and it binds both absolutely.
+
+---
+
+# Part I — The freight console
+
 ## The world
 
 **The Printer's Proof.** A change arrives as a proof sheet the operator marks up and stamps.
@@ -125,3 +137,166 @@ panel.
 | The proof (console + panel) | **Operate** | The operator decides fast and correctly, cold, mid-shift |
 | The problem | **Read** | A judge understands the mechanism and its limits without being sold to |
 | Same engine, other work | **Read** | A judge believes the engine is domain-free, and can tell a mockup from the real thing |
+
+
+---
+
+# Part II — The edge console
+
+Documented from the shipped implementation on 2026-08-28. Governs `edge.html` and everything under
+`src/edge/ui/`. It shares the engine (`src/core/`) and the guard (`src/webmcp/`) with Part I and
+shares no token, no face, no component and no ground with it.
+
+## The world
+
+**The Instrument Rack.** A 19-inch anodised rack panel: graphite faces cut into a darker bay,
+every edge an engraved hairline, bone silkscreen legends, and every identifier and figure set as
+a counter readout. The estate is one instrument, read down the column.
+
+Chosen from the audience's own world rather than from the category's: the on-call engineer this
+is built for reads racks, and the rack is the only common artifact whose whole grammar is *many
+identical channels compared at a glance* — which is exactly the task, thirty-six sites judged
+against one another in one look. It refuses the page this category always ships: rounded cards,
+sparklines, and a red or green dot per region.
+
+## Why dark, and why Part I is not
+
+One sentence of scene decides it, in each case. The freight operator is mid-shift in a lit gateway
+office working on paper; the on-call engineer is at 02:40 with one lamp on. The two products are
+not lit the same way because they are not used in the same room.
+
+## The binding constraint, restated
+
+The operator has red-green colour vision deficiency. In this category that rules out its single
+most common convention — the red and green status dot. **There is not one anywhere in
+`src/edge/ui/`.**
+
+Status is carried by **form** first:
+
+| Form | Means |
+|---|---|
+| Hollow legend | Ready; nothing pending |
+| Filled legend | Staged by this operator |
+| Hatched legend | Closed by a rule |
+| Dashed and struck through | Out of rotation |
+| Hollow latch square | This site is not going out |
+| Filled latch square plus a 3px left bracket | Latched |
+| Struck-through target release | Unlatched, said a second time |
+
+Two hues agree with the form and never carry a meaning alone: `--lamp` (amber — closed, held,
+waiting on a person) and `--mark` (cool blue-white — the operator's own latch). They separate
+under both deficiencies by hue and, more usefully here, by luminance: 5.7:1 against 10.9:1 on the
+panel face. Verified on 2026-08-28 by driving the built page under Chrome's own
+`Emulation.setEmulatedVisionDeficiency` at `deuteranopia` and `achromatopsia`; the greyscale pass
+is the real test and every state above survives it.
+
+## Tokens
+
+All defined in `src/edge/ui/panel.css` `:root`. **Never hard-code a colour in a component.**
+
+| Role | Token | Value |
+|---|---|---|
+| Bay (page ground) | `--rack` | `#0C0E11` |
+| Panel face | `--panel` | `#171A1F` |
+| Panel raised (latched, hover, head) | `--panel-hi` | `#1F242A` |
+| Panel sunk (rail, well, unlatched) | `--panel-sunk` | `#101317` |
+| Engraved edge, light above | `--bezel-hi` | `rgba(255,255,255,0.075)` |
+| Engraved edge, dark below | `--bezel-lo` | `rgba(0,0,0,0.62)` |
+| Scored hairline | `--score` | `#262B32` |
+| Scored, structural | `--score-strong` | `#39414A` |
+| Silkscreen (13.8:1) | `--legend` | `#E9E7E1` |
+| Silkscreen secondary (5.9:1) | `--legend-mid` | `#9AA0A6` |
+| Silkscreen faint (non-body tint) | `--legend-dim` | `#6E757C` |
+| Signal lamp (5.7:1) | `--lamp` `--lamp-wash` `--lamp-line` | `#D9922B` + washes |
+| The operator's latch (10.9:1) | `--mark` `--mark-wash` `--mark-line` | `#A6CFF2` + washes |
+
+## Type
+
+Neither face is a package; both resolve from the machine, the convention Part I already keeps.
+
+- **Legend** `--face-legend`: Helvetica Neue, Helvetica, Segoe UI, Liberation Sans, Arial. Only
+  ever set small, `700`, uppercase, tracked `0.13–0.26em`. That is what a silkscreened panel
+  legend is; it is never used for running prose above 13px.
+- **Readout** `--face-mono`: `ui-monospace`, SF Mono, Roboto Mono, Noto Sans Mono, DejaVu Sans
+  Mono — deliberately a different stack from Part I's Menlo-first one, because two products in one
+  repository should not share a typing hand. Applied through `.rd`, which also switches on
+  `tabular-nums` so a column of figures lines up like a counter. Every identifier, every figure,
+  every version, every rule id.
+
+**The scale.** Six sizes, and new work adds none.
+
+| Use | Size |
+|---|---|
+| Meter readout | `34px` |
+| Head readout | `15px` |
+| Row figure, body | `12–13px` |
+| Secondary row text, skip lines | `11–11.5px` |
+| Legend (`.lg`, `.st`, band meta) | `9.5–10.5px` |
+| Head title | `15px` at `0.26em` tracking |
+
+## Shape and depth
+
+- **Zero corner radius. Everywhere.** A rounded corner is out of this world entirely.
+- **Every panel face carries an engraved edge**: `inset 0 1px 0 var(--bezel-hi), inset 0 -1px 0
+  var(--bezel-lo)`. That single recipe is what makes a face read as milled rather than drawn.
+- Depth beyond that is one recipe, for the drawer only: a contact shadow plus a long soft lift,
+  `0 -2px 4px rgba(0,0,0,0.5), 0 -22px 46px -18px rgba(0,0,0,0.95)`.
+- Structure is carried by **scored lines, bands and cut windows**, never by cards. The readout
+  cluster, the region bands and the rail are all divided by 1px rules; there is not a card in the
+  product.
+- The detent field is a 1px `gap` grid over a `--score` ground, so the dividers between latches
+  are the ground showing through rather than borders that could double up.
+
+## Instruments
+
+- **Graticule** (`.gr`) — traffic share against a 0–10% scale with ticks at the quarters. A ruled
+  measurement, not a sparkline.
+- **Exposure meter** (`.mtr-*`) — the blast radius. Range-switching like a bench meter (1 / 5 / 25
+  / 100% full scale, the range printed on the axis), a hatched band for everything the agent asked
+  for and a solid bar for what the operator kept. Hatch against solid, so the pair survives
+  greyscale.
+- **Lamp** (`.lamp`) — a 9px square that is dark or lit. Always beside the word it agrees with.
+- **State legend** (`.st`) — the four forms in the table above.
+- **Detent** (`.dt`) — one latch per site; the whole cell is the control.
+
+**No icons are drawn in this world.** Part I has a six-mark proof vocabulary (`ProofMark`); this
+one has none and needs none, because a panel labels with words and forms rather than with pictures.
+Adding an icon set here is a system change, not a local decision.
+
+## Motion
+
+`--ease: cubic-bezier(0.2, 0.9, 0.25, 1)`. **One authored moment:** a proposal opens the bench
+drawer — it rises 28px over 260ms — and the rack behind it loses the light rather than moving
+(`opacity 0.34`, `saturate(0.5)`, 240ms). No transform on the rack: this is furniture, not a modal.
+The only other transition in the product is the exposure bar's 160ms `scaleX`, and it never carries
+meaning on its own — the figure above it is legible at rest. All of it is disabled under
+`prefers-reduced-motion`.
+
+## Voice
+
+Plain, short, concrete, and in the trade's own words: sites, latches, exposure, converge, freeze,
+rotation. A rule is always named by its id before its sentence (`change-freeze-window — A change
+freeze is in effect…`), because the id is the half a follow-up call can be written against. No
+exclamation, no marketing verbs, no emoji.
+
+## Layout
+
+Full width, no reserved margin. The head panel and autonomy bar are static; the rack is six region
+bands, each a `table-layout: fixed` grid whose column widths are declared once so all six line up
+down the whole face. The run log is `position: fixed` at the bottom. The bench drawer is
+`position: fixed` at the bottom edge at `min(66vh, 640px)`, full width, with a measurement rail on
+the left and the detent field on the right; the run record sits at the same edge and shifts above
+the drawer when both are open.
+
+Below `1180px` the rack sheds requests/sec, nodes and utilisation. Below `900px` it also sheds city
+and the traffic graticule, the drawer goes to `82vh` and stacks its rail above the field, and the
+run record stacks its buckets above the returned payload. Verified with no horizontal overflow at
+1512px and 900px.
+
+## Modes by surface
+
+| Surface | Mode | What success looks like |
+|---|---|---|
+| The rack | **Operate** | The on-call engineer reads the whole estate in one look, cold, at 02:40 |
+| The bench drawer | **Operate** | They cut a thirty-site rollout down and can see the exposure fall as they do |
+| The run record | **Read** | A judge can read what the agent was told without opening a console |

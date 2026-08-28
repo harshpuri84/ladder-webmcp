@@ -1,0 +1,50 @@
+import { pct } from './words';
+
+/**
+ * The blast radius, drawn as an instrument face rather than as a hero number on a card.
+ *
+ * The measurement is the share of ALL production traffic that would begin serving an unproven
+ * release, so the scale has to be a share of the whole or the figure means nothing. A rollout
+ * usually moves two or three percent, which on a 0–100 face is a sliver — true, and worth seeing,
+ * but unreadable. So the face switches range the way a bench meter does, and prints which range
+ * it is on. The dashed outline is everything the agent asked for; the filled bar is what the
+ * operator has actually latched. Watching the second shrink inside the first is the whole
+ * interaction.
+ */
+const RANGES = [1, 5, 25, 100];
+const TICKS = [25, 50, 75];
+
+export function ExposureMeter({
+  selectedPct, requestedPct, marked, requested,
+}: {
+  selectedPct: number;
+  requestedPct: number;
+  marked: number;
+  requested: number;
+}) {
+  const range = RANGES.find(r => requestedPct <= r) ?? 100;
+  const fraction = (v: number) => Math.max(0.006, Math.min(1, v / range));
+  const width = (v: number) => `${fraction(v) * 100}%`;
+
+  return (
+    <section aria-label="Exposure">
+      <span className="lg">Production traffic exposed</span>
+      <span className="mtr-val">{pct(selectedPct)}</span>
+      <span className="mtr-unit">
+        of <span className="rd">{pct(requestedPct)}</span> proposed{' · '}
+        <span className="rd">{marked}</span> of <span className="rd">{requested}</span>{' '}
+        {requested === 1 ? 'site' : 'sites'} latched
+      </span>
+
+      <div className="mtr-scale" role="img" aria-label={`${pct(selectedPct)} of production traffic, on a ${range} percent range`}>
+        {TICKS.map(t => <span className="mtr-tick" key={t} style={{ left: `${t}%` }} />)}
+        <span className="mtr-req" style={{ width: width(requestedPct) }} />
+        <span className="mtr-sel" style={{ transform: `scaleX(${fraction(selectedPct)})` }} />
+      </div>
+      <div className="mtr-axis">
+        <span>0</span>
+        <span>{range}% OF PRODUCTION TRAFFIC</span>
+      </div>
+    </section>
+  );
+}

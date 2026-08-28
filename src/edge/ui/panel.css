@@ -1,0 +1,820 @@
+/*
+ * The Instrument Rack.
+ *
+ * This is the second product on the Ladder engine and it deliberately shares nothing visual with
+ * the first. The freight console is a printer's proof: cream stock, Charter, drawn marks. This is
+ * a 19-inch anodised rack panel: graphite faces cut into a darker bay, engraved hairline edges,
+ * bone silkscreen legends, and every identifier and figure set as a counter readout.
+ *
+ * ── Why dark ──────────────────────────────────────────────────────────────────────────────────
+ * One sentence of scene decides it: an on-call engineer at 02:40, one lamp on, pushing a config
+ * change from a laptop. The freight operator is mid-shift in a lit gateway office and works on
+ * paper. Same engine, two different rooms.
+ *
+ * ── The binding constraint ────────────────────────────────────────────────────────────────────
+ * The operator has red-green colour vision deficiency (PRODUCT.md, "Accessibility & Inclusion").
+ * That rules out the single most common convention in this entire product category: the red and
+ * green status dot. There is not one anywhere in this file.
+ *
+ * Status is carried by FORM first — a legend block that is hollow, filled, hatched or struck —
+ * and by the word printed in it. Two hues confirm what the form already said and never carry a
+ * meaning alone: `--lamp` (incandescent amber: held, closed, needs a person) and `--mark` (cool
+ * blue-white: the operator's own latch). They separate under deuteranopia and protanopia by hue
+ * and, more importantly here, by luminance — 5.7:1 against 10.9:1 on the panel face. Take every
+ * colour out of this interface and nothing in it becomes ambiguous. That is the test, and
+ * .impeccable/cvd/test.html is where it is run.
+ */
+
+:root {
+  /* The bay, and three depths of panel cut into it. */
+  --rack: #0C0E11;
+  --panel: #171A1F;
+  --panel-hi: #1F242A;
+  --panel-sunk: #101317;
+
+  /* An engraved edge is a light hairline above and a dark one below. Every panel gets both. */
+  --bezel-hi: rgba(255, 255, 255, 0.075);
+  --bezel-lo: rgba(0, 0, 0, 0.62);
+
+  /* Scored lines. The rack is built from these, not from boxes. */
+  --score: #262B32;
+  --score-strong: #39414A;
+
+  /* Silkscreen. 13.8:1, 5.9:1, and a tint that never sets text below 14px. */
+  --legend: #E9E7E1;
+  --legend-mid: #9AA0A6;
+  --legend-dim: #6E757C;
+
+  /* Incandescent signal. Held, closed, waiting on a person. 5.7:1 on the panel face. */
+  --lamp: #D9922B;
+  --lamp-wash: rgba(217, 146, 43, 0.10);
+  --lamp-line: rgba(217, 146, 43, 0.42);
+
+  /* The operator's own latch. 10.9:1 on the panel face. */
+  --mark: #A6CFF2;
+  --mark-wash: rgba(166, 207, 242, 0.09);
+  --mark-line: rgba(166, 207, 242, 0.44);
+
+  /*
+   * Neither face is a package; both resolve from the machine, which is the convention this repo
+   * already keeps. The legend face is a tight grotesque set small, tracked and capitalised —
+   * that is what a silkscreened panel legend is. The readout face leads with the system's own
+   * mono, deliberately a different stack from the freight console's Menlo-first one, because two
+   * products in one repo should not share a typing hand.
+   */
+  --face-legend: 'Helvetica Neue', Helvetica, 'Segoe UI', 'Liberation Sans', Arial, sans-serif;
+  --face-mono: ui-monospace, 'SF Mono', SFMono-Regular, 'Roboto Mono', 'Noto Sans Mono',
+    'DejaVu Sans Mono', monospace;
+
+  --ease: cubic-bezier(0.2, 0.9, 0.25, 1);
+  --drawer-h: min(66vh, 640px);
+}
+
+* { box-sizing: border-box; }
+
+html {
+  scrollbar-color: var(--score-strong) var(--rack);
+  background: var(--rack);
+}
+
+body {
+  margin: 0;
+  background: var(--rack);
+  color: var(--legend);
+  font-family: var(--face-legend);
+  font-size: 13px;
+  line-height: 1.45;
+  -webkit-font-smoothing: antialiased;
+}
+
+::selection { background: var(--mark-wash); color: var(--legend); }
+
+:focus-visible {
+  outline: 2px solid var(--mark);
+  outline-offset: 1px;
+}
+
+button { font: inherit; color: inherit; }
+
+/* ── Shared marks ─────────────────────────────────────────────────────────────────────────── */
+
+/* Every identifier, every figure. Tabular so a column of numbers lines up like a readout. */
+.rd {
+  font-family: var(--face-mono);
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: 'tnum' 1;
+  letter-spacing: -0.01em;
+}
+
+/* Silkscreen legend: the only way this interface writes a label. */
+.lg {
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--legend-dim);
+}
+
+/* An engraved edge. Applied to every panel face in the rack. */
+.engraved {
+  box-shadow: inset 0 1px 0 var(--bezel-hi), inset 0 -1px 0 var(--bezel-lo);
+}
+
+hr.score {
+  border: 0;
+  border-top: 1px solid var(--score);
+  margin: 0;
+}
+
+/* ── The shell ────────────────────────────────────────────────────────────────────────────── */
+
+.rk {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  /* The bay behind the panels: a shallow vertical fall-off, not a gradient wash. */
+  background:
+    linear-gradient(180deg, #0F1216 0%, var(--rack) 340px);
+}
+
+/*
+ * The one authored moment. A proposal opens the bench drawer; the rack behind it does what a rack
+ * does when a drawer comes out — it stays exactly where it is and loses the light. No transform,
+ * no scale: this is furniture, not a modal.
+ */
+.rk-body {
+  flex: 1;
+  transition: opacity 240ms var(--ease), filter 240ms var(--ease);
+}
+body.rk-drawn .rk-body {
+  opacity: 0.34;
+  filter: saturate(0.5);
+  pointer-events: none;
+}
+
+/* ── Head panel ───────────────────────────────────────────────────────────────────────────── */
+
+.hd {
+  display: flex;
+  align-items: stretch;
+  justify-content: space-between;
+  gap: 32px;
+  background: var(--panel);
+  border-bottom: 1px solid var(--score-strong);
+  box-shadow: inset 0 1px 0 var(--bezel-hi), 0 1px 0 rgba(0, 0, 0, 0.6);
+  padding: 14px 22px 13px;
+  flex-wrap: wrap;
+}
+
+.hd-id { display: flex; align-items: baseline; gap: 14px; min-width: 0; }
+
+.hd-title {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: 0.26em;
+  text-transform: uppercase;
+  color: var(--legend);
+}
+
+.hd-sub {
+  margin: 0;
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  color: var(--legend-mid);
+}
+
+/* The engine credit, engraved outside the trim the way a maker's plate is. */
+.hd-plate {
+  font-size: 9px;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--legend-dim);
+  border: 1px solid var(--score);
+  padding: 3px 7px;
+  white-space: nowrap;
+}
+
+.hd-readouts {
+  display: flex;
+  align-items: flex-end;
+  gap: 0;
+  flex-wrap: wrap;
+}
+
+/* Readouts sit in cut windows, divided by scored lines rather than by cards. */
+.ro {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 2px 16px;
+  border-left: 1px solid var(--score);
+}
+.ro:first-child { border-left: 0; }
+
+.ro-val {
+  font-size: 15px;
+  color: var(--legend);
+}
+.ro-val--sm { font-size: 12px; }
+
+/* ── Lamp ─────────────────────────────────────────────────────────────────────────────────── */
+
+/*
+ * A lamp is a square that is dark or lit. Never a coloured dot on its own: it always sits beside
+ * the word it agrees with, and the difference between its two states is a fill, not a hue.
+ */
+.lamp {
+  width: 9px;
+  height: 9px;
+  display: inline-block;
+  border: 1px solid var(--score-strong);
+  background: transparent;
+  vertical-align: -1px;
+}
+.lamp--lit {
+  background: var(--lamp);
+  border-color: var(--lamp);
+}
+.lamp--mark {
+  background: var(--mark);
+  border-color: var(--mark);
+}
+
+.hd-lamp { display: flex; align-items: center; gap: 7px; }
+
+/* ── Autonomy bar ─────────────────────────────────────────────────────────────────────────── */
+
+.au {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+  padding: 9px 22px;
+  background: var(--panel-sunk);
+  border-bottom: 1px solid var(--score);
+  box-shadow: inset 0 1px 0 rgba(0, 0, 0, 0.5);
+}
+
+.au-text { font-size: 12px; color: var(--legend-mid); margin: 0; }
+.au-text strong { color: var(--legend); font-weight: 600; }
+
+.au-btn {
+  background: var(--panel-hi);
+  border: 1px solid var(--score-strong);
+  box-shadow: inset 0 1px 0 var(--bezel-hi), inset 0 -1px 0 var(--bezel-lo);
+  color: var(--legend);
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  padding: 6px 12px;
+  cursor: pointer;
+}
+.au-btn:hover { background: #262C34; }
+.au-btn:active { box-shadow: inset 0 2px 3px rgba(0, 0, 0, 0.6); }
+.au-btn--held { border-color: var(--mark-line); color: var(--mark); }
+
+/* ── The rack ─────────────────────────────────────────────────────────────────────────────── */
+
+.rack { padding: 0 0 96px; }
+
+/* One engraved band per region. The band is the group; there is no card around the rows. */
+.band-head {
+  display: flex;
+  align-items: baseline;
+  gap: 14px;
+  padding: 15px 22px 6px;
+  border-top: 1px solid var(--score);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.022), transparent 26px);
+}
+.band-head:first-child { border-top: 0; }
+
+.band-name {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+  color: var(--legend);
+}
+.band-meta { font-size: 10.5px; color: var(--legend-dim); letter-spacing: 0.06em; }
+
+/*
+ * The rows. A table, because it is one: a grid of measurements read down the column.
+ *
+ * Fixed layout with declared column widths, and not for tidiness: there are six of these tables,
+ * one per region band, and an auto layout sizes each one to its own contents. That put SITE,
+ * TRAFFIC and RUNNING at a different x in every band — six instruments bolted into one rack with
+ * none of their scales lining up. A panel's columns run the height of the rack or it is not a
+ * panel. Hiding a header at a narrow width removes its column from this budget, which is what
+ * lets the same declaration serve all three widths.
+ */
+.grid { width: 100%; border-collapse: collapse; table-layout: fixed; }
+.c-site { width: 84px; }
+.c-city { width: 150px; }
+.c-traffic { width: 176px; }
+.c-rps { width: 110px; }
+.c-nodes { width: 74px; }
+.c-util { width: 66px; }
+.c-running { width: 132px; }
+.c-rollout { width: 330px; }
+
+/* The graticule sits at a fixed left edge and the figure reads off the right of the same cell,
+   so the bars form one continuous scale down the rack rather than a ragged one. */
+.tr-cell { display: flex; align-items: center; gap: 12px; }
+.tr-num { margin-left: auto; }
+
+/* Not sticky: there are six tables on this rack, one per region band, and six competing sticky
+   headers is a worse instrument than none. The band head above each one carries the context. */
+.grid thead th {
+  background: var(--panel-sunk);
+  text-align: left;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--legend-dim);
+  padding: 7px 10px;
+  border-bottom: 1px solid var(--score-strong);
+  white-space: nowrap;
+}
+.grid thead th.num { text-align: right; }
+
+.grid td {
+  padding: 6px 10px;
+  border-bottom: 1px solid var(--score);
+  font-size: 12px;
+  color: var(--legend-mid);
+  vertical-align: middle;
+  white-space: nowrap;
+}
+.grid td.num { text-align: right; color: var(--legend); }
+.grid tbody tr:nth-child(even) { background: rgba(255, 255, 255, 0.014); }
+.grid tbody tr:hover { background: rgba(255, 255, 255, 0.04); }
+
+.grid td:first-child, .grid thead th:first-child { padding-left: 22px; }
+.grid td:last-child, .grid thead th:last-child { padding-right: 22px; }
+
+.site-id { color: var(--legend); font-size: 12.5px; }
+.site-city { color: var(--legend-dim); font-size: 11.5px; }
+
+/* Traffic against a graticule: a scale with ticks, not a sparkline. */
+.gr {
+  position: relative;
+  width: 108px;
+  height: 9px;
+  background: var(--panel-sunk);
+  box-shadow: inset 0 1px 0 rgba(0, 0, 0, 0.5);
+  display: inline-block;
+  vertical-align: -1px;
+}
+.gr-tick {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  background: var(--score-strong);
+}
+.gr-bar {
+  position: absolute;
+  top: 1px;
+  bottom: 1px;
+  left: 0;
+  background: var(--legend-dim);
+  min-width: 1px;
+}
+.gr-bar--exposed { background: var(--mark); }
+
+/*
+ * A state legend. Four forms, and the form is what carries the meaning:
+ *   hollow  — ready, nothing pending
+ *   filled  — staged by this operator
+ *   hatched — closed by a rule
+ *   struck  — out of rotation
+ * The colour on the last two agrees with the form; it is never the only thing saying it.
+ */
+.st {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid var(--score-strong);
+  padding: 2px 7px 2px 6px;
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+  color: var(--legend-mid);
+  background: transparent;
+}
+.st--staged {
+  border-color: var(--mark-line);
+  color: var(--mark);
+  background: var(--mark-wash);
+}
+.st--closed {
+  border-color: var(--lamp-line);
+  color: var(--lamp);
+  background-color: var(--lamp-wash);
+  background-image: repeating-linear-gradient(
+    -45deg,
+    rgba(217, 146, 43, 0.20) 0 1px,
+    transparent 1px 5px
+  );
+}
+.st--out {
+  color: var(--legend-dim);
+  border-style: dashed;
+  text-decoration: line-through;
+  text-decoration-thickness: 1px;
+}
+
+.rule-id {
+  font-size: 10.5px;
+  color: var(--lamp);
+  letter-spacing: 0;
+}
+.pending-v { color: var(--mark); }
+
+/* ── Event log ────────────────────────────────────────────────────────────────────────────── */
+
+.log {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 6;
+  background: var(--panel-sunk);
+  border-top: 1px solid var(--score-strong);
+  box-shadow: 0 -1px 0 rgba(0, 0, 0, 0.6);
+  padding: 7px 22px;
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  overflow: hidden;
+}
+.log-line {
+  font-size: 11px;
+  color: var(--legend-mid);
+  white-space: nowrap;
+}
+.log-line--head { color: var(--legend-dim); }
+.log-empty { color: var(--legend-dim); font-size: 11px; letter-spacing: 0.06em; }
+
+/* ── The bench drawer ─────────────────────────────────────────────────────────────────────── */
+
+.dw-scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 8;
+  background: rgba(6, 7, 9, 0.55);
+}
+
+.dw {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 9;
+  height: var(--drawer-h);
+  display: flex;
+  flex-direction: column;
+  background: var(--panel);
+  border-top: 1px solid var(--score-strong);
+  box-shadow:
+    inset 0 1px 0 var(--bezel-hi),
+    0 -2px 4px rgba(0, 0, 0, 0.5),
+    0 -22px 46px -18px rgba(0, 0, 0, 0.95);
+  animation: dw-rise 260ms var(--ease) both;
+}
+
+@keyframes dw-rise {
+  from { transform: translateY(28px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .dw { animation: none; }
+  .rk-body { transition: none; }
+}
+
+.dw-head {
+  display: flex;
+  align-items: baseline;
+  gap: 16px;
+  flex-wrap: wrap;
+  padding: 12px 22px 11px;
+  border-bottom: 1px solid var(--score);
+  background: var(--panel-hi);
+  box-shadow: inset 0 1px 0 var(--bezel-hi);
+}
+.dw-tool { font-size: 12.5px; color: var(--mark); }
+.dw-ask { margin: 0; font-size: 13.5px; color: var(--legend); flex: 1 1 340px; min-width: 0; }
+.dw-state { font-size: 9.5px; font-weight: 700; letter-spacing: 0.16em; text-transform: uppercase; color: var(--lamp); }
+.dw-waiting { font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--legend-dim); }
+
+.dw-main { flex: 1; display: flex; min-height: 0; }
+
+/* Left rail: the measurement half of the bench. */
+.dw-rail {
+  width: 330px;
+  flex: 0 0 330px;
+  border-right: 1px solid var(--score);
+  background: var(--panel-sunk);
+  box-shadow: inset -1px 0 0 rgba(0, 0, 0, 0.4);
+  padding: 16px 20px 20px;
+  overflow-y: auto;
+}
+
+.mtr-val {
+  font-family: var(--face-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: 34px;
+  line-height: 1;
+  letter-spacing: -0.02em;
+  color: var(--legend);
+  display: block;
+  margin: 6px 0 2px;
+}
+.mtr-unit { font-size: 11px; color: var(--legend-mid); letter-spacing: 0.04em; }
+
+/* The exposure scale. A ruled instrument face: ticks at the quarters, a hatched band for
+   everything the agent asked for and a solid bar for what the operator kept. Hatch against solid,
+   not colour against colour — the two are still two things with every hue removed. */
+.mtr-scale {
+  position: relative;
+  height: 26px;
+  margin: 13px 0 5px;
+  background: var(--rack);
+  box-shadow: inset 0 1px 0 rgba(0, 0, 0, 0.6), inset 0 0 0 1px var(--score);
+}
+.mtr-req {
+  position: absolute;
+  top: 4px;
+  bottom: 4px;
+  left: 0;
+  min-width: 2px;
+  border-right: 1px solid var(--legend-mid);
+  background-image: repeating-linear-gradient(
+    -45deg,
+    rgba(154, 160, 166, 0.34) 0 1px,
+    transparent 1px 5px
+  );
+}
+/* Driven by transform rather than by width: the bar moves on every latch the operator throws,
+   and a width transition asks the browser for a layout pass each frame to animate a solid fill
+   that scaleX draws exactly. */
+.mtr-sel {
+  position: absolute;
+  top: 4px;
+  bottom: 4px;
+  left: 0;
+  right: 0;
+  background: var(--mark);
+  transform-origin: left center;
+  transition: transform 160ms var(--ease);
+}
+.mtr-tick { position: absolute; top: 0; bottom: 0; width: 1px; background: var(--score-strong); }
+.mtr-axis { display: flex; justify-content: space-between; }
+.mtr-axis span { font-size: 9px; letter-spacing: 0.1em; color: var(--legend-dim); font-family: var(--face-mono); }
+
+.rail-block { margin-top: 22px; padding-top: 14px; border-top: 1px solid var(--score); }
+.rail-row { display: flex; justify-content: space-between; gap: 12px; font-size: 12px; color: var(--legend-mid); padding: 3px 0; }
+.rail-row b { color: var(--legend); font-weight: 500; }
+
+.skip { padding: 9px 0 2px; border-bottom: 1px solid var(--score); }
+.skip:last-child { border-bottom: 0; }
+.skip-line { margin: 0 0 3px; font-size: 12px; color: var(--legend-mid); }
+.skip-line b { color: var(--lamp); font-weight: 400; }
+.skip-ids { margin: 0; font-size: 11px; color: var(--legend-dim); }
+
+/* Right: the detent field. One latch per site. */
+.dw-field {
+  flex: 1;
+  min-width: 0;
+  overflow-y: auto;
+  padding: 14px 20px 18px;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(238px, 1fr));
+  gap: 1px;
+  background: var(--score);
+  align-content: start;
+}
+
+.dt {
+  display: block;
+  width: 100%;
+  text-align: left;
+  border: 0;
+  cursor: pointer;
+  padding: 9px 11px 10px;
+  background: var(--panel-sunk);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03), inset 0 -1px 0 rgba(0, 0, 0, 0.4);
+  transition: background 120ms var(--ease);
+}
+.dt:hover { background: #171B20; }
+.dt--on {
+  background: var(--panel-hi);
+  box-shadow:
+    inset 3px 0 0 var(--mark),
+    inset 0 1px 0 var(--bezel-hi),
+    inset 0 -1px 0 var(--bezel-lo);
+}
+.dt--on:hover { background: #262C34; }
+
+.dt-top { display: flex; align-items: center; gap: 8px; }
+.dt-latch {
+  width: 11px;
+  height: 11px;
+  flex: 0 0 11px;
+  border: 1px solid var(--legend-dim);
+  background: transparent;
+}
+.dt--on .dt-latch { background: var(--mark); border-color: var(--mark); }
+.dt-id { font-size: 12.5px; color: var(--legend-mid); }
+.dt--on .dt-id { color: var(--legend); }
+.dt-city { margin-left: auto; font-size: 10px; letter-spacing: 0.13em; text-transform: uppercase; color: var(--legend-dim); }
+
+.dt-mode {
+  margin: 7px 0 0;
+  font-size: 11px;
+  color: var(--legend-dim);
+  display: flex;
+  gap: 9px;
+  flex-wrap: wrap;
+}
+.dt--on .dt-mode { color: var(--legend-mid); }
+.dt-mode b { font-weight: 700; letter-spacing: 0.13em; text-transform: uppercase; font-size: 9.5px; color: var(--legend-mid); }
+.dt--on .dt-mode b { color: var(--mark); }
+
+.dt-ver { margin: 5px 0 0; font-size: 11px; color: var(--legend-dim); }
+.dt-ver .to { color: var(--legend-mid); }
+.dt--on .dt-ver .to { color: var(--mark); }
+
+/* An unlatched site is struck through, so "not going out tonight" is legible with no colour. */
+.dt--off .dt-ver .to { text-decoration: line-through; text-decoration-thickness: 1px; }
+
+/* A held page. Same field, different instrument: it is not a record and is never a diff. */
+.dt--page { background: var(--panel-sunk); }
+.dt--page .dt-latch { border-color: var(--lamp); }
+.dt--page.dt--on { box-shadow: inset 3px 0 0 var(--lamp), inset 0 1px 0 var(--bezel-hi), inset 0 -1px 0 var(--bezel-lo); }
+.dt--page.dt--on .dt-latch { background: var(--lamp); border-color: var(--lamp); }
+.dt-page-msg { margin: 6px 0 0; font-size: 11.5px; color: var(--legend-mid); white-space: normal; }
+
+/* ── Drawer foot ──────────────────────────────────────────────────────────────────────────── */
+
+.dw-foot {
+  display: flex;
+  align-items: stretch;
+  gap: 1px;
+  border-top: 1px solid var(--score-strong);
+  background: var(--score);
+}
+
+.commit {
+  flex: 1;
+  display: flex;
+  align-items: baseline;
+  gap: 14px;
+  padding: 13px 22px;
+  background: var(--panel-hi);
+  border: 0;
+  box-shadow: inset 0 1px 0 var(--bezel-hi), inset 0 -1px 0 var(--bezel-lo);
+  cursor: pointer;
+  text-align: left;
+  color: var(--legend);
+}
+.commit:hover:not(:disabled) { background: #2A3138; }
+.commit:active:not(:disabled) { box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.65); }
+.commit:disabled { cursor: not-allowed; color: var(--legend-dim); background: var(--panel-sunk); }
+
+.commit-grade {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--mark);
+}
+.commit:disabled .commit-grade { color: var(--legend-dim); }
+.commit-count { font-family: var(--face-mono); font-variant-numeric: tabular-nums; font-size: 15px; }
+.commit-sub { font-size: 11.5px; color: var(--legend-mid); }
+
+.abort {
+  padding: 13px 22px;
+  background: var(--panel);
+  border: 0;
+  box-shadow: inset 0 1px 0 var(--bezel-hi), inset 0 -1px 0 var(--bezel-lo);
+  cursor: pointer;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--legend-mid);
+}
+.abort:hover { background: var(--panel-hi); color: var(--legend); }
+
+/* ── Run record ───────────────────────────────────────────────────────────────────────────── */
+
+.rr {
+  position: fixed;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 10;
+  background: var(--panel);
+  border-top: 1px solid var(--score-strong);
+  box-shadow: inset 0 1px 0 var(--bezel-hi), 0 -20px 44px -20px rgba(0, 0, 0, 0.95);
+  animation: dw-rise 220ms var(--ease) both;
+  max-height: min(56vh, 520px);
+  display: flex;
+  flex-direction: column;
+}
+.rr--shifted { bottom: var(--drawer-h); }
+
+.rr-head {
+  display: flex;
+  align-items: baseline;
+  gap: 16px;
+  flex-wrap: wrap;
+  padding: 11px 22px;
+  border-bottom: 1px solid var(--score);
+  background: var(--panel-hi);
+}
+.rr-verdict {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+}
+.rr-verdict--applied { color: var(--mark); }
+.rr-verdict--held { color: var(--lamp); }
+.rr-tool { font-size: 12.5px; color: var(--legend-mid); }
+.rr-dismiss {
+  margin-left: auto;
+  background: transparent;
+  border: 1px solid var(--score-strong);
+  color: var(--legend-mid);
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  padding: 5px 10px;
+  cursor: pointer;
+}
+.rr-dismiss:hover { color: var(--legend); border-color: var(--legend-dim); }
+
+.rr-body { display: flex; min-height: 0; flex: 1; }
+.rr-buckets { flex: 1; min-width: 0; padding: 13px 22px 18px; overflow-y: auto; }
+.rr-line { margin: 0 0 3px; font-size: 12.5px; color: var(--legend-mid); }
+.rr-line b { color: var(--legend); font-weight: 500; }
+.rr-ids { margin: 0 0 11px; font-size: 11px; color: var(--legend-dim); }
+.rr-bucket { padding: 8px 0; border-top: 1px solid var(--score); }
+.rr-bucket:first-of-type { border-top: 0; }
+
+/* What actually left the page. The judge asked for it; it goes on the panel. */
+.rr-wire {
+  width: 46%;
+  flex: 0 0 46%;
+  border-left: 1px solid var(--score);
+  background: var(--rack);
+  padding: 13px 18px 18px;
+  overflow: auto;
+  box-shadow: inset 1px 0 0 rgba(0, 0, 0, 0.5);
+}
+.rr-wire pre {
+  margin: 8px 0 0;
+  font-family: var(--face-mono);
+  font-size: 11px;
+  line-height: 1.55;
+  color: var(--legend-mid);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+/* ── Narrow ───────────────────────────────────────────────────────────────────────────────── */
+
+@media (max-width: 1180px) {
+  .col-rps, .col-nodes, .col-util { display: none; }
+  .dw-rail { width: 280px; flex-basis: 280px; }
+}
+
+@media (max-width: 900px) {
+  :root { --drawer-h: 82vh; }
+  .hd { gap: 14px; padding: 12px 16px; }
+  .hd-plate { display: none; }
+  .ro { padding: 2px 11px; }
+  .grid td:first-child, .grid thead th:first-child { padding-left: 16px; }
+  .grid td:last-child, .grid thead th:last-child { padding-right: 16px; }
+  .band-head { padding: 13px 16px 6px; }
+  .col-city, .col-graticule { display: none; }
+  .dw-main { flex-direction: column; }
+  .dw-rail {
+    width: auto;
+    flex: 0 0 auto;
+    border-right: 0;
+    border-bottom: 1px solid var(--score);
+    padding: 13px 16px 15px;
+    overflow: visible;
+  }
+  .dw-field { padding: 12px 16px 16px; }
+  .rr-body { flex-direction: column; }
+  .rr-wire { width: auto; flex: 1 1 auto; border-left: 0; border-top: 1px solid var(--score); }
+}
