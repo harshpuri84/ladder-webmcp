@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { render, screen, cleanup, waitFor } from '@testing-library/react';
+import { render, screen, cleanup, waitFor, fireEvent } from '@testing-library/react';
 
 /**
  * The urgent fix: tools register at module evaluation via a namespace read exactly once
@@ -119,5 +119,63 @@ describe('App: the shell is as wide as the tab under it needs', () => {
       expect(panel!.classList.contains('app-sheet')).toBe(true);
       unmount();
     }
+  });
+});
+
+/**
+ * A judge filters the register down to one consol, opens the problem tab to find out what a
+ * consol is, and comes back — and the filter has to still be there. `ProofPage` is only
+ * rendered while `tab === 'proof'`, so everything `Console` holds in component state goes with
+ * it on the way out and comes back cleared.
+ *
+ * The filter is the visible half of the defect. The "Simulate a buggy tool" toggle is the
+ * dangerous half: the checkbox is component state but the flag it sets
+ * (`setBuggyToolEnabled`) is module state in `domain/tools.ts`, so a remount used to reset the
+ * box while leaving the tool armed. The register would then say the buggy tool is off while
+ * `propose_remedy` was still rewriting an SLA tier at commit time — a demo beat failing on
+ * camera with the one control that explains it reading the opposite of the truth.
+ */
+describe("App: the register's working state survives a tab round trip", () => {
+  beforeEach(() => {
+    vi.resetModules();
+    (document as any).modelContext = { registerTool: vi.fn(), unregisterTool: vi.fn() };
+    window.location.hash = '#/proof';
+  });
+
+  afterEach(() => {
+    cleanup();
+    delete (document as any).modelContext;
+    window.location.hash = '';
+  });
+
+  const goTo = (name: string) => fireEvent.click(screen.getByRole('tab', { name }));
+
+  it('keeps the filter and the buggy-tool toggle across a trip to the problem tab and back', async () => {
+    const { store } = await import('../domain/store');
+    const { default: App } = await import('../App');
+    render(<App />);
+
+    const total = Object.keys(store.state.shipments).length;
+    const consol = Object.values(store.state.shipments)[0].consol;
+    const expected = Object.values(store.state.shipments).filter(s => s.consol === consol).length;
+    expect(expected).toBeLessThan(total);
+
+    fireEvent.change(screen.getByPlaceholderText(/Filter by/i), { target: { value: consol } });
+    fireEvent.click(screen.getByLabelText(/Simulate a buggy tool/i));
+
+    expect(screen.getByText(`${expected} of ${total} house shipments`)).toBeTruthy();
+    expect((screen.getByLabelText(/Simulate a buggy tool/i) as HTMLInputElement).checked).toBe(true);
+
+    goTo('The problem');
+    expect(screen.queryByPlaceholderText(/Filter by/i)).toBeNull();
+
+    goTo('The proof');
+
+    expect((screen.getByPlaceholderText(/Filter by/i) as HTMLInputElement).value).toBe(consol);
+    expect(screen.getByText(`${expected} of ${total} house shipments`)).toBeTruthy();
+    expect((screen.getByLabelText(/Simulate a buggy tool/i) as HTMLInputElement).checked).toBe(true);
+
+    // Leave the module-scope demo flag as this file found it.
+    fireEvent.click(screen.getByLabelText(/Simulate a buggy tool/i));
   });
 });

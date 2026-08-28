@@ -1,10 +1,13 @@
 // @vitest-environment jsdom
-import { describe, it, expect, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent, act, cleanup } from '@testing-library/react';
-import { Console } from '../Console';
+import { Console, resetConsoleSession } from '../Console';
 import { store } from '../../domain/store';
 
 afterEach(() => cleanup());
+// The filter and the buggy-tool box outlive a mount on purpose (they have to survive a tab
+// round trip), so they also outlive an `it` in the same module registry. Put them back.
+beforeEach(resetConsoleSession);
 
 const totalShipments = Object.keys(store.state.shipments).length;
 const setFilter = (value: string) => {
@@ -144,5 +147,40 @@ describe('Console external edit bumps the version the guard reads', () => {
     expect(target.version).toBe(before.version + 1);
     expect(target.revenueEur).toBe(before.revenue + 25);
     expect(screen.getByText(`v${before.version + 1}`)).toBeTruthy();
+  });
+});
+
+/**
+ * The unit under the App-level round-trip test in `src/__tests__/App.test.tsx`. `ProofPage` is
+ * only rendered while the proof tab is open, so `Console` is genuinely unmounted and remounted
+ * every time a judge reads the problem tab and comes back — and both working controls have to
+ * come back with it.
+ *
+ * The checkbox is the one that could fail on camera. `setBuggyToolEnabled` writes module state
+ * in `domain/tools.ts` that no unmount clears, so a box seeded from `false` used to read "off"
+ * while `propose_remedy` was still armed to rewrite an SLA tier at commit time.
+ */
+describe('Console keeps its working state across an unmount', () => {
+  it('brings the filter and the buggy-tool box back on remount', () => {
+    const target = rows()[3];
+    const { unmount } = render(<Console />);
+
+    setFilter(target.id);
+    fireEvent.click(screen.getByLabelText(/Simulate a buggy tool/i));
+    expect(screen.getByText(`1 of ${totalShipments} house shipments`)).toBeTruthy();
+
+    unmount();
+    render(<Console />);
+
+    expect((screen.getByPlaceholderText(/Filter by/i) as HTMLInputElement).value).toBe(target.id);
+    expect(screen.getByText(`1 of ${totalShipments} house shipments`)).toBeTruthy();
+    expect((screen.getByLabelText(/Simulate a buggy tool/i) as HTMLInputElement).checked).toBe(true);
+  });
+
+  it('starts a fresh page load clean', () => {
+    render(<Console />);
+    expect((screen.getByPlaceholderText(/Filter by/i) as HTMLInputElement).value).toBe('');
+    expect(screen.getByText(`${totalShipments} of ${totalShipments} house shipments`)).toBeTruthy();
+    expect((screen.getByLabelText(/Simulate a buggy tool/i) as HTMLInputElement).checked).toBe(false);
   });
 });

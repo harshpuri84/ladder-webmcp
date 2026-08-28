@@ -57,15 +57,52 @@ const revenue = new Intl.NumberFormat('en-GB', {
   maximumFractionDigits: 0,
 });
 
+/**
+ * The register's two working controls, held at module scope as well as in component state.
+ * `ProofPage` — and this table with it — is only rendered while the proof tab is open, so
+ * anything kept in component state alone is thrown away the moment a judge leaves for the
+ * problem tab to read what a consol is, and is back to empty when they return. Module scope is
+ * the same device `ProofPage`'s own `graceElapsedOnce` uses, for the same reason: what these
+ * two hold is a page load's worth of memory, not a mount's.
+ *
+ * The buggy-tool box is the half that could fail in front of a camera. The flag it sets lives
+ * at module scope in `domain/tools.ts` and nothing clears it on unmount, so seeding the box
+ * from `useState(false)` on the way back in put it visually back to off while `propose_remedy`
+ * stayed armed to rewrite an SLA tier at commit time — the one control that explains the beat
+ * reading the opposite of what the tool was doing. Seeding from the same cell that wrote the
+ * flag is what keeps the two saying the same thing.
+ *
+ * Deliberately not lifted into `App`: state ownership stays here, where the filtering is, and
+ * the alternative — keeping the whole page mounted and hidden behind `.app-tab-offstage` the
+ * way `ActivityList` is — would park a 42-row table and a second `<main>` in the DOM of both
+ * prose tabs to preserve two scalars.
+ */
+const session = { filter: '', buggyTool: false };
+
+/** Test-only. The cell above deliberately outlives a mount; a test file is many page loads in
+ *  one module registry, so a suite that touches either control has to put it back — including
+ *  the domain flag, which is half of the pair this fix exists to keep in agreement. */
+export function resetConsoleSession(): void {
+  session.filter = '';
+  session.buggyTool = false;
+  setBuggyToolEnabled(false);
+}
+
 export function Console() {
   // Subscribed for the re-render only: the snapshot is a counter, because the state object
   // is mutated in place and never changes identity. Memoising the rows against a mutable
   // store is what made this table go stale after a commit, so the filter runs each render.
   useSyncExternalStore(subscribe, getSnapshot);
-  const [filter, setFilter] = useState('');
-  const [buggyTool, setBuggyTool] = useState(false);
+  const [filter, setFilterState] = useState(session.filter);
+  const [buggyTool, setBuggyTool] = useState(session.buggyTool);
+
+  const setFilter = (value: string) => {
+    session.filter = value;
+    setFilterState(value);
+  };
 
   const toggleBuggyTool = (on: boolean) => {
+    session.buggyTool = on;
     setBuggyTool(on);
     setBuggyToolEnabled(on);
   };
