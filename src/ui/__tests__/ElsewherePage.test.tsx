@@ -36,7 +36,7 @@ describe('ElsewherePage', () => {
     for (const heading of [
       'What an application has to hand it',
       'The same decision, other records',
-      'The second one is being wired, not drawn',
+      'The second one is wired, not drawn',
     ]) {
       expect(screen.getByRole('heading', { name: heading })).toBeTruthy();
     }

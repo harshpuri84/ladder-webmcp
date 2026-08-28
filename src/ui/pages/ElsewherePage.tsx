@@ -147,19 +147,21 @@ export function ElsewherePage() {
       </section>
 
       <section className="pr-sec">
-        <h2 className="pr-h">The second one is being wired, not drawn</h2>
+        <h2 className="pr-h">The second one is wired, not drawn</h2>
         <MarginNote caption="Guarded">
           A test asserts this link is a real address and fails until it is. The site cannot ship
           with a dead pointer standing where the proof is meant to be.
         </MarginNote>
         <p className="pr-p">
           Two products on one engine is a claim, and a picture of the second one would not settle
-          it. So the second one is being built: an edge configuration rollout with its own Vite
+          it. So the second one was built instead: an edge configuration rollout with its own Vite
           entry, its own design language, and nothing shared with the freight application except{' '}
-          <Code>src/core/</Code> and <Code>src/webmcp/</Code>.
+          <Code>src/core/</Code> and <Code>src/webmcp/</Code>. A test walks the import graph in
+          both directions on every run, because that is the kind of claim one convenient import
+          quietly undoes.
         </p>
         <p className="pr-p">
-          It is not finished as this is written. Its address goes here:{' '}
+          Open it and put a proposal through it:{' '}
           {linkIsReal
             ? <a className="pr-link mono" href={SECOND_PRODUCT_HREF}>{SECOND_PRODUCT_HREF}</a>
             : (

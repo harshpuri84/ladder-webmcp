@@ -32,7 +32,7 @@
   /* Ink. 16.2:1, 7.0:1 and a non-text tint. */
   --ink: #17150F;
   --ink-muted: #56514A;
-  --ink-faint: #8C8677;
+  --ink-faint: #6C6659;
 
   /* Rules, in the two weights a proof sheet actually uses. */
   --rule: #CFC8B5;
@@ -2084,13 +2084,15 @@ body.pp-active .console-table td {
 
 /*
  * While a proposal is open, the panel takes a fixed 560px off the right edge (see
- * --panel-width) and the console gets whatever the viewport has left. Measured 27 Aug 2026:
- * that leftover clears the register's full nine-column floor (~900px, the `pp-active`
- * padding rule above already squeezes it that far) only above roughly 1514px viewport width
- * — below 1512px it was still 2px short, above 1514px it had 2px to spare. This breakpoint
- * sits a little under that line on purpose, so a font substitution or a scrollbar gutter on
- * some other platform doesn't tip a viewport just above 1514px back into the overflow this
- * is meant to end.
+ * --panel-width) and the console gets whatever the viewport has left. The 27 Aug 2026
+ * measurement behind the first version of this rule put that line at ~1514px and was wrong:
+ * it counted the table against the leftover width but not the shell's own horizontal chrome.
+ * Re-measured 28 Aug 2026 by dispatching real clicks and reading scrollWidth, the nine-column
+ * register needs 900px of table plus 178px of chrome beside a 560px panel, so it does not fit
+ * below 1638px. The old 1500px breakpoint therefore had a dead band: at 1501px all nine
+ * columns rendered and 137px of them were cut off the right edge mid-word, and at 1512px —
+ * the default width of the laptop this is demonstrated on — 126px were. This sits one pixel
+ * under the real line.
  *
  * Below it, the console and the panel stop competing for that room by the register giving
  * up the columns a decision does not need — who the customer is, which consol, which SLA
@@ -2101,7 +2103,7 @@ body.pp-active .console-table td {
  * before and rejected: a scrollbar during a decision hides the exact columns that make the
  * decision legible behind a scroll gesture, at the moment they matter most.
  */
-@media (max-width: 1500px) {
+@media (max-width: 1637px) {
   body.pp-active .console-table th:nth-child(2),
   body.pp-active .console-table td:nth-child(2),
   body.pp-active .console-table th:nth-child(3),

@@ -158,8 +158,9 @@ export function ProblemPage() {
       <section className="pr-sec">
         <h2 className="pr-h">Thursday, <span className="mono">19:40</span></h2>
         <MarginNote caption="Counted, not typed">
-          Every figure in this scene is read off the same register the proof tab operates on.
-          Change the fixture and this paragraph changes with it.
+          The consolidations, the shipments and the customers are read off the same register the
+          proof tab operates on; change the fixture and those three change with them. The
+          durations are written down, and are not claimed to be anything else.
         </MarginNote>
         <p className="pr-p">
           A flight from {DISRUPTED_FLIGHT.origin} to {DISRUPTED_FLIGHT.destination} is

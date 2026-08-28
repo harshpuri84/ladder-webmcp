@@ -43,7 +43,7 @@
   /* Silkscreen. 13.8:1, 5.9:1, and a tint that never sets text below 14px. */
   --legend: #E9E7E1;
   --legend-mid: #9AA0A6;
-  --legend-dim: #6E757C;
+  --legend-dim: #838A91;
 
   /* Incandescent signal. Held, closed, waiting on a person. 5.7:1 on the panel face. */
   --lamp: #D9922B;
