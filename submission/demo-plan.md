@@ -1,30 +1,50 @@
 # Recording plan — Sunday 30 August
 
-## The one decision that shapes everything
+## Shape: split screen, you record, I drive
 
-**The tool calls on camera must be made by a real agent in a real WebMCP runtime.**
+Left half of the MacBook screen: the terminal running this session. Right half: a Chromium window
+I control. You start the screen recording and do nothing else; every navigation, tool call,
+untick and apply is executed from the terminal side, so the two halves move together and the
+picture is deterministic. Narration is synthesized afterwards from `demo-script.md` and laid over
+the cut.
 
-The tempting alternative is to drive everything with Playwright and a fake `document.modelContext`,
-which is deterministic and would let the whole recording be automated. Do not do it. There is no
-agent in that setup, so the agent pane would be a transcript we wrote — and a video that shows a
-scripted pane as if a model produced it is a fabrication, on a submission whose strongest asset is
-that it states its own limits. It is also the single thing most likely to be noticed by the people
-judging it.
+**This was rehearsed end to end on 28 August, not planned on paper.** The full beat sequence ran:
+tool call, panel at 23 marked, three unticked, stamp changing grade, apply, and the returned
+payload reading `requested 27 · applied 20 · 4 referred · 3 removed`. It works.
 
-So the recording is **not** fully automated. Playwright rehearses; a real agent records.
+## The one thing to say out loud, because it is true
+
+No shipping browser yet lets an outside agent call a page's WebMCP tools. Chrome's flag registers
+them; nothing lets a third party invoke them. So the calls in this video go through the page's own
+registration rather than the browser's transport. **Everything after the call — the preview
+against a forked state, the guard, the commit, the rollback, the structured refusal — is the
+production path, unchanged.**
+
+That belongs in the description and, in one clause, in beat 2. It costs nothing: the submission
+already says no browser implements the interaction hook, and a judge who spots an unstated
+shortcut will discount everything else. A judge who is told plainly will not.
+
+**What we will not do:** script the agent pane and present it as a model's output. That is a
+fabrication, and it is the one thing that would make every honest claim in this project worthless.
 
 ## The setup
 
 | Piece | What |
 |---|---|
-| Browser | **Chrome 149+** with `chrome://flags/#enable-webmcp-testing` enabled, restarted |
-| Agent | A terminal agent driving the page, side by side with the browser |
-| Capture | Screen recorder with the window at **1512 wide or more** |
-| Voice | Narration from `demo-script.md`, synthesized, laid on after the picture is cut |
+| Browser | Chromium driven from the terminal, viewport **1512 x 945** |
+| URLs | `http://localhost:5190/?demo#/proof` and `http://localhost:5190/edge.html?demo` |
+| Terminal | This session, left half of the screen |
+| Capture | Your screen recorder, full screen, both halves in frame |
+| Voice | `demo-script.md`, synthesized, laid over the cut afterwards |
 
-**Not ChatGPT desktop.** Its registration path was fixed but never verified in that runtime, and
-it is parked. Chrome with the flag is the known-good route and the reference demo in this space
-used the same shape — a real browser beside a terminal agent.
+**Why localhost and `?demo` rather than the live URL:** the dev double is the only way an outside
+caller can reach the registered tools at all, and it is gated out of the production build on
+purpose. Its own source says it plainly: *"It is NOT WebMCP and it does not pretend to be."*
+Everything downstream of the call is identical to production.
+
+**Try ChatGPT desktop once in rehearsal.** If its built-in browser registers the tools and a real
+model calls one, re-shoot beats 3 to 6 there and the transport caveat disappears entirely. It was
+fixed but never verified, so treat it as a bonus, not the plan.
 
 ## Pre-flight, in order
 
