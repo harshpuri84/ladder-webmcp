@@ -3,6 +3,7 @@ import { registerWhenReady } from '../webmcp/adapter';
 import { registerEdgeTools } from './tools';
 import { edgeStore } from './store';
 import { HeadPanel } from './ui/HeadPanel';
+import { OperatingPlate } from './ui/OperatingPlate';
 import { AutonomyBar } from './ui/AutonomyBar';
 import { AuthorityBar } from './ui/AuthorityBar';
 import { Rack } from './ui/Rack';
@@ -23,6 +24,7 @@ export default function EdgeApp() {
     <div className="rk">
       <div className="rk-body">
         <HeadPanel />
+        <OperatingPlate />
         <AutonomyBar />
         <AuthorityBar />
         <Rack />

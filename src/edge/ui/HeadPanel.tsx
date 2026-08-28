@@ -45,8 +45,12 @@ export function HeadPanel() {
         <div className="ro">
           <span className="lg">WebMCP</span>
           <span className="hd-lamp">
-            {/* The lamp never states this on its own: the word beside it says the same thing. */}
-            <span className={live ? 'lamp lamp--lit' : 'lamp'} aria-hidden="true" />
+            {/* Mark blue when present, not lamp amber. This file's own token comment reserves
+                `--lamp` for held, closed, needs a person — a runtime that IS present is none of
+                those, and lighting the amber for it would leave the one hue in this instrument
+                that carries meaning saying two opposite things on one screen. The word beside it
+                says the same thing either way; the lamp only ever agrees. */}
+            <span className={live ? 'lamp lamp--mark' : 'lamp'} aria-hidden="true" />
             <span className="ro-val ro-val--sm rd">{live ? 'present' : 'absent'}</span>
           </span>
         </div>
