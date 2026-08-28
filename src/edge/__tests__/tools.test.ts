@@ -71,14 +71,26 @@ describe('edge tools through the real preview-and-commit path', () => {
     );
     // All four eu-north sites are still on 2026.08.19-3, so all four are candidates.
     expect(proposal!.diff.groups).toHaveLength(4);
-    expect(payload.applied).toBe(3);
+    // cph1 and arn1 have eight nodes each and take a staged rollout — a tenth of 1.5% and of
+    // 1.3%, so 0.15% and 0.13% of production traffic — and are the release engineer's to commit.
+    // osl1 and hel1 are single-node sites with no tenth to hold back, so they go all at once and
+    // expose their whole share (1.00% and 0.80%). Both are above the 0.50% limit, so both go to
+    // the traffic lead rather than being applied here — including hel1, which the operator also
+    // struck out. It is accounted for once, as referred rather than as removed.
+    expect(payload.applied).toBe(2);
     expect(payload.status).toBe('partially_applied');
     expect(edgeStore.state.pops.hel1.pendingVersion).toBeNull();
-    expect(edgeStore.state.pops.osl1.pendingVersion).toBe('2026.08.27-1');
-    expect(edgeStore.state.pops.osl1.rolloutMode).toBe('immediate');
+    expect(edgeStore.state.pops.osl1.pendingVersion).toBeNull();
+    expect(edgeStore.state.pops.osl1.rolloutMode).toBeNull();
     expect(edgeStore.state.pops.arn1.rolloutMode).toBe('staged');
+    expect(edgeStore.state.pops.cph1.rolloutMode).toBe('staged');
     expect(payload.rejected).toEqual([
-      { count: 1, reason: 'the operator removed these from the change', ids: ['hel1'] },
+      {
+        count: 2,
+        reason: "above the release engineer's 0.50% of production traffic exposure authority — referred to a traffic lead, not refused",
+        ids: ['osl1', 'hel1'],
+        pending: 'traffic lead',
+      },
     ]);
   });
 
@@ -103,11 +115,53 @@ describe('edge tools through the real preview-and-commit path', () => {
     const { payload } = await run('roll_config', { region: 'latam', mode: 'immediate' }, groups =>
       ({ groups: groups.map((g: any) => g.group), actions: [] }),
     );
-    // bog1 is behind the compatibility floor; the rest of latam can take it all at once.
+    // bog1 is behind the compatibility floor, so the rule closes it before the drawer opens and
+    // it is never previewed. The other four are open to an immediate rollout and expose their
+    // whole share — gru1 2.80%, scl1 0.90%, gru2 0.80%, eze1 0.60% of production traffic — so
+    // every one of them is above the release engineer's 0.50% and is referred rather than
+    // applied. Both layers are visible in the same payload: one bucket names a rule id, the
+    // other names the authority boundary, and nothing latched either way.
     const skew = payload.rejected.find((r: any) => r.reason.startsWith('version-skew-floor'));
     expect(skew.ids).toEqual(['bog1']);
-    expect(edgeStore.state.pops.gru1.rolloutMode).toBe('immediate');
+    expect(payload.referred)
+      .toEqual({ count: 4, ids: ['gru1', 'scl1', 'gru2', 'eze1'], awaiting: 'traffic lead' });
+    expect(edgeStore.state.pops.gru1.rolloutMode).toBeNull();
     expect(edgeStore.state.pops.bog1.rolloutMode).toBeNull();
+  });
+
+  it('a forced mode lands where the rule leaves it open and the exposure is the operator’s own', async () => {
+    // The companion to the case above, and the half that proves a forced mode actually applies.
+    //
+    // Two honest routes were available once the limit moved to 0.50%: act as the traffic lead,
+    // whose 10% clears everything, or force a mode whose exposure genuinely sits inside the
+    // release engineer's own authority. This takes the second, because it is what the operator in
+    // front of this console would actually do next — the immediate rollout above came back
+    // referred, so they stage it instead, which is the entire reason a cautious mode exists.
+    // Switching role to get a green test would only show that the boundary can be stepped around,
+    // not that a forced mode works; the 0.50% figure is deliberate and nothing here dodges it.
+    //
+    // `staged` exposes a tenth of a site's share, so latam's multi-node sites land at 0.28%,
+    // 0.09% and 0.08% of production traffic — all inside the limit, none referred. eze1 and bog1
+    // have one node each and no tenth to hold back, so `single-node-no-slice` closes them before
+    // the drawer: the rule layer still bites, and it is a different rule from the compatibility
+    // floor the forced-immediate case hit, which is what makes the pair worth having.
+    const { payload } = await run('roll_config', { region: 'latam', mode: 'staged' }, groups =>
+      ({ groups: groups.map((g: any) => g.group), actions: [] }),
+    );
+    expect(payload.applied).toBe(3);
+    expect(payload.status).toBe('partially_applied');
+    // Nothing crossed the boundary, so the payload carries no referral at all.
+    expect(payload.referred).toBeUndefined();
+    expect(edgeStore.state.pops.gru1.rolloutMode).toBe('staged');
+    expect(edgeStore.state.pops.gru1.exposedPct).toBe(0.28);
+    expect(edgeStore.state.pops.scl1.rolloutMode).toBe('staged');
+    expect(edgeStore.state.pops.gru2.rolloutMode).toBe('staged');
+    // The single-node sites never reached the drawer, and the rule that closed them is named.
+    const slice = payload.rejected.find((r: any) => r.reason.startsWith('single-node-no-slice'));
+    expect(slice.ids.slice().sort()).toEqual(['bog1', 'eze1']);
+    expect(edgeStore.state.pops.eze1.rolloutMode).toBeNull();
+    expect(payload.applied + payload.rejected.reduce((n: number, r: any) => n + r.count, 0))
+      .toBe(payload.requested);
   });
 
   it('a site already serving the release is reported as nothing to do, not as a change', async () => {
@@ -118,15 +172,16 @@ describe('edge tools through the real preview-and-commit path', () => {
   });
 
   it('a second call over ground already staged brings only what actually changes', async () => {
-    // The eu-north case above staged three of the four sites and left hel1 unlatched. Re-running
-    // the same request must put hel1 in front of the operator and nothing else: a row whose every
-    // figure is already the figure showing is not a change, and the drawer must not carry one.
+    // The eu-north case above staged cph1 and arn1, and referred osl1 and hel1 rather than
+    // applying them. Re-running the same request must put those two in front of the operator and
+    // nothing else: a row whose every figure is already the figure showing is not a change, and
+    // the drawer must not carry one.
     const { payload, proposal } = await run('roll_config', { region: 'eu-north' }, () => null);
-    expect(proposal!.diff.groups.map((g: any) => g.id)).toEqual(['hel1']);
+    expect(proposal!.diff.groups.map((g: any) => g.id)).toEqual(['osl1', 'hel1']);
     expect(payload.requested).toBe(4);
     expect(payload.applied).toBe(0);
     const already = payload.rejected.filter((r: any) => r.reason.includes('already staged for 2026.08.27-1'));
-    expect(already.flatMap((r: any) => r.ids).sort()).toEqual(['arn1', 'cph1', 'osl1']);
+    expect(already.flatMap((r: any) => r.ids).sort()).toEqual(['arn1', 'cph1']);
   });
 
   it('a page is held until released, and is never covered by a standing rule', async () => {

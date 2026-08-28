@@ -11,10 +11,13 @@ import type { AuthorityRole, AuthorityVocabulary } from '../webmcp/authority';
  * costs anything, and the boundary is no weaker for it.
  */
 export const EDGE_ROLES: AuthorityRole[] = [
-  // Enough for a staged rollout at any single site in the estate (the largest is 0.91%) and for
-  // an immediate one at the small and mid-sized sites. An immediate rollout at a site carrying
-  // more than 3% of production traffic is a second person's call.
-  { id: 'release-engineer', label: 'Release engineer', limit: 3 },
+  // Half a percent. Deliberately below the largest staged rollout in the estate (Amsterdam at
+  // 0.91%), so the boundary bites on the ordinary path rather than only on a forced `mode`.
+  // An earlier draft sat at 3%, which cleared every default rollout the estate can produce and
+  // left the second human with nothing to do unless someone went looking for them — a boundary
+  // that never binds is decoration. This one puts the flagship sites in front of a second person
+  // on the plainest call the tool has, which is what the mechanic is for.
+  { id: 'release-engineer', label: 'Release engineer', limit: 0.5 },
   // Above every exposure this estate can produce at one site, so the ladder has a real top.
   { id: 'traffic-lead', label: 'Traffic lead', limit: 10 },
 ];
@@ -24,7 +27,7 @@ export const EDGE_ROLES: AuthorityRole[] = [
  * `roll_config`'s registered description:
  *
  *   "Where a proposed change puts production traffic in front of a release, the operator on
- *    shift is a release engineer and may authorise up to 3.00% of production traffic on one
+ *    shift is a release engineer and may authorise up to 0.50% of production traffic on one
  *    site; anything above that is referred to a traffic lead and is not applied by this call."
  *
  * No currency, no shipment, and not one word of it written in this repository twice.

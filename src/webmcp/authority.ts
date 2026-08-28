@@ -25,7 +25,7 @@
  * over once through `HostBinding.authority` (see `configureHost` in adapter.ts) and read back
  * out here. That is what lets a second product get this same two-human mechanic measured in
  * something that is not money: the freight console says "EUR 250 on one shipment", the edge
- * console says "3.00% of production traffic on one site", and this module says neither.
+ * console says "0.50% of production traffic on one site", and this module says neither.
  *
  * There is no auth here and no backend. `setRole` is a labelled demonstration control, in the
  * same class as "Simulate a buggy tool": it switches which role this one browser is acting as,

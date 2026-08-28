@@ -75,7 +75,7 @@ describe('the edge product states its own authority boundary', () => {
     // The negative above is only worth having if the sentence is actually there to be wrong.
     const rollConfig = registered.get('roll_config').description;
     expect(rollConfig).toContain('the operator on shift is a release engineer');
-    expect(rollConfig).toContain('may authorise up to 3.00% of production traffic on one site');
+    expect(rollConfig).toContain('may authorise up to 0.50% of production traffic on one site');
     expect(rollConfig).toContain('referred to a traffic lead');
   });
 
@@ -106,10 +106,12 @@ describe('the edge product states its own authority boundary', () => {
     expect(registered.get('roll_config').description).toContain('release engineer');
   });
 
-  it('refers a site that exposes more traffic than the operator may, and does not apply it', async () => {
-    // nrt1 carries 3.4% of production traffic; taking a release on every node at once exposes
-    // all of it, which is above the release engineer's 3.00%. Everything else in apac is either
-    // closed by a rule or small enough to be theirs.
+  it('refers every site that exposes more traffic than the operator may, and applies none of them', async () => {
+    // Three apac sites are open to an immediate rollout: nrt1 (3.4% of production traffic), syd1
+    // (2.2%) and icn1 (1.3%). Taking a release on every node at once exposes a site's whole
+    // share, so all three are above the release engineer's 0.50% and all three are the traffic
+    // lead's to decide. The other four never reach the drawer at all: sin1, sin2 and hkg1 are
+    // inside the apac peak freeze, and bom1 is behind the compatibility floor.
     const { payload, proposal } = await run(
       'roll_config',
       { region: 'apac', mode: 'immediate' },
@@ -120,17 +122,21 @@ describe('the edge product states its own authority boundary', () => {
 
     expect(proposal!.authority.role.label).toBe('Release engineer');
     expect(proposal!.authority.target?.label).toBe('Traffic lead');
-    expect(proposal!.authority.referred).toEqual(['pops:nrt1']);
+    expect(proposal!.authority.referred).toEqual(['pops:nrt1', 'pops:syd1', 'pops:icn1']);
 
-    expect(payload.referred).toEqual({ count: 1, ids: ['nrt1'], awaiting: 'traffic lead' });
+    expect(payload.referred)
+      .toEqual({ count: 3, ids: ['nrt1', 'syd1', 'icn1'], awaiting: 'traffic lead' });
+    // Nothing landed. Every site the operator was shown was somebody else's to authorise, and
+    // approving all three did not make one of them theirs.
+    expect(payload.applied).toBe(0);
     expect(edgeStore.state.pops.nrt1.pendingVersion).toBeNull();
-    expect(edgeStore.state.pops.syd1.rolloutMode).toBe('immediate');
+    expect(edgeStore.state.pops.syd1.rolloutMode).toBeNull();
 
     const bucket = payload.rejected.find((r: any) => r.pending !== undefined);
     expect(bucket).toEqual({
-      count: 1,
-      reason: "above the release engineer's 3.00% of production traffic exposure authority — referred to a traffic lead, not refused",
-      ids: ['nrt1'],
+      count: 3,
+      reason: "above the release engineer's 0.50% of production traffic exposure authority — referred to a traffic lead, not refused",
+      ids: ['nrt1', 'syd1', 'icn1'],
       pending: 'traffic lead',
     });
 
@@ -139,13 +145,14 @@ describe('the edge product states its own authority boundary', () => {
       .toBe(payload.requested);
   });
 
-  it('offers the referred site to the traffic lead, and to nobody else', async () => {
+  it('offers the referred sites to the traffic lead, and to nobody else', async () => {
     const queue = listReferrals();
     expect(queue).toHaveLength(1);
-    expect(queue[0].ids).toEqual(['nrt1']);
+    expect(queue[0].ids).toEqual(['nrt1', 'syd1', 'icn1']);
     expect(queue[0].toRole).toBe('Traffic lead');
-    // The magnitude travels in this product's unit: 3.4% of production traffic, not a currency.
-    expect(queue[0].spendEur).toBeCloseTo(3.4, 5);
+    // The magnitude travels in this product's unit: 3.4 + 2.2 + 1.3 = 6.9% of production
+    // traffic across the three referred sites, not a currency.
+    expect(queue[0].spendEur).toBeCloseTo(6.9, 5);
 
     setRole(ROLES[1].id);
     const ready = new Promise<any>(res => {
@@ -153,15 +160,71 @@ describe('the edge product states its own authority boundary', () => {
     });
     const result = reviewReferral(queue[0].id)!;
     const pending = await ready;
-    // The second approver gets their own preview of exactly the referred site — not a rubber
+    // The second approver gets their own preview of exactly the referred sites — not a rubber
     // stamp on somebody else's diff — and nothing is above *their* limit.
-    expect(pending.diff.groups.map((g: any) => g.id)).toEqual(['nrt1']);
+    expect(pending.diff.groups.map((g: any) => g.id)).toEqual(['nrt1', 'syd1', 'icn1']);
     expect(pending.authority.referred).toEqual([]);
     pending.resolve({ groups: pending.diff.groups.map((g: any) => g.group), actions: [] });
     await result;
 
-    expect(edgeStore.state.pops.nrt1.rolloutMode).toBe('immediate');
+    expect(['nrt1', 'syd1', 'icn1'].map(id => edgeStore.state.pops[id].rolloutMode))
+      .toEqual(['immediate', 'immediate', 'immediate']);
     expect(listReferrals()).toHaveLength(0);
     setRole(ROLES[0].id);
+  });
+
+  it('counts a row that is both struck out and above the limit as referred, not operator-removed', async () => {
+    // The attribution rule, pinned by name rather than left as an accident of which sites the
+    // fixture happens to put on each side of the line.
+    //
+    // A row the operator unticks that is ALSO above their authority was narrowed out twice over,
+    // and the engine resolves that by counting it once, as referred
+    // (`removedByOperator = narrowedOut - referredCount`, adapter.ts). Which way round it goes is
+    // not cosmetic: "the operator removed these" tells an agent to replan without those ids,
+    // where a referral tells it to leave them alone because a second person is now holding them.
+    // Inverting it would have the agent propose a worse remedy for work that is about to be
+    // approved — and nothing in either product named the rule before this.
+    //
+    // eu-west sets all three cases up at once on the plainest call the tool has. Every open site
+    // takes a staged rollout, a tenth of its share: ams1 0.91%, lhr1 0.59% and fra1 0.54% are
+    // above the release engineer's 0.50%, while ams2 0.20% and lhr2 0.17% are inside it. The
+    // operator strikes out lhr1 (above the limit) and ams2 (inside it) and keeps the other three.
+    const { payload } = await run(
+      'roll_config',
+      { region: 'eu-west' },
+      groups => ({
+        groups: groups
+          .filter((g: any) => g.id !== 'lhr1' && g.id !== 'ams2')
+          .map((g: any) => g.group),
+        actions: [],
+      }),
+    );
+
+    // lhr1 is in the referral bucket — struck out or not, it was never the operator's to strike.
+    expect(payload.rejected.find((r: any) => r.pending !== undefined)).toEqual({
+      count: 3,
+      reason: "above the release engineer's 0.50% of production traffic exposure authority — referred to a traffic lead, not refused",
+      ids: ['ams1', 'lhr1', 'fra1'],
+      pending: 'traffic lead',
+    });
+
+    // ams2 — struck out and inside the limit — is the only row attributed to the operator, and
+    // lhr1 appears in no second bucket. One row, one account.
+    expect(payload.rejected.filter((r: any) => r.reason === 'the operator removed these from the change'))
+      .toEqual([{ count: 1, reason: 'the operator removed these from the change', ids: ['ams2'] }]);
+
+    // And keeping a row above the limit does not apply it either: only lhr2 lands.
+    expect(payload.applied).toBe(1);
+    expect(edgeStore.state.pops.lhr2.rolloutMode).toBe('staged');
+    for (const id of ['ams1', 'lhr1', 'fra1', 'ams2']) {
+      expect(edgeStore.state.pops[id].pendingVersion).toBeNull();
+    }
+
+    // Counted once and only once, so the ledger still closes over the whole region: five sites
+    // previewed, three skipped by the domain (cdg1's incident, fra2 drained, dub1 already
+    // serving), one applied, three referred, one removed.
+    expect(payload.requested).toBe(8);
+    expect(payload.applied + payload.rejected.reduce((n: number, r: any) => n + r.count, 0))
+      .toBe(payload.requested);
   });
 });

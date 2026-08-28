@@ -13,8 +13,8 @@ import { pct } from './words';
  * how far *this* person may go before a second one does — the same mechanic the freight console
  * carries, and not one word of it about money. What bounds a rollout here is the share of
  * production traffic it puts in front of an unproven release at one site: a release engineer may
- * expose up to 3.00%, and Tokyo taking a release on every node at once is 3.40% and therefore
- * somebody else's call. See `src/edge/authority.ts`.
+ * expose up to 0.50%, and Amsterdam's ordinary staged rollout — one node in ten — is 0.91% and
+ * therefore somebody else's call. See `src/edge/authority.ts`.
  *
  * The role switch is a labelled demonstration, in the same class as the freight console's: there
  * is no sign-in here and no server. It changes which role this one browser is acting as so both
