@@ -7,11 +7,9 @@ import {
   currentRole, describeAuthority, isReferable, onRoleChange, referralTarget,
   type AuthorityRole,
 } from './authority';
-import { NEVER_ELIGIBLE } from '../domain/policy-eligibility';
 import type { Diff } from '../core/diff';
 import type { Note, WriteRecord } from '../core/types';
 import { toolResult, type ToolPayload } from './result';
-import { store } from '../domain/store';
 
 /**
  * Reads the namespace fresh, never caches a falsy answer. A Chrome flag build injects
@@ -93,7 +91,65 @@ export function registerWhenReady(register: () => void): () => void {
   return cleanup;
 }
 
-type State = typeof store.state;
+/**
+ * Everything about the application this adapter is guarding, in one object. The module itself
+ * never names an entity, a field, or a store: it asks the binding for a record's version, for
+ * the value a write moves, and for the tool names a standing rule may never cover.
+ */
+export interface HostBinding<S> {
+  /** The live state every tool previews against and commits into. Read fresh on each call, so
+   *  a host whose state object is replaced rather than mutated is free to expose a getter. */
+  state: S;
+  /** Called once after a commit lands, so the host's own subscribers re-render. */
+  notify(): void;
+  versionOf(entity: string, id: string): number;
+  bumpVersion(entity: string, id: string): void;
+  /** The signed value a write moves, in the host's own units. Zero for fields that carry none. */
+  valueDeltaOf(w: WriteRecord): number;
+  /** Tool names that may never be covered by a standing rule. */
+  neverEligible: string[];
+}
+
+let binding: HostBinding<any> | null = null;
+
+/**
+ * Binds this module to one application, once, at startup — before any tool can be called.
+ *
+ * A second call replaces the binding and nothing else: the policies, registrations, history and
+ * referrals held below are module singletons and are deliberately left alone, so a host that
+ * re-binds (a hot reload, a test re-configuring the same module instance) keeps the ladder it
+ * has already earned rather than silently losing it. Last call wins.
+ *
+ * That is the whole of the supported story. Two different applications sharing one document is
+ * explicitly out of scope: the registered tool names, the standing rules and the approval
+ * history are all one flat namespace here, and a second domain would land in the middle of the
+ * first one's. Each product gets its own Vite entry and therefore its own module graph and its
+ * own copy of this state — which is why coexistence in a single document never needed solving.
+ */
+export function configureHost<S>(b: HostBinding<S>): void {
+  binding = b as HostBinding<any>;
+}
+
+/** The binding, or a loud failure. Reached on every path that touches host state, so an
+ *  unconfigured module fails at the first tool call with the setup it is missing named, rather
+ *  than reading fields off `undefined` several frames later. */
+function host(): HostBinding<any> {
+  if (!binding) {
+    throw new Error(
+      'Ladder has no host configured: call configureHost({ state, notify, versionOf, bumpVersion, valueDeltaOf, neverEligible }) once at startup, before any tool runs.',
+    );
+  }
+  return binding;
+}
+
+/**
+ * The host's state, as far as this module is concerned: opaque. Nothing here reads a field of
+ * it — every host-shaped question goes through the binding above. Left as `any` rather than
+ * given a structural stand-in because each tool's own `exec` is written against its host's real
+ * state type (`Ctx<AppState>` in the freight app), and a concrete placeholder here would reject
+ * those signatures instead of leaving the shape to the host.
+ */
+type State = any;
 
 export interface LadderToolSpec {
   name: string;
@@ -391,12 +447,12 @@ export function reregister(name: string, description: string) {
 }
 
 let seq = 0;
-const versionOf = (_e: string, id: string) => store.state.shipments[id]?.version ?? -1;
-const bumpVersion = (_e: string, id: string) => { const s = store.state.shipments[id]; if (s) s.version += 1; };
-const deltaOf = (w: WriteRecord) => (w.field === 'remedyCost' ? (w.after as number) - (w.before as number) : 0);
+const versionOf = (e: string, id: string) => host().versionOf(e, id);
+const bumpVersion = (e: string, id: string) => host().bumpVersion(e, id);
+const deltaOf = (w: WriteRecord) => host().valueDeltaOf(w);
 
 /** A read tool sees real state but cannot change it. A write from a read tool is a bug, loudly. */
-const readOnlyView = () => recordingProxy(store.state, {
+const readOnlyView = () => recordingProxy(host().state, {
   onWrite: () => {},
   guard: k => { throw new Error(`read-only tool attempted to write ${k.entity}.${k.id}.${k.field}`); },
 });
@@ -446,8 +502,8 @@ export function listReferrals(): Referral[] {
  * rubber stamp on someone else's diff would not be a second approval.
  *
  * Narrowing by `ids` is the one place this layer names a tool argument. It is already the layer
- * that binds core to this application's shape — `versionOf` and `deltaOf` above both read
- * shipment fields — so the binding lives here rather than leaking into `src/core/`.
+ * that binds core to the host application — `versionOf` and `deltaOf` above both go through the
+ * host binding — so it lives here rather than leaking into `src/core/`.
  *
  * Removed from the queue on pickup, whatever the second approver then decides: it has been
  * put in front of them, and their answer (applied, cut down, or refused) is reported by the
@@ -536,7 +592,7 @@ export function registerLadderTool(spec: LadderToolSpec) {
     };
     const run: Exec<State, unknown> = ctx => spec.exec(input, ctx);
 
-    const shadow = await runShadow(store.state, run, { proposalId, versionOf, deltaOf });
+    const shadow = await runShadow(host().state, run, { proposalId, versionOf, deltaOf });
     if (!shadow.ok) {
       // A crash is not rejected work — see the `error` field's own doc comment in
       // src/webmcp/result.ts for why this is a dedicated field rather than a `rejected`
@@ -631,8 +687,8 @@ export function registerLadderTool(spec: LadderToolSpec) {
     const authorisedGroups = approved.groups.filter(g => !referredKeys.has(g));
 
     const ws = buildWriteSet(shadow.diff, authorisedGroups, approved.actions);
-    const out = await runCommit(store.state, run, ws, { versionOf, bumpVersion });
-    store.notify();
+    const out = await runCommit(host().state, run, ws, { versionOf, bumpVersion });
+    host().notify();
 
     // Kept as the set, not just its size: the rows the operator struck out are exactly the
     // previewed groups that are neither in here nor referred, and naming them needs the keys.
@@ -729,7 +785,7 @@ export function registerLadderTool(spec: LadderToolSpec) {
     // without this guard, the very next clean run under that rule (auto-applied or not) still
     // re-fired draftPolicy() and re-offered the same capability the tool already has.
     const draft = reportedStatus === 'applied' && !activePolicy(spec.name)
-      ? draftPolicy(spec.name, history, new Date(), NEVER_ELIGIBLE)
+      ? draftPolicy(spec.name, history, new Date(), host().neverEligible)
       : null;
     if (draft) draftListeners.forEach(fn => fn(draft));
 

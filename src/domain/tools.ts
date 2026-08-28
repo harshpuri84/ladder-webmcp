@@ -7,6 +7,11 @@ import {
   evaluateAllRemedies, recommendRemedy,
 } from './remedy-policy';
 import { registerLadderTool, type LadderToolSpec } from '../webmcp/adapter';
+// Imported for its side effect: store.ts is where this application binds itself to the
+// adapter (see `freightHost` there). The adapter no longer reaches into the domain for the
+// store, so something on the domain side has to hand it over, and every entry point that can
+// register these tools reaches this module.
+import './store';
 
 /** Destructive or externally-visible tools never get a standing rule, no matter how many
  *  clean approvals accumulate. Core takes this list as an argument; it never authors it.
