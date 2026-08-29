@@ -72,7 +72,11 @@ already serving the candidate.
 1. `git pull`, `npm ci`, `npx vitest run` — **check the exit code directly, do not pipe it**.
 2. Re-measure the figures in `demo-script.md`. If any moved, fix the script before recording,
    not in the edit.
-3. Open the live URLs, not localhost: a judge will open those, and so should the camera.
+3. **Decide which URL is on camera, and it depends on step 4.** The `?demo` double is gated out
+   of the production build, so localhost is the only place *I* can invoke a tool. If the Codex or
+   ChatGPT path works, record against the live URL with a real agent instead — better on every
+   axis, and it removes the transport clause from beat 2. Settle this before the first take; the
+   setup table above assumes the localhost fallback.
 4. Chrome flag on, restarted, and confirm the page's own runtime line reads **present** — the
    freight banner disappears and the edge operating plate says so.
 5. Reload for a clean fixture. No standing rules, filter empty, buggy-tool toggle **off**.
@@ -91,7 +95,7 @@ fails if they drift from what the tool does.
 
 ## What is done by hand, and why
 
-The three unticks in beat 5 are clicked by a person. That is not a shortcut — it is the beat. The
+The three unticks in beat 4 are clicked by a person. That is not a shortcut — it is the beat. The
 whole product is that a human cuts an agent's change down, so a machine doing it would be the one
 place automation actually lies about what is happening.
 
@@ -122,6 +126,22 @@ about 1.5 seconds after load before the first call so registration has completed
   in beat 3 points at cargo flags that would not be on screen.
 - **A pending call survives 96 seconds.** Measured. Do not leave a proposal open longer than that
   while adjusting the shot.
+
+## Verify the ChatGPT path FIRST, before anything else on recording day
+
+The proof tab's banner tells a judge that ChatGPT desktop's built-in browser supports WebMCP with
+no setup. That sentence comes from the official announcement, not from anything this project has
+observed — and this is an OpenAI contest, so that browser is the most likely thing a judge opens.
+If registration fails there, the page's first promise fails in a judge's hands, and the honesty
+posture that is this submission's strongest asset takes the hit.
+
+Two host defects found there on 28 August are fixed and deployed: a shim that advertises
+`requestUserInteraction` and refuses it, and a host that provides `registerTool` with no
+`unregisterTool`. Both are live. What has NOT been confirmed is a full run end to end.
+
+So: open it, run the sequence, and let the result decide two things — whether the banner sentence
+stands as written, and whether the camera points at the live URL with a real agent or at localhost
+with the demo double.
 
 ## Still owed, and it belongs to this day
 

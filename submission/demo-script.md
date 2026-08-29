@@ -58,7 +58,8 @@ Second product, `roll_config {}` — no filter, no mode:
 
 > An agent can call the tools this page owns. WebMCP settled that. What it did not settle is what
 > happens when the agent is wrong. You see a function call and a name. You can take it or refuse
-> it. You cannot take part of it.
+> it. You cannot take part of it. No browser yet lets an outside agent invoke these, so this call
+> goes through the page's own registration — everything after it is the production path.
 
 ### 3 — 0:35 to 1:05 · Consequences, not arguments
 
@@ -91,8 +92,9 @@ disabled rows. Scroll two or three live rows.
 
 **Screen:** the agent's second call opens a panel carrying *Follows the 19:41 run — asks only
 about 4 rows sent to a duty manager.* The stamp reads **Refer 4 of 4** — this operator cannot
-authorise any of them. Press it. Switch the strip to **Duty manager**. The run-log line now offers
-**Review as duty manager**. Press it: a four-row sheet, **Apply 4 of 4**. Sign it.
+authorise any of them. Press it. Switch the strip to **Duty manager** — the same strip then offers
+**Review as duty manager** where it had read *Waiting on the duty manager*. Press it: a four-row
+sheet, **Apply 4 of 4**. Sign it.
 
 > So the agent comes back, and asks only about the four it was told a duty manager holds. The page
 > says so, because it can check: those are the same four ids that run refused. This operator still
@@ -130,7 +132,7 @@ proposal, approve it, hold on **Blocked · Ladder blocked this**. No row changes
 ## Rules for the cut
 
 - Every beat must read with the sound off. Captions carry the words.
-- Hold on a figure that changes. The sculpt in beat 5 is the whole product; give it its seconds.
+- Hold on a figure that changes. The sculpt in beat 4 is the whole product; give it its seconds.
 - Record at **1512 wide or more**. The register hides five columns below 1638px while a panel is
   open — correct behaviour, but it hides the cargo flags the narration refers to.
 - The thumbnail is the panel at **27 records, EUR 1,331**.
