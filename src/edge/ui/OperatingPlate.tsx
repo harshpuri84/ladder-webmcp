@@ -132,16 +132,26 @@ function RuntimeRow() {
               This browser cannot reach the four tools, so nothing on this page will move on its
               own. The rack below still reads. Two ways to get a runtime:
             </p>
+            {/*
+              * Both routes are stated to their real limit. This plate carried the freight
+              * console's wording verbatim, including its two overstatements: ChatGPT's browser
+              * "supports WebMCP with no setup" is the announcement's claim and not one anyone
+              * here has run, and the Chrome flag registers the tools without bringing anything
+              * that can call them. A judge who does the flag dance and finds a rack that still
+              * will not move reads that as a broken build.
+              */}
             <ul className="pl-routes">
               <li className="pl-route">
-                <b>ChatGPT desktop’s built-in browser</b> — supports WebMCP with no setup. Open
-                this page inside it.
+                <b>ChatGPT desktop’s built-in browser</b> — announced as supporting WebMCP with no
+                setup; announced, not verified here. It is the only route we know of to a browser
+                that ships an agent able to call these tools. Open this page inside it.
               </li>
               <li className="pl-route">
                 <b>Google Chrome 149 or newer</b> — enable{' '}
                 <span className="pl-flag rd">chrome://flags/#enable-webmcp-testing</span> and
                 restart. Paste that into the address bar; Chrome will not let a page link to a
-                chrome:// URL.
+                chrome:// URL. The flag registers the four tools and nothing more: no shipping
+                Chrome carries an agent to call them, so the rack reads and the drawer stays shut.
               </li>
             </ul>
           </>

@@ -150,6 +150,7 @@ hr.rule {
 .au-refs-caption-caps,
 .pp-refer-caption-caps,
 .pr-note-caption,
+.ag-heading,
 .ac-struck-note {
   text-transform: uppercase;
   /* 11.5px, not 10.5px: below an 11px floor a letterspaced caps label stops being
@@ -596,6 +597,101 @@ body.pp-active .console-table td {
 /* Several flags can land on one shipment, so they wrap instead of forcing the column wider. */
 .console-table td .badge + .badge {
   margin-top: 3px;
+}
+
+/* ---------- the imprint: what to say to an agent ---------- */
+
+/*
+ * Set as an imprint block on the same stock as the standing rules and the authority boundary
+ * below it, because it is the same kind of matter — an instruction about the work rather than
+ * the work — and printed above both because it is the thing to do first. The judge the video
+ * sends here arrives with nothing to type; this is what they type.
+ */
+.ag {
+  background: var(--paper);
+  border: 1px solid var(--rule-strong);
+  padding: 15px 18px 17px;
+  margin-bottom: 22px;
+}
+
+.ag-heading {
+  margin: 0 0 7px;
+  color: var(--ink-muted);
+}
+
+.ag-lead {
+  margin: 0;
+  max-width: 74ch;
+  font-size: 0.78rem;
+  line-height: 1.45;
+  color: var(--ink-muted);
+}
+
+.ag-prompts {
+  list-style: none;
+  margin: 11px 0 0;
+  padding: 0;
+}
+
+/*
+ * Each prompt sits on a sunk well with the copy control on the shoulder, divided from the next
+ * by a rule rather than boxed — structure by rules and space, as everything else on this sheet
+ * is. Nothing here is said by a hue: the words on the button carry the copy state, and the well
+ * is a luminance step, not a tint.
+ */
+.ag-prompt {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  padding: 10px 0 11px;
+  border-top: 1px solid var(--rule);
+}
+
+.ag-prompt-body {
+  flex: 1;
+  min-width: 0;
+}
+
+/* The one string on the sheet meant to be reproduced verbatim, so it is set the way the flag URL
+   in the banner above it is: mono, in a cut well, and selectable whole by one drag. */
+.ag-prompt-text {
+  display: block;
+  font-size: 0.86rem;
+  line-height: 1.45;
+  color: var(--ink);
+  background: var(--paper-sunk);
+  border: 1px solid var(--rule);
+  padding: 4px 8px;
+  user-select: all;
+  overflow-wrap: anywhere;
+}
+
+.ag-prompt-note {
+  display: block;
+  margin-top: 6px;
+  max-width: 74ch;
+  font-size: 0.78rem;
+  line-height: 1.45;
+  color: var(--ink-muted);
+}
+
+/* Fixed width so the word swapping to "Copied" does not shift the row it sits in. */
+.ag-copy {
+  flex: none;
+  min-width: 92px;
+  text-align: center;
+  padding: 7px 13px;
+  border: 1px solid var(--rule-strong);
+  background: var(--paper-raised);
+  color: var(--ink);
+  font-family: inherit;
+  font-size: 0.78rem;
+  cursor: pointer;
+}
+
+.ag-copy:hover {
+  background: var(--mark-wash);
+  border-color: var(--mark);
 }
 
 /* ---------- the imprint: standing rules ---------- */

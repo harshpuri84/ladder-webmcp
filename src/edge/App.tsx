@@ -7,6 +7,7 @@ import { OperatingPlate } from './ui/OperatingPlate';
 import { AutonomyBar } from './ui/AutonomyBar';
 import { AuthorityBar } from './ui/AuthorityBar';
 import { Rack } from './ui/Rack';
+import { RackFoot } from './ui/RackFoot';
 import { BenchDrawer } from './ui/BenchDrawer';
 import { EventLog } from './ui/EventLog';
 
@@ -28,6 +29,7 @@ export default function EdgeApp() {
         <AutonomyBar />
         <AuthorityBar />
         <Rack />
+        <RackFoot />
       </div>
       <EventLog />
       <BenchDrawer />

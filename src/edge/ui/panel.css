@@ -636,6 +636,61 @@ body.rk-drawn .rk-body {
 }
 .pending-v { color: var(--mark); }
 
+/* ── Foot plate ───────────────────────────────────────────────────────── */
+
+/*
+ * A scored plate at the foot of the bay, on the same graphite stock and the same engraved edge as
+ * every other face. The bottom padding carries it clear of the run log, which is fixed to the
+ * bottom edge and would otherwise sit on top of the last row.
+ */
+.fo {
+  background: var(--panel);
+  border-top: 1px solid var(--score-strong);
+  box-shadow: inset 0 1px 0 var(--bezel-hi);
+  padding: 14px 22px 62px;
+}
+
+.fo-list {
+  list-style: none;
+  margin: 9px 0 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1px;
+  background: var(--score);
+}
+
+.fo-item {
+  flex: 1 1 260px;
+  min-width: 0;
+  padding: 9px 13px 10px;
+  background: var(--panel-sunk);
+  box-shadow: inset 0 1px 0 rgba(0, 0, 0, 0.4);
+}
+
+/* Underlined at rest, not on hover: the link has to be findable with every colour removed, and
+   the mark only agrees with it when the pointer is on it. */
+.fo-link {
+  display: block;
+  font-size: 12.5px;
+  color: var(--legend);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  text-decoration-thickness: 1px;
+}
+.fo-link:hover { color: var(--mark); }
+.fo-link:focus-visible {
+  outline: 2px solid var(--mark);
+  outline-offset: 2px;
+}
+
+.fo-note {
+  display: block;
+  margin-top: 4px;
+  font-size: 11px;
+  color: var(--legend-mid);
+}
+
 /* ── Event log ────────────────────────────────────────────────────────────────────────────── */
 
 .log {
