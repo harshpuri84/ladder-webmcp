@@ -35,12 +35,20 @@ interface Standing {
  * so a legend distinguished by hue would collapse to one swatch. The marks are the proofreader's
  * own vocabulary and each already means this:
  *
- *  stet   — let it stand. The tool changes nothing, so there is nothing to correct.
- *  dagger — set apart from the main run. Never automatic, whatever rules exist.
- *  insert — this correction goes in. A ratified rule lands it without review.
- *  query  — "Qy?", passed to whoever can settle it. Every change waits for a human.
+ *  stet         — let it stand. The tool changes nothing, so there is nothing to correct.
+ *  registration — the target printed outside the trim. It is what the press aligns the sheet
+ *                 to, and it is never part of the printed work: exactly a tool that sets what
+ *                 the operator is looking at without touching a record.
+ *  dagger       — set apart from the main run. Never automatic, whatever rules exist.
+ *  insert       — this correction goes in. A ratified rule lands it without review.
+ *  query        — "Qy?", passed to whoever can settle it. Every change waits for a human.
  */
 function standingOf(t: ToolSummary): Standing {
+  // Before the plain read case, not after: this tool is read-only too, and the honest account
+  // of it is the narrower one.
+  if (t.changesTheView) {
+    return { mark: 'registration', words: 'reads only — sets what your register shows' };
+  }
   if (t.readOnly) return { mark: 'stet', words: 'reads only — changes nothing' };
   if (NEVER_ELIGIBLE.includes(t.name)) {
     return { mark: 'dagger', words: 'never automatic — always reviewed' };
@@ -68,8 +76,10 @@ function ToolRow({ tool }: { tool: ToolSummary }) {
           paragraph grows a sentence, which is the whole reason the panel exists. Printed only
           for the guarded tools: a read tool's description is fixed at registration and can
           never change, so four lines of it would crowd out the two that do move. Nothing is
-          being hidden — there is nothing there to watch. */}
-      {!tool.readOnly && <p className="tp-tool-desc">{tool.description}</p>}
+          being hidden — there is nothing there to watch. The one read tool that reaches into
+          this page is the exception: what it tells the agent about the operator's own screen is
+          the sentence the operator has the most reason to check. */}
+      {(!tool.readOnly || tool.changesTheView) && <p className="tp-tool-desc">{tool.description}</p>}
     </li>
   );
 }

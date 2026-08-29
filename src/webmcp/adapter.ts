@@ -180,6 +180,23 @@ export interface LadderToolSpec {
   description: string;
   inputSchema: Record<string, unknown>;
   readOnly?: boolean;
+  /**
+   * A read tool that also sets what the human on the page is looking at — the freight
+   * register's `search_shipments` filters the table down to the rows it returns.
+   *
+   * It exists because `readOnly` was quietly answering two different questions with one word:
+   * "does this write a record, so does Ladder have to put a proof in front of a human" (still
+   * yes, still what `readOnly` decides) and "does this modify its environment, which is what
+   * MCP's `readOnlyHint` actually asks". A tool that reaches into the operator's screen writes
+   * no record and needs no proof, but it is not without effect, and a page is exactly the
+   * environment a WebMCP tool has. Registering it with `readOnlyHint: true` would be telling a
+   * client it may call this speculatively and without asking, on the strength of a promise it
+   * touches nothing — see `registerLadderTool` for the three hints that go out instead.
+   *
+   * Read tools only. The guarded write path already declares its effects by going through a
+   * human, and nothing there reads this.
+   */
+  changesTheView?: boolean;
   exec(input: any, ctx: Ctx<State>): Promise<unknown>;
 }
 
@@ -326,6 +343,10 @@ export function onToolsChange(fn: () => void): () => void {
 export interface ToolSummary {
   name: string;
   readOnly: boolean;
+  /** True for the read tool that also sets what the human is looking at. Carried through to the
+   *  inventory because a surface that listed it under "reads only — changes nothing" would be
+   *  the one place in this product where the honest account of a tool is wrong. */
+  changesTheView: boolean;
   /** The description as it stands registered with the browser right now — for a guarded tool
    *  that is the composed one, standing rule and spend boundary included. This is the field
    *  that makes ratifying a rule visible: it is literally what the agent reads. */
@@ -338,6 +359,7 @@ export function listTools(): ToolSummary[] {
   return [...toolSpecs.values()].map(spec => ({
     name: spec.name,
     readOnly: Boolean(spec.readOnly),
+    changesTheView: Boolean(spec.readOnly && spec.changesTheView),
     description: spec.readOnly ? spec.description : composedDescription(spec.name),
   }));
 }
@@ -743,7 +765,16 @@ export function registerLadderTool(spec: LadderToolSpec) {
   if (spec.readOnly) {
     mc.registerTool({
       name: spec.name, description: spec.description, inputSchema: spec.inputSchema,
-      annotations: { readOnlyHint: true },
+      // A read tool that also sets what the human is looking at cannot claim `readOnlyHint`:
+      // the hint says the tool does not modify its environment, and in WebMCP the page *is*
+      // the environment. Dropping it alone would be a worse lie than keeping it, because the
+      // other two hints then fall back to their spec defaults — `destructiveHint` true and
+      // `idempotentHint` false — and a search would go out described as a destructive call
+      // whose repeats accumulate. All three are stated: it changes something, it destroys
+      // nothing, and calling it twice with the same arguments leaves the same view.
+      annotations: spec.changesTheView
+        ? { readOnlyHint: false, destructiveHint: false, idempotentHint: true }
+        : { readOnlyHint: true },
       execute: async (input: any) => {
         const out = await spec.exec(input, {
           db: readOnlyView(), notes: [], effects: { async notify() {} },

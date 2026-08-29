@@ -1,6 +1,8 @@
+import { useSyncExternalStore } from 'react';
 import type { Pop } from '../types';
 import { edgeStore } from '../store';
 import { REGIONS } from '../seed';
+import { clearRackView, onRackViewChange, rackView, rackViewVersion } from '../rack-view';
 import { modeWord, pct, pct1, rps } from './words';
 
 /** The traffic graticule runs 0–10% of production traffic, which covers every site in the estate
@@ -91,23 +93,57 @@ function Row({ p }: { p: Pop }) {
  * ruled band and a scored line, which is how a panel groups things.
  */
 export function Rack() {
+  // The one thing an agent may do to this screen. A separate subscription from the store's:
+  // what is drawn is not a site, has no version the commit guard reads, and folding it into
+  // `edgeStore.version` would make every narrowed read look like the estate changing.
+  useSyncExternalStore(onRackViewChange, rackViewVersion);
   const pops = Object.values(edgeStore.state.pops);
+  const view = rackView();
+  const estate = pops.length;
 
   return (
     <div className="rack">
+      {view && (
+        // A scored band across the head of the rack, in the panel's own grammar: a silkscreen
+        // legend, a readout, a sentence, and a switch. No mark — this world draws no icons.
+        // Amber, never the operator's blue latch: this narrowing is not their own hand on the
+        // rack, and the legend says so before any colour does. `role="status"` because it is
+        // the only change to the rack that happens while the engineer's hands are still.
+        <div className="rk-view" role="status">
+          <span className="lg rk-view-lg">View set by the agent</span>
+          <p className="rk-view-text">
+            <span className="rd">{view.toolName}</span> matched {view.ids.length} of {estate}{' '}
+            sites — {view.words}. Nothing was changed and nothing left the estate; each band
+            still counts against its whole region.
+          </p>
+          <button className="rk-view-clear lg" type="button" onClick={() => clearRackView()}>
+            Show all {estate}
+          </button>
+        </div>
+      )}
       {REGIONS.map(region => {
-        const rows = pops
+        const inRegion = pops
           .filter(p => p.region === region)
           .sort((a, b) => b.trafficPct - a.trafficPct || a.id.localeCompare(b.id));
-        const share = Math.round(rows.reduce((n, p) => n + p.trafficPct, 0) * 10) / 10;
+        const rows = view ? inRegion.filter(p => view.ids.includes(p.id)) : inRegion;
+        // Both figures are the region's, never the view's. A narrowing that could move these
+        // would let an agent make four sites read as the whole of eu-west, and the share it
+        // carries is the number an engineer sizes a blast radius against at 02:40.
+        const share = Math.round(inRegion.reduce((n, p) => n + p.trafficPct, 0) * 10) / 10;
         return (
           <section key={region}>
             <div className="band-head">
               <span className="band-name">{region}</span>
               <span className="band-meta rd">
-                {rows.length} sites · {pct1(share)} of production traffic
+                {view ? `${rows.length} of ${inRegion.length}` : inRegion.length} sites ·{' '}
+                {pct1(share)} of production traffic
               </span>
             </div>
+            {/* A band the view has emptied keeps its head and loses its grid. The band is a
+                channel in the rack and the estate has six of them whether or not an agent is
+                looking at this one; dropping the head would change the shape of the instrument
+                to say something about a search. */}
+            {rows.length > 0 && (
             <table className="grid">
               <caption className="lg" style={{ position: 'absolute', left: '-9999px' }}>
                 Points of presence in {region}
@@ -129,6 +165,7 @@ export function Rack() {
                 {rows.map(p => <Row key={p.id} p={p} />)}
               </tbody>
             </table>
+            )}
           </section>
         );
       })}

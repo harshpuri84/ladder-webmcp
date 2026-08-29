@@ -7,6 +7,7 @@ import {
   evaluateAllRemedies, recommendRemedy,
 } from './remedy-policy';
 import { registerLadderTool, type LadderToolSpec } from '../webmcp/adapter';
+import { setRegisterView } from './register-view';
 // Imported for its side effect: store.ts is where this application binds itself to the
 // adapter (see `freightHost` there). The adapter no longer reaches into the domain for the
 // store, so something on the domain side has to hand it over, and every entry point that can
@@ -100,14 +101,59 @@ const filterProps = {
   customsStatus: { type: 'string', enum: CUSTOMS_STATUSES, description: 'Exact customs release status to filter by' },
 } as const;
 
+/**
+ * The same filter, said to the operator instead of to the agent. The register prints this
+ * after "showing", so it has to read as the words on the page already do — "lithium-ion cargo"
+ * is what the Cargo column says, "premium SLA" is what the SLA column says. An operator reading
+ * `{"lithiumBattery":true}` off their own register would be reading the agent's mail.
+ *
+ * A flag set false is worth saying out loud rather than dropping: an agent narrowing to the
+ * rows *without* a lithium cell has narrowed the view just as much, and a line that only ever
+ * named the positive case would describe the opposite view identically.
+ */
+function describeFilter(f: Filter): string {
+  const parts: string[] = [];
+  if (f.ids !== undefined) {
+    parts.push(f.ids.length <= 3 ? f.ids.join(', ') : `${f.ids.length} named shipments`);
+  }
+  if (f.customer !== undefined) parts.push(f.customer);
+  if (f.consol !== undefined) parts.push(f.consol);
+  if (f.slaTier !== undefined) parts.push(`${f.slaTier} SLA`);
+  if (f.lithiumBattery !== undefined) {
+    parts.push(f.lithiumBattery ? 'lithium-ion cargo' : 'no lithium-ion cargo');
+  }
+  if (f.activeTempControl !== undefined) {
+    parts.push(f.activeTempControl ? 'active temperature control' : 'no active temperature control');
+  }
+  if (f.pharmaQualifiedLane !== undefined) {
+    parts.push(f.pharmaQualifiedLane ? 'pharma-qualified lane' : 'not a pharma-qualified lane');
+  }
+  if (f.oversizeMainDeckOnly !== undefined) {
+    parts.push(f.oversizeMainDeckOnly ? 'oversize, main deck only' : 'not main-deck only');
+  }
+  if (f.screeningStatus !== undefined) parts.push(`screening ${f.screeningStatus}`);
+  if (f.customsStatus !== undefined) parts.push(`customs ${f.customsStatus}`);
+  return parts.length === 0 ? 'every house shipment' : parts.join(', ');
+}
+
 const searchShipments: LadderToolSpec = {
   name: 'search_shipments',
-  description: 'Search the house shipments on the disrupted flight by customer, consol, SLA tier, cargo flag, or status. Returns up to 50 matching rows.',
+  description: 'Search the house shipments on the disrupted flight by customer, consol, SLA tier, cargo flag, or status. Returns up to 50 matching rows. This call also changes what the operator is looking at: the register on their screen filters down to the rows returned here, labelled as set by you and cleared by them in one click. It changes no record and hides none — the count above the table goes on naming the full total. Use it when you want the operator looking at a particular set of rows before you propose anything.',
   readOnly: true,
+  changesTheView: true,
   inputSchema: { type: 'object', properties: { ...filterProps } },
   async exec(input: Filter = {}, ctx: Ctx<AppState>) {
     const rows = findMatches(ctx.db, input);
-    return { rows: rows.slice(0, 50), total: rows.length };
+    const shown = rows.slice(0, 50);
+    // Set from `shown`, never from `rows`: the register is told to draw exactly what the agent
+    // was handed, so a call that truncated at 50 cannot leave the operator looking at rows the
+    // agent never saw.
+    setRegisterView({
+      toolName: 'search_shipments',
+      ids: shown.map(r => r.id),
+      words: describeFilter(input),
+    });
+    return { rows: shown, total: rows.length };
   },
 };
 

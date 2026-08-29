@@ -431,6 +431,55 @@ body.rk-drawn .rk-body {
 
 .rack { padding: 0 0 96px; }
 
+/*
+ * The band that says an agent narrowed the rack, and the switch that gives it back. A face at
+ * the head of the estate with the same engraved edge every other face carries — not a card, and
+ * not a banner. Amber is the second reading: the legend, the readout and the sentence all say it
+ * first, and with every colour removed the band is still a face, a legend, a figure and a switch.
+ */
+.rk-view {
+  display: flex;
+  align-items: baseline;
+  gap: 16px;
+  padding: 11px 22px;
+  border-top: 1px solid var(--score);
+  border-bottom: 1px solid var(--score-strong);
+  background: var(--lamp-wash);
+  box-shadow: inset 0 1px 0 var(--bezel-hi), inset 0 -1px 0 var(--bezel-lo);
+}
+
+.rk-view-lg {
+  flex: none;
+  color: var(--lamp);
+}
+
+.rk-view-text {
+  margin: 0;
+  flex: 1;
+  max-width: 92ch;
+  font-size: 11.5px;
+  line-height: 1.5;
+  color: var(--legend-mid);
+}
+
+.rk-view-text .rd { color: var(--legend); }
+
+.rk-view-clear {
+  flex: none;
+  padding: 5px 11px;
+  border: 1px solid var(--score-strong);
+  background: var(--panel-sunk);
+  color: var(--legend);
+  cursor: pointer;
+}
+
+.rk-view-clear:hover { border-color: var(--mark); color: var(--mark); }
+
+.rk-view-clear:focus-visible {
+  outline: 2px solid var(--mark);
+  outline-offset: 1px;
+}
+
 /* One engraved band per region. The band is the group; there is no card around the rows. */
 .band-head {
   display: flex;

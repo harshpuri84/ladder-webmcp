@@ -44,7 +44,12 @@ describe('edge tools through the real preview-and-commit path', () => {
   it('registers two read tools and two guarded write tools', () => {
     expect([...registered.keys()].sort())
       .toEqual(['inspect_pop', 'list_pops', 'page_oncall', 'roll_config']);
-    expect(registered.get('list_pops').annotations).toEqual({ readOnlyHint: true });
+    expect(registered.get('inspect_pop').annotations).toEqual({ readOnlyHint: true });
+    // `list_pops` also narrows the rack, so it cannot claim `readOnlyHint` and does not — see
+    // rack-view.test.ts, which owns that contract and the reason for all three hints.
+    expect(registered.get('list_pops').annotations).toEqual({
+      readOnlyHint: false, destructiveHint: false, idempotentHint: true,
+    });
     expect(registered.get('roll_config').annotations).toBeUndefined();
   });
 

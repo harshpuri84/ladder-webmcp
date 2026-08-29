@@ -3,6 +3,7 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent, act, cleanup } from '@testing-library/react';
 import { Console, resetConsoleSession } from '../Console';
 import { store } from '../../domain/store';
+import { setRegisterView } from '../../domain/register-view';
 
 afterEach(() => cleanup());
 // The filter and the buggy-tool box outlive a mount on purpose (they have to survive a tab
@@ -182,5 +183,97 @@ describe('Console keeps its working state across an unmount', () => {
     expect((screen.getByPlaceholderText(/Filter by/i) as HTMLInputElement).value).toBe('');
     expect(screen.getByText(`${totalShipments} of ${totalShipments} house shipments`)).toBeTruthy();
     expect((screen.getByLabelText(/Simulate a buggy tool/i) as HTMLInputElement).checked).toBe(false);
+  });
+});
+
+/**
+ * The agent narrowing the register. This is the one change to this page that happens while the
+ * operator's hands are still, so what is checked here is as much the disclosure as the filter:
+ * who did it, that the record is untouched, and that one control gives the view back.
+ *
+ * Driven through `setRegisterView` — the seam `Console` actually reads — rather than through a
+ * registered tool call. That the real `search_shipments` writes this seam, with these ids and
+ * these words, is `domain/__tests__/register-view.test.ts`'s subject, and duplicating the fake
+ * `modelContext` here would test that same wiring twice and this component's half not at all.
+ */
+describe('Console shows a view an agent set, and gives it back', () => {
+  const lithium = () => rows().filter(s => s.lithiumBattery);
+  const setAgentView = (ids: string[], words: string) => {
+    act(() => setRegisterView({ toolName: 'search_shipments', ids, words }));
+  };
+
+  it('draws only the rows the agent searched, and still counts the whole register', () => {
+    const { container } = render(<Console />);
+    const shown = lithium();
+    expect(shown.length).toBeGreaterThan(0);
+    expect(shown.length).toBeLessThan(totalShipments);
+
+    setAgentView(shown.map(s => s.id), 'lithium-ion cargo');
+
+    expect(screen.getByText(`${shown.length} of ${totalShipments} house shipments`)).toBeTruthy();
+    expect(container.textContent).toContain(shown[0].id);
+    const hidden = rows().find(s => !s.lithiumBattery)!;
+    expect(container.textContent).not.toContain(hidden.id);
+  });
+
+  it('names who set the view, the tool, and what it matched', () => {
+    render(<Console />);
+    const shown = lithium();
+
+    setAgentView(shown.map(s => s.id), 'lithium-ion cargo');
+
+    const line = screen.getByRole('status');
+    expect(line.textContent).toContain('The agent set this view');
+    expect(line.textContent).toContain('search_shipments');
+    expect(line.textContent).toContain('lithium-ion cargo');
+    expect(line.textContent).toContain(`${shown.length} of ${totalShipments} rows`);
+  });
+
+  /** The honesty boundary, on the surface that could break it: the words next to a narrowed
+   *  register must never read as rows having been altered or taken off it. */
+  it('says the record is untouched and the rest are still on the register', () => {
+    render(<Console />);
+    const shown = lithium();
+    const before = rows().map(s => ({ ...s }));
+
+    setAgentView(shown.map(s => s.id), 'lithium-ion cargo');
+
+    expect(screen.getByRole('status').textContent).toContain('Nothing was changed');
+    expect(screen.getByRole('status').textContent).toContain('the rest are still on it');
+    expect(rows().map(s => ({ ...s }))).toEqual(before);
+  });
+
+  it('returns to the whole register in one click', () => {
+    render(<Console />);
+    setAgentView(lithium().map(s => s.id), 'lithium-ion cargo');
+
+    fireEvent.click(screen.getByRole('button', { name: `Show all ${totalShipments}` }));
+
+    expect(screen.getByText(`${totalShipments} of ${totalShipments} house shipments`)).toBeTruthy();
+    expect(screen.queryByRole('status')).toBeNull();
+  });
+
+  /** Two narrowings of one register, not two controls fighting over it. */
+  it('lets the operator filter within the agent\'s view without clearing it', () => {
+    render(<Console />);
+    const shown = lithium();
+    setAgentView(shown.map(s => s.id), 'lithium-ion cargo');
+
+    setFilter(shown[0].id);
+
+    expect(screen.getByText(`1 of ${totalShipments} house shipments`)).toBeTruthy();
+    expect(screen.getByRole('status')).toBeTruthy();
+  });
+
+  it('survives the round trip through the problem tab, as the filter box does', () => {
+    const shown = lithium();
+    const { unmount } = render(<Console />);
+    setAgentView(shown.map(s => s.id), 'lithium-ion cargo');
+
+    unmount();
+    render(<Console />);
+
+    expect(screen.getByText(`${shown.length} of ${totalShipments} house shipments`)).toBeTruthy();
+    expect(screen.getByRole('status').textContent).toContain('search_shipments');
   });
 });

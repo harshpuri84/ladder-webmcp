@@ -1,6 +1,9 @@
 import { useState, useSyncExternalStore } from 'react';
 import { store } from '../domain/store';
 import { setBuggyToolEnabled } from '../domain/tools';
+import {
+  clearRegisterView, onRegisterViewChange, registerView, registerViewVersion,
+} from '../domain/register-view';
 import type { Shipment } from '../domain/types';
 import { ProofMark } from './ProofMark';
 import { remedyCostWords, remedyShort } from './remedy-words';
@@ -11,6 +14,10 @@ function subscribe(onStoreChange: () => void) {
 
 function getSnapshot() {
   return store.version;
+}
+
+function subscribeView(onViewChange: () => void) {
+  return onRegisterViewChange(onViewChange);
 }
 
 /**
@@ -86,6 +93,9 @@ export function resetConsoleSession(): void {
   session.filter = '';
   session.buggyTool = false;
   setBuggyToolEnabled(false);
+  // Third of the same kind: a view an agent set outlives a mount on purpose too, and a suite
+  // that ran one search would otherwise hand the next `it` a register already narrowed.
+  clearRegisterView();
 }
 
 export function Console() {
@@ -93,6 +103,11 @@ export function Console() {
   // is mutated in place and never changes identity. Memoising the rows against a mutable
   // store is what made this table go stale after a commit, so the filter runs each render.
   useSyncExternalStore(subscribe, getSnapshot);
+  // A second subscription rather than a second field on the store's counter: what an agent set
+  // the view to is not a record and has no version the commit guard reads, and folding it into
+  // `store.version` would have every filtered search look, to anything watching, exactly like a
+  // shipment changing.
+  useSyncExternalStore(subscribeView, registerViewVersion);
   const [filter, setFilterState] = useState(session.filter);
   const [buggyTool, setBuggyTool] = useState(session.buggyTool);
 
@@ -107,7 +122,19 @@ export function Console() {
     setBuggyToolEnabled(on);
   };
 
-  const all = Object.values(store.state.shipments);
+  const total = Object.keys(store.state.shipments).length;
+  const view = registerView();
+  // The agent's narrowing and the operator's filter box are two separate narrowings of the
+  // same register, applied in that order, and neither clears the other: an operator who types
+  // into the box while a search is on screen is looking *within* what the agent showed them,
+  // which is the only reading of those two controls that does not throw one of them away.
+  //
+  // Intersected against the ids the tool returned rather than re-running the filter here. The
+  // line below the toolbar says the agent's search matched these rows; if this recomputed the
+  // match, that sentence would be an assertion about a set this table had worked out for
+  // itself and could disagree with.
+  const onRegister = Object.values(store.state.shipments);
+  const all = view ? onRegister.filter(s => view.ids.includes(s.id)) : onRegister;
   const q = filter.trim().toLowerCase();
   // F8: receipts and panel notes hand the operator ids ("HAWB-70019 skipped, every remedy
   // blocked") and rule words, so every one of those has to find its row when pasted back in
@@ -136,10 +163,39 @@ export function Console() {
           value={filter}
           onChange={e => setFilter(e.target.value)}
         />
+        {/* Counted against the register, never against whatever narrowing is on top of it. An
+            agent that could move this denominator could make six rows read as the whole flight. */}
         <span className="console-count">
-          {shipments.length} of {Object.keys(store.state.shipments).length} house shipments
+          {shipments.length} of {total} house shipments
         </span>
       </div>
+      {view && (
+        // The one thing on this page an agent changed without being asked, said plainly, with
+        // the way out beside it. `role="status"` because it is the only change to the register
+        // that happens while the operator's hands are still: the filter box and Marta's button
+        // are both things they did. The registration mark is the press's alignment target,
+        // printed outside the trim and never part of the printed work — the shape already
+        // means "this is what you line the sheet up by, not something on the sheet". Amber,
+        // not the operator's blue: this narrowing is not their own mark, and the mark and the
+        // sentence both say so before any colour does.
+        <div className="console-agent-view" role="status">
+          <p className="console-agent-view-line">
+            <ProofMark name="registration" size={12} />
+            <span>
+              The agent set this view. <code>{view.toolName}</code> matched{' '}
+              {view.ids.length} of {total} rows — {view.words}. Nothing was changed and nothing
+              left the register; the rest are still on it.
+            </span>
+          </p>
+          <button
+            className="console-agent-view-clear"
+            type="button"
+            onClick={() => clearRegisterView()}
+          >
+            Show all {total}
+          </button>
+        </div>
+      )}
       <div className="console-demo-row">
         <label className="console-buggy-toggle">
           <input

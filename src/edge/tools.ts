@@ -6,6 +6,7 @@ import {
 } from './rollout-policy';
 import { CANDIDATE_RELEASE, REGIONS } from './seed';
 import { registerLadderTool, type LadderToolSpec } from '../webmcp/adapter';
+import { setRackView } from './rack-view';
 // Imported for its side effect: store.ts is where this application binds itself to the adapter
 // (see `edgeHost` there). The adapter never reaches into a domain for its state, so the domain
 // side has to hand it over, and every entry point that can register these tools reaches here.
@@ -54,15 +55,47 @@ const filterProps = {
   incident: { type: 'boolean', description: 'Filter to sites with an open incident' },
 } as const;
 
+/**
+ * The same filter, said to the engineer instead of to the agent. The rack prints this, so it has
+ * to read in the trade's own words — the words the rules and the condition column already use.
+ *
+ * A flag set false is worth saying out loud rather than dropping: an agent narrowing to the
+ * sites *outside* a freeze has narrowed the rack just as much, and a line that only ever named
+ * the positive case would describe the opposite view identically.
+ */
+function describeFilter(f: Filter): string {
+  const parts: string[] = [];
+  if (f.ids !== undefined) {
+    parts.push(f.ids.length <= 4 ? f.ids.join(', ') : `${f.ids.length} named sites`);
+  }
+  if (f.region !== undefined) parts.push(f.region);
+  if (f.running !== undefined) parts.push(`running ${f.running}`);
+  if (f.canary !== undefined) parts.push(f.canary ? 'canary sites' : 'production sites');
+  if (f.drained !== undefined) parts.push(f.drained ? 'drained' : 'in rotation');
+  if (f.frozen !== undefined) parts.push(f.frozen ? 'inside a change freeze' : 'no change freeze');
+  if (f.incident !== undefined) parts.push(f.incident ? 'open incident' : 'no open incident');
+  return parts.length === 0 ? 'the whole estate' : parts.join(', ');
+}
+
 const listPops: LadderToolSpec = {
   name: 'list_pops',
-  description: 'List points of presence by region, running release, or state (canary, drained, frozen, incident). Heaviest traffic share first; returns up to 50 sites.',
+  description: 'List points of presence by region, running release, or state (canary, drained, frozen, incident). Heaviest traffic share first; returns up to 50 sites. This call also changes what the on-call engineer is looking at: the rack on their screen narrows to the sites returned here, labelled as set by you and cleared by them in one click. It changes no site and takes none out of the estate — each region band goes on counting against the whole region. Use it when you want the engineer looking at a particular part of the estate before you propose anything.',
   readOnly: true,
+  changesTheView: true,
   inputSchema: { type: 'object', properties: { ...filterProps } },
   async exec(input: Filter = {}, ctx: Ctx<EdgeState>) {
     const rows = findMatches(ctx.db, input);
+    const shown = rows.slice(0, 50);
+    // Set from `shown`, never from `rows`: the rack is told to draw exactly what the agent was
+    // handed, so a call that truncated at 50 cannot leave the engineer looking at sites the
+    // agent never saw.
+    setRackView({
+      toolName: 'list_pops',
+      ids: shown.map(p => p.id),
+      words: describeFilter(input),
+    });
     return {
-      rows: rows.slice(0, 50),
+      rows: shown,
       total: rows.length,
       trafficPct: Math.round(rows.reduce((n, p) => n + p.trafficPct, 0) * 100) / 100,
     };

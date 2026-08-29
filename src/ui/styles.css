@@ -340,6 +340,64 @@ body.pp-active .al {
   white-space: nowrap;
 }
 
+/* The line that says an agent narrowed this register, and the way back out of it. A ruled band
+   across the register rather than a card: the register is one sheet, and this is a note in its
+   margin about what is currently drawn on it. Amber is the second reading — the registration
+   mark and the sentence both carry it first, and with every colour removed the band is still a
+   rule, a mark, a sentence and a button. */
+.console-agent-view {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 9px 18px;
+  border-bottom: 1px solid var(--rule);
+  background: var(--hold-wash);
+}
+
+.console-agent-view-line {
+  display: flex;
+  align-items: baseline;
+  gap: 7px;
+  margin: 0;
+  max-width: 82ch;
+  font-size: 0.78rem;
+  line-height: 1.45;
+  color: var(--ink);
+}
+
+.console-agent-view-line svg {
+  flex: none;
+  color: var(--hold);
+  transform: translateY(1px);
+}
+
+.console-agent-view-line code {
+  font-family: var(--face-mono);
+  font-size: 0.9em;
+}
+
+.console-agent-view-clear {
+  flex: none;
+  padding: 5px 11px;
+  border: 1px solid var(--rule-strong);
+  background: var(--paper-raised);
+  color: var(--ink);
+  font-family: inherit;
+  font-size: 0.76rem;
+  cursor: pointer;
+}
+
+.console-agent-view-clear:hover {
+  border-color: var(--mark);
+  color: var(--mark);
+}
+
+.console-agent-view-clear:focus-visible {
+  outline: 2px solid var(--mark);
+  outline-offset: 1px;
+}
+
 .console-demo-row {
   padding: 10px 18px;
   border-bottom: 1px solid var(--rule);
