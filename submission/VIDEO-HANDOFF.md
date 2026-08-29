@@ -97,17 +97,43 @@ Do not overlay the honest-limits beat. It should read as the page wrote it.
 
 ## 7 · The prompts typed on camera
 
-<!-- FILLED IN ONCE THE DRIFT TEST LANDS -->
-*Pending: the exact prompt strings, drift-tested against the registered tools. They also appear on
-the proof tab itself, so the video and the page teach the same string. Do not substitute your own
-wording — a prompt that does not reach the tool produces a video that teaches a judge something
-false.*
+These two strings, **verbatim**. They are covered by `src/domain/__tests__/shipped-prompts.test.ts`,
+which drives the real registered tools and fails if a wording stops reaching one. They also appear
+on the proof tab itself, so the video and the page teach the same string.
+
+**Do not substitute your own wording.** A prompt that does not reach the tool produces a video that
+teaches a judge something false.
+
+> **Propose a remedy for every shipment on CONSOL-A.**
+
+Reaches `propose_remedy {consol:'CONSOL-A'}`. 27 of the 42 ride that consol. Four cost more than a
+gateway operator may authorise, so they are set apart before the operator looks and cannot be
+marked by hand. The panel opens at **23 marked**.
+
+> **Show me the shipments carrying lithium-ion batteries.**
+
+Reaches `search_shipments {lithiumBattery:true}`. Two of the 42. No panel opens — a read has
+nothing to approve. The register narrows to those two and says the agent set the view; the count
+above the table reads `2 of 42`, and one click restores it.
+
+**A warning that cost a take already:** record in a chat with **no project and no repository
+attached**. With the repo open, Codex answered by reading `remedy-policy.ts` and `seed.ts` instead
+of calling the tool. The numbers were right and it was not a demo — the giveaway was source
+citations in the transcript and a register that never moved.
 
 ## 8 · The judge walkthrough
 
-<!-- FILLED IN ONCE BUILT -->
-*Pending: a numbered sequence in the app that a judge can follow to exercise the whole thing
-themselves. Relevant to the video because the closing beat should point at it.*
+The proof tab carries **"Run it yourself"** — seven steps, each with what to do and what you
+should see if it worked. Step 1 is open; the rest sit behind a closed fold so a judge who knows
+what they want can ignore it.
+
+1. Propose · 2. Cut it down · 3. Apply · 4. Refer, and sign as the second person ·
+5. Watch a change land underneath you · 6. Make the tool misbehave · 7. Ask it to look, not to change
+
+**Why it matters to the video:** a review named the free-prompt session as this entry's
+highest-variance surface — the part the author does not control. The mechanics that distinguish
+this submission are all *downstream* of the first call, and a judge who tries one prompt and stops
+sees none of them. The closing beat should point at this rather than only at the URL.
 
 ## 9 · One honest caveat that may or may not be needed
 
