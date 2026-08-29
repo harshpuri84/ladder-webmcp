@@ -4,7 +4,9 @@ import { store } from '../../domain/store';
 import { DISRUPTED_FLIGHT } from '../../domain/seed';
 import { RungStrip } from '../RungStrip';
 import { AuthorityStrip } from '../AuthorityStrip';
-import { PROMPTS, type Prompt } from '../prompts';
+import { type Prompt } from '../prompts';
+import { STEPS, type Step } from '../walkthrough';
+import { ProofMark } from '../ProofMark';
 import { isWebmcpAvailable, onAvailabilityChange } from '../../webmcp/adapter';
 
 // A host that's about to inject the namespace shouldn't make the banner flash on first paint —
@@ -63,7 +65,12 @@ const COPY_WORD: Record<CopyState, string> = {
   failed: 'Select it',
 };
 
-function PromptRow({ text, note }: Prompt) {
+/**
+ * The line to say, and a control that puts it on the clipboard. What comes back of it is the
+ * step's own "You should see" line — `Prompt.note`, rendered once by `StepRow` — so this row
+ * carries the words to reproduce and nothing else.
+ */
+function PromptRow({ text }: Pick<Prompt, 'text'>) {
   const [state, setState] = useState<CopyState>('idle');
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -84,10 +91,9 @@ function PromptRow({ text, note }: Prompt) {
   }
 
   return (
-    <li className="ag-prompt">
+    <div className="ag-prompt">
       <div className="ag-prompt-body">
         <span className="mono ag-prompt-text">{text}</span>
-        <span className="ag-prompt-note">{note}</span>
       </div>
       <button
         className="ag-copy"
@@ -99,33 +105,89 @@ function PromptRow({ text, note }: Prompt) {
             everything else on this sheet. */}
         <span aria-live="polite">{COPY_WORD[state]}</span>
       </button>
+    </div>
+  );
+}
+
+/**
+ * One numbered step: what to do, and what should be on screen if it worked.
+ *
+ * The second half is the part that earns its room. A judge who is not sure whether something
+ * happened assumes it did not — so every step states its own outcome and is checkable without
+ * anybody standing next to them.
+ *
+ * The number is set in a ruled box rather than as a list marker so it reads at the same weight
+ * as the figures everywhere else on this sheet, and so the two lists (the first step, and the
+ * six behind the fold) can carry on one sequence across the boundary between them.
+ */
+function StepRow({ step, n }: { step: Step; n: number }) {
+  return (
+    <li className="ag-step">
+      <p className="ag-step-head">
+        <span className="ag-step-n mono">{n}</span>
+        <span className="ag-step-title">{step.title}</span>
+      </p>
+      <p className="ag-step-do">{step.action}</p>
+      {step.prompt && <PromptRow text={step.prompt.text} />}
+      {/* Every step ends the same way, prompt or no prompt. A prompt-carrying step's outcome is
+          the prompt's own note — walkthrough.ts sets `seen` to exactly that string, so the claim
+          about a call lives in one place and is held by one test. */}
+      <p className="ag-step-seen">
+        <span className="ag-step-seen-caps">You should see</span> {step.seen}
+      </p>
+      {step.demonstration && (
+        // The dagger is the reference mark — set apart from the main run — which is what a
+        // deliberate demonstration is. The word "demonstration" says it before the mark does
+        // and the mark says it before the wash does; none of the three is a colour alone.
+        <p className="ag-step-demo">
+          <ProofMark name="dagger" size={12} />
+          <span>
+            <span className="ag-step-demo-caps">Deliberate demonstration</span>{' '}
+            {step.demonstration}
+          </span>
+        </p>
+      )}
     </li>
   );
 }
 
 /**
- * The two things to say to an agent, printed on the sheet itself.
+ * The sequence, printed on the sheet.
  *
- * The video sends a judge straight to this tab, and until 29 August 2026 it gave them nothing to
- * say when they got here — they had to reconstruct a call from memory. The edge console has
- * carried its own version of this since it shipped; this is that idea in the freight console's
- * own grammar rather than the rack's, and the wording is held against the real tools by
- * `domain/__tests__/shipped-prompts.test.ts` so a prompt cannot drift from what it does.
+ * The video sends a judge straight to this tab, and until 29 August 2026 the only thing here was
+ * two prompts to copy. Two prompts get a judge one call in and then leave them: the referral, the
+ * second signer, the narrowed follow-up, the stale abort and the guard rolling a commit back all
+ * sit *downstream* of that first call and none of them happen by themselves. This is the same
+ * block, grown into the walk — one list, not two, which is why the prompts moved inside it rather
+ * than sitting above it repeating themselves.
  *
- * Set as a third imprint block on the same stock as the standing rules and the authority
- * boundary, and placed above both, because it is the thing to do first.
+ * **It opens nearly shut on purpose.** The first step is the whole of the old block and stays in
+ * the open; the other six are behind a fold. A judge who already knows what they want reads one
+ * prompt and goes, exactly as before, and never has a seven-step tutorial shouting at them from
+ * the top of an instrument. `<details>` rather than a toggle of our own: it is keyboard-operable,
+ * findable by the browser's own in-page search, and needs no state.
  */
-function AskTheAgent() {
+function RunItYourself() {
+  const [first, ...rest] = STEPS;
   return (
     <section className="ag" aria-labelledby="ag-heading">
-      <h2 className="ag-heading" id="ag-heading">Ask the agent</h2>
+      <h2 className="ag-heading" id="ag-heading">Run it yourself</h2>
       <p className="ag-lead">
-        Say either of these to an agent driving this page. What it proposes arrives here as a
-        proof you mark up before anything lands.
+        {STEPS.length} steps against an agent driving this page. Each says what to do and what
+        should be on screen if it worked. Nothing a tool asks for lands until you stamp it.
       </p>
-      <ul className="ag-prompts">
-        {PROMPTS.map(p => <PromptRow key={p.text} text={p.text} note={p.note} />)}
-      </ul>
+      <ol className="ag-steps">
+        <StepRow step={first} n={1} />
+      </ol>
+      <details className="ag-more">
+        <summary className="ag-more-summary">
+          The other {rest.length} steps — cut it down, apply it, refer what is over your limit to a
+          second signer, and make the guard stop two things it should stop
+        </summary>
+        <ol className="ag-steps" start={2}>
+          {rest.map((step, i) => <StepRow key={step.title} step={step} n={i + 2} />)}
+        </ol>
+      </details>
     </section>
   );
 }
@@ -196,7 +258,7 @@ export function ProofPage() {
     <main>
       <Docket />
       {showBanner && <WebmcpBanner />}
-      <AskTheAgent />
+      <RunItYourself />
       <RungStrip />
       <AuthorityStrip />
       <Console />

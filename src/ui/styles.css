@@ -151,6 +151,8 @@ hr.rule {
 .pp-refer-caption-caps,
 .pr-note-caption,
 .ag-heading,
+.ag-step-seen-caps,
+.ag-step-demo-caps,
 .ac-struck-note {
   text-transform: uppercase;
   /* 11.5px, not 10.5px: below an 11px floor a letterspaced caps label stops being
@@ -605,7 +607,7 @@ body.pp-active .console-table td {
  * Set as an imprint block on the same stock as the standing rules and the authority boundary
  * below it, because it is the same kind of matter — an instruction about the work rather than
  * the work — and printed above both because it is the thing to do first. The judge the video
- * sends here arrives with nothing to type; this is what they type.
+ * sends here arrives with nothing to type; this is what they type, and then what they do next.
  */
 .ag {
   background: var(--paper);
@@ -627,24 +629,132 @@ body.pp-active .console-table td {
   color: var(--ink-muted);
 }
 
-.ag-prompts {
+/*
+ * The numbered run. Steps are divided by a rule rather than boxed — structure by rules and
+ * space, as everything else on this sheet is — and the sequence carries across the fold: the
+ * first step is in the open, the rest are inside <details>, and both lists are set the same.
+ */
+.ag-steps {
   list-style: none;
-  margin: 11px 0 0;
+  margin: 12px 0 0;
   padding: 0;
 }
 
+.ag-step {
+  padding: 12px 0 13px;
+  border-top: 1px solid var(--rule);
+}
+
+.ag-step-head {
+  display: flex;
+  align-items: baseline;
+  gap: 9px;
+  margin: 0 0 5px;
+}
+
+/* The step number, set as a figure in a ruled box rather than as a list marker, so it reads at
+   the weight every other figure on this sheet is set at. */
+.ag-step-n {
+  flex: none;
+  padding: 1px 6px;
+  border: 1px solid var(--rule-strong);
+  background: var(--paper-sunk);
+  font-size: 0.76rem;
+  color: var(--ink-muted);
+}
+
+.ag-step-title {
+  font-size: 0.86rem;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.ag-step-do {
+  margin: 0;
+  max-width: 74ch;
+  font-size: 0.78rem;
+  line-height: 1.45;
+  color: var(--ink);
+}
+
 /*
- * Each prompt sits on a sunk well with the copy control on the shoulder, divided from the next
- * by a rule rather than boxed — structure by rules and space, as everything else on this sheet
- * is. Nothing here is said by a hue: the words on the button carry the copy state, and the well
- * is a luminance step, not a tint.
+ * What the step should have done, hung off a rule in the margin the way a proofreader's note
+ * hangs off the line it queries. The caption word does the telling; the rule is a second
+ * reading of the same thing and no hue is involved in either.
+ */
+.ag-step-seen {
+  margin: 8px 0 0;
+  max-width: 72ch;
+  padding-left: 10px;
+  border-left: 2px solid var(--rule-strong);
+  font-size: 0.78rem;
+  line-height: 1.45;
+  color: var(--ink-muted);
+}
+
+.ag-step-seen-caps {
+  color: var(--ink);
+}
+
+/*
+ * The two steps that drive a labelled demonstration say so again here. Amber, as everything
+ * set apart from the main run is — but the dagger and the words "deliberate demonstration"
+ * have both already said it before the wash gets a turn.
+ */
+.ag-step-demo {
+  display: flex;
+  align-items: flex-start;
+  gap: 7px;
+  margin: 8px 0 0;
+  max-width: 72ch;
+  padding: 6px 9px;
+  border: 1px dashed var(--hold);
+  background: var(--hold-wash);
+  font-size: 0.76rem;
+  line-height: 1.45;
+  color: var(--ink-muted);
+}
+
+.ag-step-demo-caps {
+  color: var(--hold);
+}
+
+/*
+ * Nearly shut by default: an operator or a judge who already knows what they want reads step
+ * one and goes. The summary is a plain line of the sheet's own type, not a control that shouts.
+ */
+.ag-more {
+  margin-top: 2px;
+}
+
+.ag-more-summary {
+  max-width: 74ch;
+  padding: 9px 0 0;
+  border-top: 1px solid var(--rule);
+  font-size: 0.78rem;
+  line-height: 1.45;
+  color: var(--ink-muted);
+  cursor: pointer;
+}
+
+.ag-more-summary:hover {
+  color: var(--ink);
+}
+
+.ag-more[open] .ag-more-summary {
+  margin-bottom: 2px;
+}
+
+/*
+ * The prompt itself: a sunk well with the copy control on the shoulder. Nothing here is said by
+ * a hue — the words on the button carry the copy state, and the well is a luminance step, not a
+ * tint.
  */
 .ag-prompt {
   display: flex;
   align-items: flex-start;
   gap: 14px;
-  padding: 10px 0 11px;
-  border-top: 1px solid var(--rule);
+  margin-top: 9px;
 }
 
 .ag-prompt-body {
@@ -664,15 +774,6 @@ body.pp-active .console-table td {
   padding: 4px 8px;
   user-select: all;
   overflow-wrap: anywhere;
-}
-
-.ag-prompt-note {
-  display: block;
-  margin-top: 6px;
-  max-width: 74ch;
-  font-size: 0.78rem;
-  line-height: 1.45;
-  color: var(--ink-muted);
 }
 
 /* Fixed width so the word swapping to "Copied" does not shift the row it sits in. */
