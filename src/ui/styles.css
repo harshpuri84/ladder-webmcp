@@ -3053,3 +3053,54 @@ body.pp-active .console-table td {
     max-width: 100%;
   }
 }
+
+/* ---------- the second product, shown before it is opened ---------- */
+
+/*
+ * A screenshot on a page whose whole argument is "we did not draw this" has to be obviously a
+ * photograph of something real rather than a mock. So: no browser chrome, no device frame, no
+ * perspective. A plate on the sheet, held by the same rule weight as everything else, with the
+ * caption saying plainly what it is and that pressing it opens the live product.
+ */
+.ew-shot {
+  margin: 26px 0 0;
+  max-width: 100%;
+}
+
+.ew-shot-frame {
+  display: block;
+  border: 1px solid var(--rule-strong);
+  /* The one shadow recipe in this design: a tight contact edge and a single soft lift. */
+  box-shadow:
+    0 1px 2px rgba(23, 21, 15, 0.10),
+    0 7px 14px -6px rgba(23, 21, 15, 0.24);
+  /* The image is dark and the sheet is cream; without this the gap between them reads as a
+     rendering fault on the first paint before the JPEG arrives. */
+  background: #14181b;
+  line-height: 0;
+}
+
+.ew-shot-frame:hover {
+  border-color: var(--ink-faint);
+}
+
+.ew-shot-frame:focus-visible {
+  outline: 2px solid var(--mark);
+  outline-offset: 2px;
+}
+
+.ew-shot img {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.ew-shot-cap {
+  display: flex;
+  align-items: baseline;
+  gap: 7px;
+  margin: 9px 0 0;
+  color: var(--ink-muted);
+  font-size: 0.78rem;
+  line-height: 1.45;
+}

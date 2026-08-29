@@ -174,6 +174,38 @@ export function ElsewherePage() {
               </span>
             )}
         </p>
+
+        {/*
+          A bare link asked a reader to take on trust that the thing on the other end looks
+          nothing like this page. Showing it settles that before they click, and the contrast is
+          the argument: cream proof sheet against dark instrument rack, and the same four beats
+          underneath both. The figure links through, so the picture is a door rather than a
+          substitute for one.
+        */}
+        {linkIsReal && (
+          <figure className="ew-shot">
+            <a href={SECOND_PRODUCT_HREF} className="ew-shot-frame">
+              <img
+                src="shots/edge-control.jpg"
+                width={1400}
+                height={875}
+                loading="lazy"
+                decoding="async"
+                alt={
+                  'Edge Control: a dark instrument rack listing points of presence with their ' +
+                  'traffic share and running config version, and an open drawer proposing a ' +
+                  'release rollout — 23 of 23 sites, 2.66% of production traffic, 7 referred to ' +
+                  'a traffic lead.'
+                }
+              />
+            </a>
+            <figcaption className="ew-shot-cap">
+              <ProofMark name="dagger" size={12} />
+              The same engine, in a product that shares none of this one&rsquo;s vocabulary.
+              A live screenshot &mdash; press it to open the real thing.
+            </figcaption>
+          </figure>
+        )}
       </section>
 
       <p className="pr-onward">
