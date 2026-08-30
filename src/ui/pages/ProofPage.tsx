@@ -4,7 +4,7 @@ import { store } from '../../domain/store';
 import { DISRUPTED_FLIGHT } from '../../domain/seed';
 import { RungStrip } from '../RungStrip';
 import { AuthorityStrip } from '../AuthorityStrip';
-import { type Prompt } from '../prompts';
+import { PROMPTS, type Prompt } from '../prompts';
 import { STEPS, type Step } from '../walkthrough';
 import { ProofMark } from '../ProofMark';
 import { isWebmcpAvailable, onAvailabilityChange } from '../../webmcp/adapter';
@@ -117,8 +117,7 @@ function PromptRow({ text }: Pick<Prompt, 'text'>) {
  * anybody standing next to them.
  *
  * The number is set in a ruled box rather than as a list marker so it reads at the same weight
- * as the figures everywhere else on this sheet, and so the two lists (the first step, and the
- * six behind the fold) can carry on one sequence across the boundary between them.
+ * as the figures everywhere else on this sheet.
  */
 function StepRow({ step, n }: { step: Step; n: number }) {
   return (
@@ -151,43 +150,89 @@ function StepRow({ step, n }: { step: Step; n: number }) {
   );
 }
 
+/** The walkthrough's own anchor, so the line at the head of the sheet can send a judge to it. */
+const RUN_ID = 'run-it-yourself';
+
 /**
- * The sequence, printed on the sheet.
+ * Deliberately not an `href="#run-it-yourself"`. The tab lives in the hash (`useTab`), so an
+ * in-page anchor would rewrite it to something no tab answers to and drop the judge on the
+ * problem page mid-jump.
+ */
+function jumpToWalkthrough() {
+  const el = document.getElementById(RUN_ID);
+  if (el === null) return;
+  const still = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  el.scrollIntoView({ behavior: still ? 'auto' : 'smooth', block: 'start' });
+  // The section carries tabIndex={-1} so focus follows the view. Without this the next Tab
+  // would carry on from up here, three thousand pixels above what the judge is now looking at.
+  el.focus({ preventScroll: true });
+}
+
+/**
+ * The one line at the head of the sheet: what to say, and where the rest of it is printed.
+ *
+ * The walkthrough itself sits under the register, because the register is the instrument and an
+ * instrument leads — a judge who opens this page should be looking at the thing the video just
+ * showed them, not at the top of a seven-step tutorial. But the free-prompt session is the
+ * highest-variance surface here, and a judge who never finds a prompt never sees anything. So
+ * the first prompt, and only the first prompt, is lifted out of the sequence and printed where
+ * they land.
+ *
+ * It makes no claim of its own. The words are `PROMPTS[0]` itself, not a copy of them, and what
+ * comes back of them is still stated exactly once — by step 1, below the register, out of the
+ * prompt's own `note`.
+ *
+ * One row and a pointer. A judge who already knows what they want reads neither.
+ */
+function StartLine() {
+  return (
+    <section className="ag-start" aria-labelledby="ag-start-caps">
+      <div className="ag-start-head">
+        <span className="ag-start-caps" id="ag-start-caps">Say this to an agent</span>
+        <PromptRow text={PROMPTS[0].text} />
+      </div>
+      <p className="ag-start-note">
+        Nothing a tool asks for lands until you stamp it. What comes back of this, and the{' '}
+        {STEPS.length - 1} steps after it, are printed under the register.{' '}
+        <button className="ag-start-jump" type="button" onClick={jumpToWalkthrough}>
+          Go to them
+        </button>
+      </p>
+    </section>
+  );
+}
+
+/**
+ * The sequence, printed under the register.
  *
  * The video sends a judge straight to this tab, and until 29 August 2026 the only thing here was
  * two prompts to copy. Two prompts get a judge one call in and then leave them: the referral, the
  * second signer, the narrowed follow-up, the stale abort and the guard rolling a commit back all
- * sit *downstream* of that first call and none of them happen by themselves. This is the same
- * block, grown into the walk — one list, not two, which is why the prompts moved inside it rather
- * than sitting above it repeating themselves.
+ * sit *downstream* of that first call and none of them happen by themselves. So the walk is
+ * printed out, one list, seven steps.
  *
- * **It opens nearly shut on purpose.** The first step is the whole of the old block and stays in
- * the open; the other six are behind a fold. A judge who already knows what they want reads one
- * prompt and goes, exactly as before, and never has a seven-step tutorial shouting at them from
- * the top of an instrument. `<details>` rather than a toggle of our own: it is keyboard-operable,
- * findable by the browser's own in-page search, and needs no state.
+ * **It sits under the register on purpose.** It spent 30 August 2026 above it, fourth in the
+ * page and first in the eye, which put a tutorial where the instrument belonged. Everything from
+ * the proposal onward is read here, after the thing it is about; the one move that comes before
+ * any of it — the prompt that raises the first proposal — is lifted to `StartLine` at the head
+ * of the sheet. That split is also the panel's: this section stays visible and readable while a
+ * proposal is open, because the shell reserves the panel's width rather than covering the page,
+ * and steps 2 and 3 are exactly the mid-decision ones.
+ *
+ * The fold the first version used is gone with the move. It existed to stop seven steps shouting
+ * from the top of an instrument, and nothing under the register shouts at anybody.
  */
 function RunItYourself() {
-  const [first, ...rest] = STEPS;
   return (
-    <section className="ag" aria-labelledby="ag-heading">
+    <section className="ag" id={RUN_ID} tabIndex={-1} aria-labelledby="ag-heading">
       <h2 className="ag-heading" id="ag-heading">Run it yourself</h2>
       <p className="ag-lead">
         {STEPS.length} steps against an agent driving this page. Each says what to do and what
-        should be on screen if it worked. Nothing a tool asks for lands until you stamp it.
+        should be on screen if it worked. The first is the prompt at the head of the sheet.
       </p>
       <ol className="ag-steps">
-        <StepRow step={first} n={1} />
+        {STEPS.map((step, i) => <StepRow key={step.title} step={step} n={i + 1} />)}
       </ol>
-      <details className="ag-more">
-        <summary className="ag-more-summary">
-          The other {rest.length} steps — cut it down, apply it, refer what is over your limit to a
-          second signer, and make the guard stop two things it should stop
-        </summary>
-        <ol className="ag-steps" start={2}>
-          {rest.map((step, i) => <StepRow key={step.title} step={step} n={i + 2} />)}
-        </ol>
-      </details>
     </section>
   );
 }
@@ -258,10 +303,11 @@ export function ProofPage() {
     <main>
       <Docket />
       {showBanner && <WebmcpBanner />}
-      <RunItYourself />
+      <StartLine />
       <RungStrip />
       <AuthorityStrip />
       <Console />
+      <RunItYourself />
     </main>
   );
 }

@@ -151,6 +151,7 @@ hr.rule {
 .pp-refer-caption-caps,
 .pr-note-caption,
 .ag-heading,
+.ag-start-caps,
 .ag-step-seen-caps,
 .ag-step-demo-caps,
 .ac-struck-note {
@@ -608,19 +609,104 @@ body.pp-active .console-table td {
   margin-top: 3px;
 }
 
-/* ---------- the imprint: what to say to an agent ---------- */
+/* ---------- the head of the sheet: what to say first ---------- */
 
 /*
- * Set as an imprint block on the same stock as the standing rules and the authority boundary
- * below it, because it is the same kind of matter — an instruction about the work rather than
- * the work — and printed above both because it is the thing to do first. The judge the video
- * sends here arrives with nothing to type; this is what they type, and then what they do next.
+ * One ruled band under the docket carrying the first prompt and nothing else. Ruled above and
+ * below rather than boxed, the same device the WebMCP banner uses and for the same reason:
+ * matter set apart from the sheet, not another slab competing with the register.
+ *
+ * It is a hairline, not the banner's double rule. The banner is an interruption — a thing that
+ * is wrong with this browser — and this is an instruction about work that is going fine.
+ */
+.ag-start {
+  border-top: 1px solid var(--rule-strong);
+  border-bottom: 1px solid var(--rule-strong);
+  padding: 11px 0 10px;
+  margin: 0 0 20px;
+}
+
+/*
+ * Label and prompt on one line while there is room for one, and stacked the moment there is not.
+ * The wrap is not a nicety: while a proposal is open the shell hands 560px to the panel, and on
+ * a 900px screen that leaves this column 228px — narrower than the label. Held on one nowrap
+ * line, the well then took what was left after a 92px copy button and set the prompt one
+ * character to a line, a 900px-tall rope of letters down the side of the panel. Wrapped, the
+ * label sits above the well exactly as every other eyebrow on this sheet does.
+ */
+.ag-start-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 5px 14px;
+}
+
+.ag-start-caps {
+  flex: none;
+  color: var(--ink-muted);
+}
+
+/* The prompt row is shared with a step below the register, where it hangs under a line of
+   prose. Up here it is the line — until the basis stops fitting beside the label, at which
+   point it takes a line of its own rather than being squeezed into a column. */
+.ag-start .ag-prompt {
+  flex: 1 1 300px;
+  min-width: 0;
+  margin-top: 0;
+  align-items: center;
+}
+
+/* No measure cap: this is a caption on the sheet's head, set the way the docket above it is,
+   and at 1100px it is one line. Prose measure applies to the prose under the register. */
+.ag-start-note {
+  margin: 7px 0 0;
+  font-size: 0.76rem;
+  line-height: 1.45;
+  color: var(--ink-muted);
+}
+
+/* Underlined, not tinted: the affordance survives greyscale, and the hue only agrees with it. */
+.ag-start-jump {
+  padding: 0;
+  border: 0;
+  background: none;
+  font-family: inherit;
+  font-size: inherit;
+  color: var(--mark);
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
+
+.ag-start-jump:hover {
+  text-decoration-thickness: 2px;
+}
+
+/* ---------- the imprint: run it yourself ---------- */
+
+/*
+ * Set as an imprint block on the same stock as the standing rules and the authority boundary,
+ * because it is the same kind of matter — an instruction about the work rather than the work.
+ * Printed under the register rather than over it: the register is the instrument, and a judge
+ * arriving from the video has to be looking at the instrument, not at the top of a tutorial.
  */
 .ag {
   background: var(--paper);
   border: 1px solid var(--rule-strong);
   padding: 15px 18px 17px;
-  margin-bottom: 22px;
+  margin: 22px 0 0;
+}
+
+/*
+ * The section takes focus when "Go to them" sends someone here, so it has to show it — and the
+ * ring has to be inset for the same reason the panel's is. The jump puts this block's top edge
+ * flush with the top of the viewport, so an offset ring would be drawn two pixels above the
+ * screen and a keyboard user would arrive to three sides of a rectangle.
+ */
+.ag:focus-visible {
+  outline: 2px solid var(--mark);
+  outline-offset: -3px;
 }
 
 .ag-heading {
@@ -724,32 +810,6 @@ body.pp-active .console-table td {
 
 .ag-step-demo-caps {
   color: var(--hold);
-}
-
-/*
- * Nearly shut by default: an operator or a judge who already knows what they want reads step
- * one and goes. The summary is a plain line of the sheet's own type, not a control that shouts.
- */
-.ag-more {
-  margin-top: 2px;
-}
-
-.ag-more-summary {
-  max-width: 74ch;
-  padding: 9px 0 0;
-  border-top: 1px solid var(--rule);
-  font-size: 0.78rem;
-  line-height: 1.45;
-  color: var(--ink-muted);
-  cursor: pointer;
-}
-
-.ag-more-summary:hover {
-  color: var(--ink);
-}
-
-.ag-more[open] .ag-more-summary {
-  margin-bottom: 2px;
 }
 
 /*

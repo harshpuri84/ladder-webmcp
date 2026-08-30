@@ -124,8 +124,9 @@ citations in the transcript and a register that never moved.
 ## 8 · The judge walkthrough
 
 The proof tab carries **"Run it yourself"** — seven steps, each with what to do and what you
-should see if it worked. Step 1 is open; the rest sit behind a closed fold so a judge who knows
-what they want can ignore it.
+should see if it worked. It is printed *under* the register, so the instrument is the first thing
+a judge sees. Step 1's prompt is lifted to a single ruled line at the head of the sheet, directly
+under the docket, with a "Go to them" pointer down to the other six.
 
 1. Propose · 2. Cut it down · 3. Apply · 4. Refer, and sign as the second person ·
 5. Watch a change land underneath you · 6. Make the tool misbehave · 7. Ask it to look, not to change

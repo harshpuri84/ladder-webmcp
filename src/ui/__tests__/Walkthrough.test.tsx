@@ -6,9 +6,10 @@ import { PROMPTS } from '../prompts';
 import { STEPS } from '../walkthrough';
 
 /**
- * That the sequence reaches the sheet, that it does not shout, and that the copy control still
- * confirms in a word rather than in a colour. jsdom applies no stylesheet, so the markup is the
- * only place any of those can be checked.
+ * That the sequence reaches the sheet, that it sits under the register rather than over it, and
+ * that the copy control still confirms in a word rather than in a colour. jsdom applies no
+ * stylesheet, so the markup is the only place any of those can be checked — including the
+ * placement, which is document order here and nothing else.
  *
  * What the steps claim is held in `walkthrough.test.ts` and, for the two prompts, against the
  * real tools in `domain/__tests__/shipped-prompts.test.ts`.
@@ -30,25 +31,54 @@ describe('the walkthrough is printed on the proof tab', () => {
     expect(screen.getAllByText('You should see')).toHaveLength(STEPS.length);
   });
 
-  it('ships the prompts exactly as the module states them, and only inside the sequence', () => {
+  it('ships the prompts exactly as the module states them, never a paraphrase', () => {
     render(<ProofPage />);
-    for (const p of PROMPTS) expect(screen.getByText(p.text)).toBeTruthy();
-    // One list, not two: every prompt on the page belongs to a step.
+    // The first prompt is printed twice on purpose — once at the head of the sheet, once as
+    // step 1 under the register — and both times it is the module's own string.
+    expect(screen.getAllByText(PROMPTS[0].text)).toHaveLength(2);
+    expect(screen.getAllByText(PROMPTS[1].text)).toHaveLength(1);
+    // Every copy control on the page offers one of the module's prompts and nothing else.
     const buttons = screen.getAllByRole('button', { name: /^Copy the prompt:/, hidden: true });
-    expect(buttons).toHaveLength(PROMPTS.length);
+    expect(buttons).toHaveLength(3);
+    const offered = buttons.map(b => b.getAttribute('aria-label')!.replace('Copy the prompt: ', ''));
+    expect([...new Set(offered)].sort()).toEqual([...PROMPTS.map(p => p.text)].sort());
   });
 
-  it('opens nearly shut — one step out, the rest behind a fold', () => {
+  it('leads with the register — the sequence is printed under it, the first prompt above', () => {
     const { container } = render(<ProofPage />);
-    const fold = container.querySelector('details.ag-more');
-    expect(fold).toBeTruthy();
-    // Closed on arrival. A judge who knows what they want reads step one and goes.
-    expect((fold as HTMLDetailsElement).open).toBe(false);
-    // The first step is outside it; every other one is inside.
-    expect(fold!.querySelector('.ag-step')).toBeTruthy();
-    expect(fold!.querySelectorAll('.ag-step')).toHaveLength(STEPS.length - 1);
+    const kids = [...container.querySelectorAll('main > *')];
+    const at = (cls: string) => kids.findIndex(k => k.classList.contains(cls));
+    const start = at('ag-start');
+    const register = at('console');
+    const walk = at('ag');
+
+    expect(start).toBeGreaterThanOrEqual(0);
+    expect(start).toBeLessThan(register);
+    // The whole point of the move: nothing of the walkthrough stands between the head of the
+    // sheet and the instrument.
+    expect(register).toBeLessThan(walk);
+
+    // Every step lives in the section under the register; the line above it carries none.
+    expect(kids[walk].querySelectorAll('.ag-step')).toHaveLength(STEPS.length);
     expect(container.querySelectorAll('.ag-step')).toHaveLength(STEPS.length);
-    expect(fold!.contains(screen.getByText(STEPS[0].title))).toBe(false);
+    expect(kids[start].querySelector('.ag-step')).toBeNull();
+    // Nothing folded away any more. The fold existed to stop seven steps shouting from above
+    // the register, and there is nothing above the register to shout from.
+    expect(container.querySelector('details')).toBeNull();
+  });
+
+  it('carries the first prompt to the head of the sheet, with a way back to the rest', () => {
+    const { container } = render(<ProofPage />);
+    const head = container.querySelector('.ag-start')!;
+    expect(head.querySelector('.ag-prompt-text')!.textContent).toBe(PROMPTS[0].text);
+    // It states no outcome of its own — that claim is step 1's, made once, out of the
+    // prompt's own note.
+    expect(head.textContent).not.toContain(PROMPTS[0].note);
+    expect(head.querySelector('.ag-step-seen')).toBeNull();
+    // And it says where the rest is rather than leaving a judge to find it.
+    const jump = screen.getByRole('button', { name: 'Go to them' });
+    expect(head.contains(jump)).toBe(true);
+    expect(container.querySelector('.ag')!.id).toBe('run-it-yourself');
   });
 
   it('repeats the deliberate-demonstration label in words, not in a colour', () => {

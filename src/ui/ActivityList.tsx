@@ -72,7 +72,14 @@ export function ActivityList() {
       <p className="al-heading">Proofs returned</p>
       <hr className="rule" />
       {entries.length === 0 ? (
-        <p className="al-empty">Nothing yet.</p>
+        // Says what would fill it rather than only that it is empty. It is a backstop, not the
+        // page's guidance: this slip is 272px wide, does not follow the page down, and drops
+        // below the register entirely under 1080px — so the prompt itself is printed at
+        // the head of the sheet and this line only points back at it, never repeats it.
+        <p className="al-empty">
+          Nothing yet. Say the prompt at the head of the sheet and every proof that comes back
+          is logged here.
+        </p>
       ) : (
         <ul className="al-list">
           {entries.map(e => (
