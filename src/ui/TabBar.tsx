@@ -42,15 +42,22 @@ export const tabButtonId = (id: TabId) => `tab-${id}`;
 export function TabBar({ tab, setTab }: TabBarProps) {
   const buttonRefs = useRef<(HTMLButtonElement | null)[]>([]);
 
-  const move = (from: number, delta: number) => {
-    const to = (from + delta + TAB_ORDER.length) % TAB_ORDER.length;
+  const goTo = (to: number) => {
     setTab(TAB_ORDER[to].id);
     buttonRefs.current[to]?.focus();
   };
 
+  const move = (from: number, delta: number) =>
+    goTo((from + delta + TAB_ORDER.length) % TAB_ORDER.length);
+
+  // The roving-tabindex contract in full. Home and End are not a nicety on top of the arrows:
+  // a tablist that moves on ArrowRight and does nothing on End has taught the operator a
+  // convention it then breaks, which is worse than never having claimed it.
   const onKeyDown = (e: React.KeyboardEvent, index: number) => {
     if (e.key === 'ArrowRight') { e.preventDefault(); move(index, 1); }
     else if (e.key === 'ArrowLeft') { e.preventDefault(); move(index, -1); }
+    else if (e.key === 'Home') { e.preventDefault(); goTo(0); }
+    else if (e.key === 'End') { e.preventDefault(); goTo(TAB_ORDER.length - 1); }
   };
 
   return (

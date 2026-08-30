@@ -54,7 +54,7 @@ All defined in `src/ui/styles.css` `:root`. **Never hard-code a colour in a comp
 | Paper sunk (well, input) | `--paper-sunk` | `#EEEADF` |
 | Ink (body, 16.2:1) | `--ink` | `#17150F` |
 | Ink muted (secondary, 7.0:1) | `--ink-muted` | `#56514A` |
-| Ink faint (non-text tint only) | `--ink-faint` | `#8C8677` |
+| Ink faint (non-text tint only) | `--ink-faint` | `#6C6659` |
 | Rule (hairline) | `--rule` | `#CFC8B5` |
 | Rule strong (border) | `--rule-strong` | `#A79E88` |
 | The mark (blue) | `--mark` `--mark-wash` `--mark-tint` | `#1B4B9E` + washes |
@@ -323,10 +323,21 @@ The two products differ here on purpose. The freight console's register is the s
 decision and stays live; the rack is the *object* of one, and an engineer reaching past an open
 drawer to change a site by hand at 02:40 is a mistake, not a demonstration.
 
-Below `1180px` the rack sheds requests/sec, nodes and utilisation. Below `900px` it also sheds city
-and the traffic graticule, the drawer goes to `82vh` and stacks its rail above the field, and the
-run record stacks its buckets above the returned payload. Verified with no horizontal overflow at
-1512px and 900px.
+The rack's nine columns stand only at `1440px` and above. Below that it sheds requests/sec, nodes
+and utilisation; below `1182px` it also sheds city; below `900px` it sheds the traffic graticule,
+the drawer goes to `82vh` and stacks its rail above the field, and the run record stacks its
+buckets above the returned payload.
+
+Measured on both the dev server and the production build, 30 August 2026: no horizontal overflow
+at 1512, 1440, 1439, 1366, 1280, 1200, 1182, 1181, 1100, 1024, 900 or 768. An earlier version of
+this paragraph claimed `1180px` and said the rack was verified at two widths; it was verified at
+two widths, and it overflowed at most of the ones in between — worst at 1200px, by 210px. Two
+points are not a curve.
+
+**Below roughly `856px` the rack still overflows, and that is not fixed.** Which of four columns
+survives on a phone when the rollout is the product's subject is a design decision nobody has
+taken. This document claims nothing below 900px, and the freight console — which does claim phone
+width — is clean from 320px.
 
 ## Modes by surface
 

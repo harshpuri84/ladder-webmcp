@@ -520,6 +520,25 @@ body.rk-drawn .rk-body {
 .c-running { width: 132px; }
 .c-rollout { width: 330px; }
 
+/*
+ * Condition is the one column with no declared width — it takes what the other eight leave —
+ * and it was also the one cell carrying a sentence rather than a reading. The blanket
+ * `white-space: nowrap` below was written for readings; applied to "Freeze quarter-close freeze
+ * to 2026-09-02" it made a 310px cell that could not give, so at any width where the leftover
+ * was narrower than that the sentence pushed the whole rack sideways instead of wrapping.
+ *
+ * Two things fix it and both are needed. The budget above now includes this column — 1122px of
+ * declared widths plus the 310px this one needs is 1432px, which is the width the nine-column
+ * set actually stands at, and the shed below is set from that number rather than from a guess
+ * that never counted it. And the cell is allowed to wrap, so a longer rule label than any in
+ * the estate today still cannot punch out of the panel: `anywhere` is what puts that guarantee
+ * in the min-content size rather than in the seed data.
+ */
+.grid .c-condition {
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
 /* The graticule sits at a fixed left edge and the figure reads off the right of the same cell,
    so the bars form one continuous scale down the rack rather than a ragged one. */
 .tr-cell { display: flex; align-items: center; gap: 12px; }
@@ -1093,8 +1112,22 @@ body.rk-drawn .rk-body {
 
 /* ── Narrow ───────────────────────────────────────────────────────────────────────────────── */
 
-@media (max-width: 1180px) {
+/* The nine-column set needs 1432px. Below that the three numeric readings go — which is the
+   shed this table always meant to run, at the width it is actually due rather than at 1180px,
+   where the remaining six columns still needed 1182px and came up short by two. */
+@media (max-width: 1439px) {
   .col-rps, .col-nodes, .col-util { display: none; }
+}
+
+/* The six that are left need 1182px. Below that city goes, and it goes before the graticule
+   does: an engineer reading this rack knows where iad1 is, and spending city here is what keeps
+   the traffic share — the figure a blast radius is sized against — on the panel down to 900px,
+   and keeps one dense row per site rather than a wrapped condition on every frozen one. */
+@media (max-width: 1181px) {
+  .col-city { display: none; }
+}
+
+@media (max-width: 1180px) {
   .dw-rail { width: 280px; flex-basis: 280px; }
 }
 

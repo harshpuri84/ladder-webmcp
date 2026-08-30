@@ -276,9 +276,17 @@ export function Console() {
                     )}
                   </td>
                   <td>
+                    {/* Forty-two of these, and the visible words are the same four on every
+                        row on purpose — the note above the register explains who Marta is and
+                        a per-row rewording would break that one explanation into forty-two.
+                        So the row it belongs to is carried in the accessible name instead,
+                        which is the only reading where the four words arrive alone. The
+                        visible label stays the leading phrase of that name, so a voice-control
+                        user can still say what they can see. */}
                     <button
                       className="console-edit-row"
                       type="button"
+                      aria-label={`Marta edits this: ${s.id}`}
                       title="Simulates Marta, the other operator on this shift, changing this record outside any agent proposal."
                       onClick={() => editRowExternally(s.id)}
                     >

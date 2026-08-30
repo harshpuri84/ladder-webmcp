@@ -479,12 +479,18 @@ export function ProposalPanel() {
               </span>
             )}
           </button>
+          {/*
+            The third grade of the proof tradition, on the control that produces it — set the
+            way the stamp beside it sets its own grade, above the words that say what pressing
+            it does. Outside the button and under it, it read as a greyed-out third control
+            sitting next to two live ones; inside it, it is what it always was, the grade this
+            stamp carries. Hidden from assistive tech so the button keeps its own plain name,
+            which is also what "Sent back to the agent — Revise" on the returned proof says.
+          */}
           <button className="pp-refuse" type="button" disabled={decided} onClick={() => decide(null)}>
-            Refuse all
+            <span className="pp-refuse-grade" aria-hidden="true">Revise</span>
+            <span className="pp-refuse-label">Refuse all</span>
           </button>
-          {/* The third grade of the proof tradition, against the control that produces it.
-              Hidden from assistive tech so the button keeps its own plain name. */}
-          <span className="pp-refuse-grade" aria-hidden="true">Revise</span>
         </footer>
       </aside>
       {resultCard}

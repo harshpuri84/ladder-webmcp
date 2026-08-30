@@ -71,6 +71,32 @@ describe('TabBar', () => {
     expect(setTab).toHaveBeenCalledWith('elsewhere');
   });
 
+  /**
+   * The other half of the roving-tabindex contract. A tablist that answers the arrows and not
+   * Home and End has claimed a convention it does not keep; End landing back on the first tab
+   * is the specific failure this holds shut.
+   */
+  it('sends End to the last tab and Home to the first', () => {
+    const { setTab } = setup('proof');
+    fireEvent.keyDown(screen.getByRole('tab', { name: 'The proof' }), { key: 'End' });
+    expect(setTab).toHaveBeenCalledWith('elsewhere');
+
+    setTab.mockClear();
+    fireEvent.keyDown(screen.getByRole('tab', { name: 'The proof' }), { key: 'Home' });
+    expect(setTab).toHaveBeenCalledWith('problem');
+  });
+
+  /** From the ends, neither key wraps: End on the last tab stays put, Home on the first does. */
+  it('does not wrap on Home or End', () => {
+    const { setTab } = setup('elsewhere');
+    fireEvent.keyDown(screen.getByRole('tab', { name: 'Same engine, other work' }), { key: 'End' });
+    expect(setTab).toHaveBeenCalledWith('elsewhere');
+
+    setTab.mockClear();
+    fireEvent.keyDown(screen.getByRole('tab', { name: 'Same engine, other work' }), { key: 'Home' });
+    expect(setTab).toHaveBeenCalledWith('problem');
+  });
+
   it('points every tab at the one panel, by the id App.tsx puts on it', () => {
     setup();
     for (const t of screen.getAllByRole('tab')) {

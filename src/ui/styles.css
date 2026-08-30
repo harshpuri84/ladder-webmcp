@@ -305,17 +305,24 @@ body.pp-active .al {
   box-shadow: 0 1px 0 var(--paper-raised) inset;
 }
 
+/* Wraps, because the count beside the filter box is a figure line set in tabular mono and does
+   not break: at a phone width the two of them together are wider than the register and the
+   whole page was scrolling sideways to make room. The count drops under the box instead. */
 .console-toolbar {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
-  gap: 16px;
+  gap: 8px 16px;
   padding: 12px 18px;
   border-bottom: 1px solid var(--rule);
 }
 
+/* A declared basis rather than 0: it is what tells the toolbar the box wants 220px, and so
+   what makes the line break above rather than squeezing the box to a slot nothing fits in. */
 .console-filter {
-  flex: 1;
+  flex: 1 1 220px;
+  min-width: 0;
   max-width: 340px;
   padding: 7px 11px;
   border: 1px solid var(--rule-strong);
@@ -2082,12 +2089,21 @@ body.pp-active .console-table td {
   cursor: not-allowed;
 }
 
+/*
+ * The other stamp, and it is a stamp: same block, same grade word over the same kind of label,
+ * on paper stock rather than inked. Set as a plain word beside the two controls instead, the
+ * grade read as a third control that had been greyed out — which is the one thing it is not.
+ */
 .pp-refuse {
   grid-column: 1;
-  grid-row: 1;
+  grid-row: 1 / 3;
   justify-self: start;
-  align-self: end;
-  padding: 9px 16px;
+  align-self: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 12px 20px;
   border: 1px solid var(--rule-strong);
   background: var(--paper-raised);
   color: var(--ink);
@@ -2106,16 +2122,24 @@ body.pp-active .console-table td {
   cursor: not-allowed;
 }
 
+/* The grade line, set at the weight the stamp's own grade line is set at. It takes its colour
+   from the button in every state, so it can never read as a disabled thing beside a live one. */
 .pp-refuse-grade {
-  grid-column: 1;
-  grid-row: 2;
-  justify-self: start;
-  padding-left: 3px;
   color: var(--ink-muted);
   font-size: 0.72rem;
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.16em;
+}
+
+.pp-refuse:hover:not(:disabled) .pp-refuse-grade,
+.pp-refuse:disabled .pp-refuse-grade {
+  color: inherit;
+}
+
+.pp-refuse-label {
+  font-size: 0.92rem;
+  font-weight: 600;
 }
 
 /* ---------- the returned proof ---------- */
@@ -2488,14 +2512,6 @@ body.pp-active .console-table td {
     grid-column: 1;
     grid-row: 2;
     justify-self: stretch;
-    text-align: center;
-  }
-
-  .pp-refuse-grade {
-    grid-column: 1;
-    grid-row: 3;
-    justify-self: center;
-    padding-left: 0;
   }
 }
 

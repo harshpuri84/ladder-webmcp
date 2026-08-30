@@ -143,11 +143,40 @@ describe('Console external edit bumps the version the guard reads', () => {
     setFilter(target.id);
 
     const before = { version: target.version, revenue: target.revenueEur };
-    fireEvent.click(screen.getByRole('button', { name: 'Marta edits this' }));
+    fireEvent.click(screen.getByRole('button', { name: `Marta edits this: ${target.id}` }));
 
     expect(target.version).toBe(before.version + 1);
     expect(target.revenueEur).toBe(before.revenue + 25);
     expect(screen.getByText(`v${before.version + 1}`)).toBeTruthy();
+  });
+});
+
+/**
+ * Forty-two rows, forty-two of the same control, and the same four visible words on each. A
+ * screen-reader user tabbing the register hears the button's accessible name and nothing else,
+ * so if that name is the visible text it is the same four words forty-two times over with no
+ * way to tell which row is about to be edited.
+ */
+describe('Console external-edit controls are told apart by name', () => {
+  it('names every one of them by its own shipment', () => {
+    render(<Console />);
+    const buttons = screen.getAllByRole('button', { name: /^Marta edits this: / });
+    expect(buttons).toHaveLength(rows().length);
+
+    const names = buttons.map(b => b.getAttribute('aria-label'));
+    expect(new Set(names).size).toBe(names.length);
+    for (const s of rows()) expect(names).toContain(`Marta edits this: ${s.id}`);
+  });
+
+  /**
+   * WCAG 2.5.3: the accessible name has to start with what is written on the control, or a
+   * voice-control user saying the words they can see reaches nothing.
+   */
+  it('keeps the visible words at the head of the name', () => {
+    render(<Console />);
+    for (const b of screen.getAllByRole('button', { name: /^Marta edits this: / })) {
+      expect(b.getAttribute('aria-label')?.startsWith(b.textContent ?? '')).toBe(true);
+    }
   });
 });
 

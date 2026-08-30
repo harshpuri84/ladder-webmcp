@@ -83,7 +83,7 @@ function Row({ p }: { p: Pop }) {
       <td className="col-util num rd">{p.utilisationPct}%</td>
       <td className="rd">{p.configVersion}</td>
       <td><Rollout p={p} /></td>
-      <td><Condition p={p} /></td>
+      <td className="c-condition"><Condition p={p} /></td>
     </tr>
   );
 }
@@ -158,7 +158,7 @@ export function Rack() {
                   <th scope="col" className="col-util c-util num">Util</th>
                   <th scope="col" className="c-running">Running</th>
                   <th scope="col" className="c-rollout">Rollout</th>
-                  <th scope="col">Condition</th>
+                  <th scope="col" className="c-condition">Condition</th>
                 </tr>
               </thead>
               <tbody>

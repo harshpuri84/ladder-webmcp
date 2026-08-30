@@ -58,6 +58,29 @@ describe('ProposalPanel: Escape refuses the open proposal (F11)', () => {
     expect(payload.rejected.some((r: any) => r.reason === 'the operator refused this change')).toBe(true);
   });
 
+  /**
+   * "Revise" is the third grade of the proof tradition and it belongs to this control — it is
+   * set inside the button now, above the words that say what pressing it does, the way the
+   * stamp beside it sets its own grade. Outside and under the button it read as a greyed-out
+   * third control standing next to two live ones, which is a sighted problem only: the span is
+   * `aria-hidden`, so the button's name has to stay the two plain words either way.
+   */
+  it('keeps the refusal button named by its words, not by its grade', async () => {
+    render(<ProposalPanel />);
+    const result = registered.get('escape_test_tool')!.execute({});
+    await act(async () => { await flush(); });
+
+    const refuse = screen.getByRole('button', { name: 'Refuse all' });
+    // The grade is drawn inside the control and skipped by the name computation.
+    expect(refuse.querySelector('.pp-refuse-grade')?.textContent).toBe('Revise');
+    expect(refuse.querySelector('.pp-refuse-grade')?.getAttribute('aria-hidden')).toBe('true');
+    // And it is a child of the button, not a third thing beside it.
+    expect(screen.getByText('Revise').closest('button')).toBe(refuse);
+
+    act(() => { fireEvent.keyDown(document, { key: 'Escape' }); });
+    await result;
+  });
+
   it('does not resolve a second time if Escape and Refuse race in the same batch', async () => {
     registerLadderTool({
       name: 'escape_race_test_tool', description: 'test-only',
