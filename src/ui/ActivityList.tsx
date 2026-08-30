@@ -68,48 +68,54 @@ export function ActivityList() {
   useEffect(() => onResult(o => setEntries(list => [toEntry(o), ...list])), []);
 
   return (
+    // Two boxes on purpose. The outer one is a bare full-height column that draws nothing; the
+    // inner one is the slip, and it is the one that sticks. See `.al` / `.al-panel` in
+    // styles.css for why a single box cannot do both.
     <aside className="al" aria-label="Activity">
-      <p className="al-heading">Proofs returned</p>
-      <hr className="rule" />
-      {entries.length === 0 ? (
-        // Says what would fill it rather than only that it is empty. It is a backstop, not the
-        // page's guidance: this slip is 272px wide, does not follow the page down, and drops
-        // below the register entirely under 1080px — so the prompt itself is printed at
-        // the head of the sheet and this line only points back at it, never repeats it.
-        <p className="al-empty">
-          Nothing yet. Say the prompt at the head of the sheet and every proof that comes back
-          is logged here.
-        </p>
-      ) : (
-        <ul className="al-list">
-          {entries.map(e => (
-            <li key={e.key} className={`al-row al-row--${e.cause}`}>
-              <div className="al-row-top">
-                <ProofMark name={CAUSE_MARK[e.cause] ?? 'dele'} size={13} className="al-mark" />
-                <span className="al-tool mono">{e.toolName}</span>
-                <span className="al-outcome">{e.cause.replace(/_/g, ' ')}</span>
-              </div>
-              <div className="al-row-figures mono">
-                <span>{e.requested} req</span>
-                <span>{e.applied} applied</span>
-                <span>{e.refused} refused</span>
-              </div>
-              {/* Only where the two calls actually establish it. The run log is the surface a
-                  judge watches across several calls, so this is where a loop being closed reads
-                  as a sequence rather than as one panel's caption. */}
-              {e.followUp && (
-                <p className="al-followup">
-                  <ProofMark name="dagger" size={11} className="al-followup-mark" />
-                  <span>
-                    Follows {followUpTime(e.followUp)} — asks only about {followUpTail(e.followUp)}
-                  </span>
-                </p>
-              )}
-              <span className="al-time mono">{timeFmt.format(e.at)}</span>
-            </li>
-          ))}
-        </ul>
-      )}
+      <div className="al-panel">
+        <p className="al-heading">Proofs returned</p>
+        <hr className="rule" />
+        {entries.length === 0 ? (
+          // Says what would fill it rather than only that it is empty. It is a backstop, not the
+          // page's guidance: this slip is 272px wide and drops below the register entirely under
+          // 1080px — so the prompt itself is printed at the head of the sheet and this line only
+          // points back at it, never repeats it.
+          <p className="al-empty">
+            Nothing yet. Say the prompt at the head of the sheet and every proof that comes back
+            is logged here.
+          </p>
+        ) : (
+          <ul className="al-list">
+            {entries.map(e => (
+              <li key={e.key} className={`al-row al-row--${e.cause}`}>
+                <div className="al-row-top">
+                  <ProofMark name={CAUSE_MARK[e.cause] ?? 'dele'} size={13} className="al-mark" />
+                  <span className="al-tool mono">{e.toolName}</span>
+                  <span className="al-outcome">{e.cause.replace(/_/g, ' ')}</span>
+                </div>
+                <div className="al-row-figures mono">
+                  <span>{e.requested} req</span>
+                  <span>{e.applied} applied</span>
+                  <span>{e.refused} refused</span>
+                </div>
+                {/* Only where the two calls actually establish it. The run log is the surface a
+                    judge watches across several calls, so this is where a loop being closed reads
+                    as a sequence rather than as one panel's caption. */}
+                {e.followUp && (
+                  <p className="al-followup">
+                    <ProofMark name="dagger" size={11} className="al-followup-mark" />
+                    <span>
+                      Follows {followUpTime(e.followUp)} — asks only about{' '}
+                      {followUpTail(e.followUp)}
+                    </span>
+                  </p>
+                )}
+                <span className="al-time mono">{timeFmt.format(e.at)}</span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
     </aside>
   );
 }

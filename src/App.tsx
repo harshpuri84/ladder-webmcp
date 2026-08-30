@@ -88,7 +88,13 @@ function App() {
        * if the list wasn't there to catch it. Hidden with CSS instead of being left unmounted,
        * so their subscriptions and state ride out a tab change untouched.
        */}
-      <div className={tab === 'proof' ? undefined : 'app-tab-offstage'} aria-hidden={tab !== 'proof'}>
+      {/* `app-rail` is only a name for the shell to reach: this wrapper, not the rail inside it,
+          is the box the shell lays out, so it is the box that has to run the full height of the
+          sheet for the rail to have anywhere to stick to. See `.app-rail` in styles.css. */}
+      <div
+        className={tab === 'proof' ? 'app-rail' : 'app-rail app-tab-offstage'}
+        aria-hidden={tab !== 'proof'}
+      >
         <ActivityList />
       </div>
       <div className={tab === 'proof' ? undefined : 'app-tab-offstage'} aria-hidden={tab !== 'proof'}>

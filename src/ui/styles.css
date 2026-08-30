@@ -2359,9 +2359,36 @@ body.pp-active .console-table td {
 
 /* ---------- proofs returned ---------- */
 
+/*
+ * Three boxes, one rail — and it has to be three.
+ *
+ * `position: sticky` can only travel inside its own containing box, and `.app-shell` is
+ * `align-items: flex-start`, which sizes every child to its own content. A rail whose box is
+ * only as tall as the lines printed in it therefore has nowhere to travel: it stuck for a few
+ * pixels and then left with the scroll, so the run log — the surface a judge reads a sequence
+ * of calls on, the one that says a later call answers an earlier refusal — was gone by the time
+ * the register came into view, and a cold load of `#/proof` already landed past it.
+ *
+ * The shell's child is the wrapper, not the rail: App.tsx keeps the rail mounted across a tab
+ * change inside `.app-rail`, so that is the box the shell lays out and the box that has to be
+ * stretched. `align-self: stretch` opts this one item out of the shell's `flex-start` without
+ * touching the shell, which every other child still depends on.
+ *
+ * `.al` then fills it, and is bare: no paper, no rule, no padding, nothing drawn in it at all.
+ * It is a column, and its only job is to be as tall as the sheet beside it so that the box
+ * inside it has room. `.al-panel` is the slip a person actually sees, and it is what sticks —
+ * now with the whole sheet to travel down.
+ */
+.app-shell > .app-rail {
+  align-self: stretch;
+}
+
 .al {
-  flex: none;
   width: 272px;
+  height: 100%;
+}
+
+.al-panel {
   position: sticky;
   top: 34px;
   max-height: calc(100vh - 68px);
@@ -2528,9 +2555,18 @@ body.pp-active .console-table td {
     max-width: 100%;
   }
 
+  /* Stacked, the rail is a block at the foot of the sheet, not a slip beside it: there is no
+     column left to travel inside, so the inner box gives up sticking and the outer box stops
+     being a 272px gutter. Its height goes back to its content's — the wrapper is stretched
+     across the shell's width here, not its height, so there is nothing for a percentage to
+     resolve against. */
   .al {
-    position: static;
     width: 100%;
+    height: auto;
+  }
+
+  .al-panel {
+    position: static;
     max-height: none;
   }
 
