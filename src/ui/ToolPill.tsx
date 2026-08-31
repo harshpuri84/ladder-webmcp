@@ -8,6 +8,8 @@ import { currentRole, describeAuthority } from '../webmcp/authority';
 // this module's graph reaches it, and the boundary would print in no product's language.
 import '../domain/store';
 import { NEVER_ELIGIBLE } from '../domain/policy-eligibility';
+import { PROMPTS } from './prompts';
+import { PromptRow } from './PromptRow';
 import { ProofMark } from './ProofMark';
 import type { MarkName } from './ProofMark';
 
@@ -107,6 +109,27 @@ export function ToolPill() {
             <span>What the agent can see</span>
             <span className="tp-panel-count mono">{tools.length} registered</span>
           </p>
+
+          {/*
+            * The one thing this panel raised and never answered: a reader now knows the four
+            * tools exist and still has no idea what makes one of them fire. So the opening
+            * prompt is printed here, before the inventory, in the words `ui/prompts.ts` ships
+            * and a test holds against the real tools.
+            *
+            * Here rather than at the foot because the panel scrolls — the four rows and their
+            * two descriptions run past its cap on a short window — and a call to action a
+            * reader has to scroll to find is one they do not find. Above the list it is also
+            * in reading order: say this, and these are the things it can reach.
+            *
+            * One prompt, not both. The chip is on every tab and the proof sheet is not; this
+            * is the move that works from wherever the reader is standing, because a proposal
+            * arriving pulls the console forward on its own. The second prompt, and the six
+            * steps after this one, stay on the sheet where their outcomes are printed.
+            */}
+          <div className="tp-say">
+            <p className="tp-group tp-say-caps">Say this to an agent</p>
+            <PromptRow text={PROMPTS[0].text} />
+          </div>
 
           {writes.length > 0 && (
             <>

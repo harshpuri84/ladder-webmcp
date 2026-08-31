@@ -2713,6 +2713,41 @@ body.pp-active .console-table td {
   font-weight: 400;
 }
 
+/*
+ * The opening prompt, set between the panel's head and its inventory.
+ *
+ * Ruled off below rather than above: the head already carries a rule, and two hairlines eleven
+ * pixels apart read as a boxed-in strip rather than as one block followed by another. The
+ * group label under it keeps its own top margin, so the rule sits in the middle of the gap.
+ */
+.tp-say {
+  padding-bottom: 13px;
+  border-bottom: 1px solid var(--rule);
+}
+
+.tp-say-caps {
+  margin-top: 0;
+}
+
+/*
+ * The row is the sheet's, at the sheet's proportions, in a column 396px wide. Two adjustments
+ * and no more: the well loses nine pixels of top margin it does not need under its own label,
+ * and the copy button gives back fourteen of its ninety-two so the prompt keeps a readable
+ * measure. The button is still wide enough to hold "Select it" without reflowing the row.
+ */
+.tp-say .ag-prompt {
+  margin-top: 0;
+  gap: 10px;
+  /* Centred against the well, as on the head of the sheet. The well runs to two lines in a
+     column this narrow, and a button pinned to the top of it reads as a stray. */
+  align-items: center;
+}
+
+.tp-say .ag-copy {
+  min-width: 78px;
+  padding: 6px 10px;
+}
+
 .tp-group {
   margin: 14px 0 7px;
   color: var(--ink-muted);

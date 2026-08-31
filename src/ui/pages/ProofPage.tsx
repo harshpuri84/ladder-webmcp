@@ -1,10 +1,11 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Console } from '../Console';
 import { store } from '../../domain/store';
 import { DISRUPTED_FLIGHT } from '../../domain/seed';
 import { RungStrip } from '../RungStrip';
 import { AuthorityStrip } from '../AuthorityStrip';
-import { PROMPTS, type Prompt } from '../prompts';
+import { PROMPTS } from '../prompts';
+import { PromptRow } from '../PromptRow';
 import { STEPS, type Step } from '../walkthrough';
 import { ProofMark } from '../ProofMark';
 import { isWebmcpAvailable, onAvailabilityChange } from '../../webmcp/adapter';
@@ -50,61 +51,6 @@ function WebmcpBanner() {
           chip at the bottom left — and nothing that can call it.
         </li>
       </ul>
-    </div>
-  );
-}
-
-/** How long "Copied" stands before the button goes back to offering the copy. */
-const COPIED_MS = 1600;
-
-type CopyState = 'idle' | 'copied' | 'failed';
-
-const COPY_WORD: Record<CopyState, string> = {
-  idle: 'Copy',
-  copied: 'Copied',
-  failed: 'Select it',
-};
-
-/**
- * The line to say, and a control that puts it on the clipboard. What comes back of it is the
- * step's own "You should see" line — `Prompt.note`, rendered once by `StepRow` — so this row
- * carries the words to reproduce and nothing else.
- */
-function PromptRow({ text }: Pick<Prompt, 'text'>) {
-  const [state, setState] = useState<CopyState>('idle');
-  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  useEffect(() => () => { if (timer.current !== null) clearTimeout(timer.current); }, []);
-
-  async function copy() {
-    // A page served over plain http, or a browser with the clipboard permission denied, throws
-    // here. The prompt is selectable text either way, so the button says so rather than failing
-    // silently — a control that does nothing and reports nothing is the worse of the two.
-    try {
-      await navigator.clipboard.writeText(text);
-      setState('copied');
-    } catch {
-      setState('failed');
-    }
-    if (timer.current !== null) clearTimeout(timer.current);
-    timer.current = setTimeout(() => setState('idle'), COPIED_MS);
-  }
-
-  return (
-    <div className="ag-prompt">
-      <div className="ag-prompt-body">
-        <span className="mono ag-prompt-text">{text}</span>
-      </div>
-      <button
-        className="ag-copy"
-        type="button"
-        onClick={() => { void copy(); }}
-        aria-label={`Copy the prompt: ${text}`}
-      >
-        {/* The word changes, not a colour — the confirmation has to survive greyscale like
-            everything else on this sheet. */}
-        <span aria-live="polite">{COPY_WORD[state]}</span>
-      </button>
     </div>
   );
 }
