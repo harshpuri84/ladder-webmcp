@@ -950,6 +950,21 @@ export function registerLadderTool(spec: LadderToolSpec) {
     const awaiting = target ? target.label.toLowerCase() : 'a second approver';
 
     if (referredCount > 0) {
+      // A later call about the same rows supersedes the earlier note about them. Without this
+      // the product's own strongest sequence — a run refers four, the agent reads the refusal
+      // and comes back naming only those four, the operator sends them up again — leaves the
+      // second approver holding the same four twice, and signing one leaves the other standing:
+      // a note for work already done, indistinguishable from a note for work outstanding.
+      //
+      // Full coverage only. A new referral naming *some* of a pending one's rows is a narrower
+      // ask that does not answer the rest, so the earlier note stays whole rather than being
+      // silently edited down; those rows then sit in two notes, which is the honest reading of
+      // two calls that overlap.
+      const covered = new Set(referredIds);
+      for (let i = referrals.length - 1; i >= 0; i--) {
+        const r = referrals[i];
+        if (r.toolName === spec.name && r.ids.every(id => covered.has(id))) referrals.splice(i, 1);
+      }
       referrals.push({
         id: `ref-${++referralSeq}`,
         toolName: spec.name,
