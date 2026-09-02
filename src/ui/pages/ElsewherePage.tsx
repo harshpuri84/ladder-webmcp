@@ -68,12 +68,31 @@ function MarginNote({ caption, children }: { caption: string; children: React.Re
  * drawing, which invites the only question that matters, which is why nothing is real. The
  * second product below is the answer instead.
  */
-function Case({ lead, children }: { lead: string; children: React.ReactNode }) {
+function Case({ n, lead, children }: { n: string; lead: string; children: React.ReactNode }) {
   return (
-    <p className="pr-conseq">
-      <strong className="pr-conseq-lead">{lead}</strong>{' '}
-      {children}
-    </p>
+    <div className="pr-conseq">
+      <p className="pr-conseq-n mono" aria-hidden="true">{n}</p>
+      <p className="pr-conseq-body">
+        <strong className="pr-conseq-lead">{lead}</strong>{' '}
+        {children}
+      </p>
+    </div>
+  );
+}
+
+/**
+ * One member of the interface quoted above it, with what an application has to answer for it.
+ *
+ * Eight of these replaced a hundred and ten words of running prose on 2 Sep 2026. The prose
+ * named the same eight things in one paragraph, so a reader counting them had to do the
+ * counting; a reader who wanted one of them had to find it inside a sentence.
+ */
+function Member({ name, children }: { name: string; children: React.ReactNode }) {
+  return (
+    <div className="pr-conseq">
+      <p className="pr-conseq-n mono">{name}</p>
+      <p className="pr-conseq-body">{children}</p>
+    </div>
   );
 }
 
@@ -96,28 +115,49 @@ export function ElsewherePage() {
 
       <section className="pr-sec">
         <h2 className="pr-h">What an application has to hand it</h2>
-        <MarginNote caption="Checkable">
-          The block below is quoted from <span className="mono">adapter.ts</span>, not written
-          about it. A test compares it against the module the app builds from and fails if the
-          two ever stop agreeing.
-        </MarginNote>
-        <p className="pr-p">
-          What the engine needs back from an application is small enough to print in full, so
-          here it is rather than a description of it. This is <Code>HostBinding</Code>, from{' '}
-          <a className="pr-link mono" href={ADAPTER_URL}>src/webmcp/adapter.ts</a>.
-        </p>
+        <p className="pr-lead">Eight members, and not one of them mentions freight.</p>
+        <div className="pr-keyed">
+          <p className="pr-p">
+            It is small enough to print in full, so here it is rather than a description of it.
+            This is <Code>HostBinding</Code>, from{' '}
+            <a className="pr-link mono" href={ADAPTER_URL}>src/webmcp/adapter.ts</a>.
+          </p>
+          <MarginNote caption="Checkable">
+            Quoted from <span className="mono">adapter.ts</span>, not written about it. A test
+            compares the two and fails if they ever stop agreeing.
+          </MarginNote>
+        </div>
         <pre className="pr-payload mono" tabIndex={0}>{HOST_BINDING_QUOTE}</pre>
-        <p className="pr-p">
-          A way to read the state and say when it changed. A way to version a record, so a commit
-          can refuse one that moved while the operator was deciding. A way to say what a write is
-          worth, so an approval limit means something. The tool names no standing rule may ever
-          cover. And the words for the boundary between two of this application&rsquo;s humans —
-          its roles, its unit, its name for one record — because the engine has to write that
-          sentence into every guarded tool&rsquo;s description and has no vocabulary of its own.
-          And a way to ask which records a call names outright, so that a call narrowed to
-          exactly the records an earlier one was refused on can be recognised as the narrowing it
-          is. Eight members, none of which mentions freight.
-        </p>
+        <div className="pr-grid pr-grid--members">
+          <Member name="state">
+            The records themselves, read fresh on every call.
+          </Member>
+          <Member name="notify()">
+            Called once after a commit lands, so the application&rsquo;s own subscribers redraw.
+          </Member>
+          <Member name="versionOf">
+            What version a record is on, so a commit can refuse one that moved while the
+            operator was deciding.
+          </Member>
+          <Member name="bumpVersion">
+            Raised when a record changes, by the application or by anyone else.
+          </Member>
+          <Member name="valueDeltaOf">
+            What a write is worth, in the application&rsquo;s own units, so an approval limit
+            means something.
+          </Member>
+          <Member name="neverEligible">
+            The tool names no standing rule may ever cover.
+          </Member>
+          <Member name="targetedIds">
+            Which records a call names outright, which is what lets a later call be recognised as
+            a narrowing of an earlier refusal rather than merely resembling one.
+          </Member>
+          <Member name="authority">
+            This product&rsquo;s words for the boundary between two of its humans: its roles, its
+            unit, its name for one record. The engine has no vocabulary of its own.
+          </Member>
+        </div>
         <p className="pr-p">
           The freight application answers those eight at the foot of{' '}
           <Code>src/domain/store.ts</Code>. That binding is the whole of what the engine knows
@@ -127,22 +167,24 @@ export function ElsewherePage() {
 
       <section className="pr-sec">
         <h2 className="pr-h">The same decision, other records</h2>
+        <p className="pr-lead">The shape that repeats is not freight.</p>
         <p className="pr-p">
-          The shape that repeats is not freight. It is an agent proposing a change across records
-          one person is answerable for, where the change is right about most of them and wrong
-          about a few, and where the few are not a rounding error.
+          It is an agent proposing a change across records one person is answerable for, where
+          the change is right about most of them and wrong about a few, and where the few are
+          not a rounding error.
         </p>
-        <Case lead="A retail repricing.">
-          An agent proposes new prices across four hundred lines. Some of those prices are fixed
-          by a partner contract and cannot move without breaking it. The buyer has to let most of
-          the change through, hold back the committed ones, and tell the agent which were held
-          and why — otherwise it proposes the same thing again an hour later.
+        <div className="pr-grid">
+        <Case n="01" lead="A retail repricing.">
+          An agent proposes new prices across four hundred lines. Some are fixed by a partner
+          contract and cannot move. The buyer has to let most of the change through, hold back
+          the committed ones, and tell the agent which were held and why.
         </Case>
-        <Case lead="An edge config rollout.">
+        <Case n="02" lead="An edge config rollout.">
           An agent proposes a configuration change to every region. Three regions are inside a
           change freeze. Approving the call whole breaks the freeze; refusing it whole delays the
           fix in every region that needed it.
         </Case>
+        </div>
         <p className="pr-p">
           Neither of those wants a different engine. They want their own words for a record and a{' '}
           <Code>HostBinding</Code>.
@@ -151,17 +193,16 @@ export function ElsewherePage() {
 
       <section className="pr-sec">
         <h2 className="pr-h">The second one is wired, not drawn</h2>
+        <p className="pr-lead">Two products on one engine is a claim, so the second one was built.</p>
         <MarginNote caption="Guarded">
           A test asserts this link is a real address and fails until it is. The site cannot ship
           with a dead pointer standing where the proof is meant to be.
         </MarginNote>
         <p className="pr-p">
-          Two products on one engine is a claim, and a picture of the second one would not settle
-          it. So the second one was built instead: an edge configuration rollout with its own Vite
-          entry, its own design language, and nothing shared with the freight application except{' '}
-          <Code>src/core/</Code> and <Code>src/webmcp/</Code>. A test walks the import graph in
-          both directions on every run, because that is the kind of claim one convenient import
-          quietly undoes.
+          An edge configuration rollout with its own Vite entry, its own design language, and
+          nothing shared with the freight application except <Code>src/core/</Code> and{' '}
+          <Code>src/webmcp/</Code>. A test walks the import graph in both directions on every
+          run, because that is the kind of claim one convenient import quietly undoes.
         </p>
         <p className="pr-p">
           Open it and put a proposal through it:{' '}
@@ -194,7 +235,7 @@ export function ElsewherePage() {
                 alt={
                   'Edge Control: a dark instrument rack listing points of presence with their ' +
                   'traffic share and running config version, and an open drawer proposing a ' +
-                  'release rollout — 23 of 23 sites, 2.66% of production traffic, 7 referred to ' +
+                  'release rollout of 23 of 23 sites, 2.66% of production traffic, 7 referred to ' +
                   'a traffic lead.'
                 }
               />
