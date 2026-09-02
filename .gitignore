@@ -6,3 +6,5 @@ dist/
 .impeccable/questions/
 .impeccable/direction-payload.json
 .impeccable/review/
+# Verification screenshots from the redesign day: working material, ~90MB, not product.
+docs/redesign-shots/
