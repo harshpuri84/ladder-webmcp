@@ -12,6 +12,11 @@ interface ActivityEntry {
   toolName: string;
   requested: number;
   applied: number;
+  /** The receipt's own buckets, read off the same `rejected` ledger the receipt prints: rows
+   *  the operator struck out, rows sent up to a second person, and everything else the agent
+   *  was told no about. A referral is not a refusal, and the rail says which was which. */
+  removed: number;
+  referred: number;
   refused: number;
   cause: ProposalOutcome['cause'];
   at: number;
@@ -38,6 +43,33 @@ const CAUSE_MARK: Record<ProposalOutcome['cause'], MarkName> = {
   tool_error: 'dagger',
 };
 
+/**
+ * The word against each run, and the same word the receipt stamps on it: a run the rail calls
+ * "Superseded" is one the card calls "Superseded", so a judge reading the two does not have to
+ * work out that "stale" and "superseded" are one event.
+ */
+const OUTCOME_WORD: Record<ProposalOutcome['cause'], string> = {
+  applied: 'Applied',
+  auto_applied: 'Standing rule',
+  referred: 'Referred',
+  refused: 'Refused',
+  nothing_to_decide: 'Nothing to set',
+  stale: 'Superseded',
+  blocked: 'Blocked',
+  tool_error: 'Tool error',
+};
+
+/**
+ * The two reasons the adapter writes for a row the operator took out of the change by hand.
+ * Matched by the literal reason rather than by a kind the payload does not carry, because the
+ * reason is exactly what the receipt prints beside the same count: the rail's "removed" and
+ * the card's line say the one thing in the same words.
+ */
+const OPERATOR_REMOVED = [
+  'the operator removed these from the change',
+  'the operator did not approve these messages',
+];
+
 const timeFmt = new Intl.DateTimeFormat('en-GB', {
   hour: '2-digit',
   minute: '2-digit',
@@ -45,12 +77,22 @@ const timeFmt = new Intl.DateTimeFormat('en-GB', {
 });
 
 function toEntry(o: ProposalOutcome): ActivityEntry {
+  let removed = 0;
+  let referred = 0;
+  let refused = 0;
+  for (const r of o.payload.rejected) {
+    if (r.pending) referred += r.count;
+    else if (OPERATOR_REMOVED.includes(r.reason)) removed += r.count;
+    else refused += r.count;
+  }
   return {
     key: ++seq,
     toolName: o.toolName,
     requested: o.payload.requested,
     applied: o.payload.applied,
-    refused: o.payload.rejected.reduce((n, r) => n + r.count, 0),
+    removed,
+    referred,
+    refused,
     cause: o.cause,
     at: Date.now(),
     followUp: o.followUp,
@@ -91,12 +133,16 @@ export function ActivityList() {
                 <div className="al-row-top">
                   <ProofMark name={CAUSE_MARK[e.cause] ?? 'dele'} size={13} className="al-mark" />
                   <span className="al-tool mono">{e.toolName}</span>
-                  <span className="al-outcome">{e.cause.replace(/_/g, ' ')}</span>
+                  <span className="al-outcome">{OUTCOME_WORD[e.cause] ?? e.cause}</span>
                 </div>
+                {/* Only the buckets the receipt has a line for. Applied always prints, even at
+                    zero, because a run that applied nothing is the fact a judge is reading for. */}
                 <div className="al-row-figures mono">
                   <span>{e.requested} req</span>
                   <span>{e.applied} applied</span>
-                  <span>{e.refused} refused</span>
+                  {e.removed > 0 && <span>{e.removed} removed</span>}
+                  {e.referred > 0 && <span>{e.referred} referred</span>}
+                  {e.refused > 0 && <span>{e.refused} refused</span>}
                 </div>
                 {/* Only where the two calls actually establish it. The run log is the surface a
                     judge watches across several calls, so this is where a loop being closed reads
@@ -105,7 +151,7 @@ export function ActivityList() {
                   <p className="al-followup">
                     <ProofMark name="dagger" size={11} className="al-followup-mark" />
                     <span>
-                      Follows {followUpTime(e.followUp)} — asks only about{' '}
+                      Follows {followUpTime(e.followUp)}, asks only about{' '}
                       {followUpTail(e.followUp)}
                     </span>
                   </p>

@@ -62,24 +62,28 @@ describe('ProposalPanel under a spend authority boundary', () => {
     const result = registered.get('authority_test_tool')!.execute({});
     await act(async () => { await flush(); });
 
+    // The costly row carries no control at all: it was never this operator's to mark.
     const boxes = screen.getAllByRole('checkbox') as HTMLInputElement[];
-    const referredBox = boxes.find(b => /not yours to approve/.test(b.getAttribute('aria-label') ?? ''))!;
-    const ownBox = boxes.find(b => b !== referredBox)!;
-
-    expect(referredBox.disabled).toBe(true);
-    expect(referredBox.checked).toBe(false);
+    expect(boxes).toHaveLength(1);
+    expect(boxes[0].getAttribute('aria-label')).toBe(`Include ${CHEAP}`);
     // Everything the operator *can* decide still starts marked — narrowing stays their act.
-    expect(ownBox.checked).toBe(true);
+    expect(boxes[0].checked).toBe(true);
+    const referredRow = document.querySelector('.pp-refer .dg')!;
+    expect(referredRow.textContent).toContain(DEAR);
+    expect(referredRow.querySelector('input')).toBeNull();
+    expect(referredRow.className).not.toContain('dg--struck');
 
-    // "Apply 1 of 1", not "Apply 1 of 2": the second row was never theirs to strike out.
+    // "Apply 1" and "Refer 1", not "Apply 1 of 2": the second row was never theirs to strike out.
     const stamp = screen.getByRole('button', { name: /Apply/ });
-    expect(stamp.textContent).toContain('Apply 1 of 1');
-    expect(stamp.textContent).toContain('and refer 1');
-    expect(stamp.textContent).toContain('OK to run');
+    expect(stamp.textContent).toContain('Apply 1');
+    expect(stamp.textContent).toContain('Refer 1 to duty manager');
 
-    // And the news is on the sheet once, above the rows, not only forty lines down.
-    expect(screen.getByText('Not yours to authorise')).toBeTruthy();
-    expect(screen.getByText(/referred, not refused/)).toBeTruthy();
+    // One line at the top of the referred group says why, and whose decision it now is.
+    const line = document.querySelector('.pp-refer-line')!.textContent!.replace(/\s+/g, ' ');
+    expect(line).toBe(`1 shipment over your €${ROLES[0].limit} limit. The duty manager decides it.`);
+    // Above the rows, not only forty lines down: the referred group precedes the operator's own.
+    const rows = [...document.querySelectorAll('.pp-list .dg')];
+    expect(rows[0].className).toContain('dg--referred');
 
     await act(async () => {
       fireEvent.click(stamp);
@@ -99,6 +103,8 @@ describe('ProposalPanel under a spend authority boundary', () => {
     const waiting = screen.getByRole('button', { name: /Waiting on the duty manager/ }) as HTMLButtonElement;
     expect(waiting.disabled).toBe(true);
 
+    // The roles sit behind the toolbar's own control; the switch comes out when it is opened.
+    fireEvent.click(screen.getByRole('button', { name: /^Acting as/ }));
     await act(async () => {
       fireEvent.click(screen.getByRole('button', { name: /Duty manager/ }));
       await flush();
@@ -110,7 +116,8 @@ describe('ProposalPanel under a spend authority boundary', () => {
 
   it('says plainly that the role switch is a demonstration, not a second signed-in person', () => {
     render(<AuthorityStrip />);
-    expect(screen.getByText(/no sign-in here and no server/)).toBeTruthy();
-    expect(screen.getByText(/deliberate demonstration/)).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: /^Acting as/ }));
+    expect(screen.getByText(/switches the labelled role in this one browser/)).toBeTruthy();
+    expect(screen.getByText(/nobody is signed in/)).toBeTruthy();
   });
 });

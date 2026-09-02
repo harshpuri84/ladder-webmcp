@@ -1,9 +1,10 @@
 // @vitest-environment jsdom
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent, act, cleanup } from '@testing-library/react';
-import { Console, resetConsoleSession } from '../Console';
+import { BuggyToolToggle, Console, resetConsoleSession } from '../Console';
 import { store } from '../../domain/store';
 import { setRegisterView } from '../../domain/register-view';
+import { setProofView } from '../proof-view';
 
 afterEach(() => cleanup());
 // The filter and the buggy-tool box outlive a mount on purpose (they have to survive a tab
@@ -107,11 +108,13 @@ describe('Console shows cargo constraints and proposed remedies', () => {
     expect(screen.getByLabelText('no cargo constraints')).toBeTruthy();
   });
 
-  it('shows no remedy until one is proposed, then shows it with what it costs', () => {
+  it('prints no remedy column until one has landed, then shows it with what it costs', () => {
     const target = rows()[5];
     render(<Console />);
     setFilter(target.id);
-    expect(screen.getByLabelText('no remedy proposed yet')).toBeTruthy();
+    // A column that would be empty on every row is not printed until it carries information.
+    expect(screen.queryByRole('columnheader', { name: 'Remedy' })).toBeNull();
+    expect(screen.queryByLabelText('no remedy proposed yet')).toBeNull();
 
     act(() => {
       target.remedy = 'truck';
@@ -119,6 +122,7 @@ describe('Console shows cargo constraints and proposed remedies', () => {
       store.notify();
     });
 
+    expect(screen.getByRole('columnheader', { name: 'Remedy' })).toBeTruthy();
     expect(screen.getByText('truck-and-fly')).toBeTruthy();
     expect(screen.getByText('€326')).toBeTruthy();
 
@@ -193,14 +197,16 @@ describe('Console external-edit controls are told apart by name', () => {
 describe('Console keeps its working state across an unmount', () => {
   it('brings the filter and the buggy-tool box back on remount', () => {
     const target = rows()[3];
-    const { unmount } = render(<Console />);
+    // The switch prints at the walkthrough step that uses it, not in the register; both read
+    // the same page-load cell, so they are mounted together here the way the page mounts them.
+    const { unmount } = render(<><Console /><BuggyToolToggle /></>);
 
     setFilter(target.id);
     fireEvent.click(screen.getByLabelText(/Simulate a buggy tool/i));
     expect(screen.getByText(`1 of ${totalShipments} house shipments`)).toBeTruthy();
 
     unmount();
-    render(<Console />);
+    render(<><Console /><BuggyToolToggle /></>);
 
     expect((screen.getByPlaceholderText(/Filter by/i) as HTMLInputElement).value).toBe(target.id);
     expect(screen.getByText(`1 of ${totalShipments} house shipments`)).toBeTruthy();
@@ -208,9 +214,9 @@ describe('Console keeps its working state across an unmount', () => {
   });
 
   it('starts a fresh page load clean', () => {
-    render(<Console />);
+    render(<><Console /><BuggyToolToggle /></>);
     expect((screen.getByPlaceholderText(/Filter by/i) as HTMLInputElement).value).toBe('');
-    expect(screen.getByText(`${totalShipments} of ${totalShipments} house shipments`)).toBeTruthy();
+    expect(screen.getByText(`All ${totalShipments} house shipments`)).toBeTruthy();
     expect((screen.getByLabelText(/Simulate a buggy tool/i) as HTMLInputElement).checked).toBe(false);
   });
 });
@@ -278,7 +284,7 @@ describe('Console shows a view an agent set, and gives it back', () => {
 
     fireEvent.click(screen.getByRole('button', { name: `Show all ${totalShipments}` }));
 
-    expect(screen.getByText(`${totalShipments} of ${totalShipments} house shipments`)).toBeTruthy();
+    expect(screen.getByText(`All ${totalShipments} house shipments`)).toBeTruthy();
     expect(screen.queryByRole('status')).toBeNull();
   });
 
@@ -304,5 +310,41 @@ describe('Console shows a view an agent set, and gives it back', () => {
 
     expect(screen.getByText(`${shown.length} of ${totalShipments} house shipments`)).toBeTruthy();
     expect(screen.getByRole('status').textContent).toContain('search_shipments');
+  });
+});
+
+/**
+ * The register knows a proposal is open. The panel publishes what its sheet says about each
+ * row (see `proof-view.ts`) and the register draws it on the row: a mark, a word behind the
+ * mark, and a class the row's left-edge rule hangs off. None of it is a colour alone, and none
+ * of it subscribes to the adapter, so it cannot race the panel for a buffered proposal.
+ */
+describe('Console marks the rows the open proof touches', () => {
+  afterEach(() => setProofView(null));
+
+  it('draws marked, struck and referred rows, and clears them when the sheet closes', () => {
+    const { container } = render(<Console />);
+    const [a, b, c] = rows();
+    act(() => setProofView({
+      proposalId: 'p1',
+      rows: new Map([
+        [a.id, { state: 'marked', remedy: 'rebook', cost: 0 }],
+        [b.id, { state: 'struck', remedy: 'rebook', cost: 0 }],
+        [c.id, { state: 'referred', remedy: 'truck', cost: 326 }],
+      ]),
+    }));
+
+    const rowOf = (id: string) =>
+      [...container.querySelectorAll('tbody tr')].find(tr => tr.textContent!.includes(id))!;
+    expect(rowOf(a.id).classList.contains('console-row--marked')).toBe(true);
+    expect(rowOf(b.id).classList.contains('console-row--struck')).toBe(true);
+    expect(rowOf(c.id).classList.contains('console-row--referred')).toBe(true);
+    expect(rowOf(a.id).textContent).toContain('marked on the open proof');
+    expect(rowOf(b.id).textContent).toContain('struck out on the open proof');
+    expect(rowOf(c.id).textContent).toContain('referred on the open proof');
+    expect(container.querySelectorAll('.console-row-mark')).toHaveLength(3);
+
+    act(() => setProofView(null));
+    expect(container.querySelectorAll('.console-row-mark')).toHaveLength(0);
   });
 });

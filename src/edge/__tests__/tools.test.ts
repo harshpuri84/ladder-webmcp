@@ -92,7 +92,7 @@ describe('edge tools through the real preview-and-commit path', () => {
     expect(payload.rejected).toEqual([
       {
         count: 2,
-        reason: "above the release engineer's 0.50% of production traffic exposure authority — referred to a traffic lead, not refused",
+        reason: "above the release engineer's 0.50% of production traffic exposure authority, referred to a traffic lead",
         ids: ['osl1', 'hel1'],
         pending: 'traffic lead',
       },

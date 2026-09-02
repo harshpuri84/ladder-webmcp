@@ -113,7 +113,7 @@ export function Rack() {
           <span className="lg rk-view-lg">View set by the agent</span>
           <p className="rk-view-text">
             <span className="rd">{view.toolName}</span> matched {view.ids.length} of {estate}{' '}
-            sites — {view.words}. Nothing was changed and nothing left the estate; each band
+            sites, {view.words}. Nothing was changed and nothing left the estate; each band
             still counts against its whole region.
           </p>
           <button className="rk-view-clear lg" type="button" onClick={() => clearRackView()}>

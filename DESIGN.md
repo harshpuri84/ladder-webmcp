@@ -66,8 +66,20 @@ All defined in `src/ui/styles.css` `:root`. **Never hard-code a colour in a comp
   Source Serif 4, Georgia. Resolved from the machine; not a package, not a download. Carter cut
   Charter for text that must survive being proofed on bad paper at low resolution, which is
   literally this brief.
-- **Mono** `--face-mono`: Menlo, Cascadia Mono, DejaVu Sans Mono, Consolas. Used for every
-  identifier, figure, code fragment and tool name, via the `.mono` class.
+- **Mono** `--face-mono`: Menlo, Cascadia Mono, DejaVu Sans Mono, Consolas. Used, via the
+  `.mono` class, for identifiers and for tabular columns: every id, code fragment and tool name,
+  and every figure that is read down a column against its neighbours: a cost or a revenue down
+  a table, a tally line, a delta on a row. **Display-size figures are set in the serif's own
+  lining figures** (`font-variant-numeric: lining-nums tabular-nums`): the hero count, the struck
+  ask beside it and the money on either side of the authority line. Mono at 50px gave a spindly
+  euro sign and a one that read as an ell; Charter's figures at that size are the same voice as
+  the headline beside them. **A figure inside a running serif sentence is set in the serif's own
+  figures** too: "4 shipments over your €250 limit", "42 house shipments" are prose and stay in
+  Charter. Swapping to mono mid-sentence is the machine-made tell; a typesetter reserves mono for
+  what is looked up, compared or typed.
+- **One currency form.** Every euro figure, on the sheet, in the register, in a tool description
+  and in a receipt, is the glyph then the figure with no decimals: `€250`, `€1,331`. The authority
+  vocabulary's `amount()` produces the same form, so "EUR 250" no longer appears anywhere.
 - Base is `15px / 1.5` on `body`.
 
 **The scale, as shipped.** Fourteen distinct sizes are in use, which is more than the system
@@ -75,12 +87,27 @@ needs. New work uses only these six and adds none:
 
 | Use | Size |
 |---|---|
-| Hero figure (blast radius) | `50px` / `31px` |
+| Hero figure (blast radius), on the specimen sheet; the struck ask beside it | `50px` / `31px` |
+| Hero figure, in the panel; the struck ask beside it | `40px` / `26px` |
+| The landing page's claim | `40px`, the panel's hero size; the name above it is a running head at `1rem` |
 | Section heading | `1rem` |
 | Body | `0.86rem` |
 | Secondary body, descriptions | `0.78rem` |
 | Small label, inline meta | `0.76rem` |
 | Eyebrow / group label | `0.72rem`, `600`, uppercase, `letter-spacing: 0.16em` |
+| Caption (figure label, field name, column head) | `0.82rem`, italic, `400`, muted ink |
+
+Tracked capitals are reserved for three things: the sheet's register ("Agent proposal"), the
+stamps, and the run log's heading. Every other caption is set in italic at the caption size.
+When everything is a label nothing is a heading; a run of capitals now means one thing when it
+appears.
+
+**The devices on a proof sheet, counted.** The specimen card carries three typographic devices
+and no more: the tracked capitals above, the italic captions, and the struck ask beside the
+count. Registration crosshairs, a "Specimen" tag, a tick-mark tally with its own legend and a
+dagger with four meanings were all on the same card on 1 Sep 2026, and an outside reader called
+it an aesthetic worn as a costume. Anything added to the sheet now has to displace one of the
+three.
 
 ## Shape and depth
 
@@ -88,9 +115,39 @@ needs. New work uses only these six and adds none:
   A rounded card is out of the world.
 - **One shadow recipe**, a slip lying on a desk: a tight contact shadow plus one soft lift.
   `0 1px 2px rgba(23,21,15,0.10), 0 7px 14px -6px rgba(23,21,15,0.24)`. A hairline border
-  wrapped in a 30px halo is the shape of a card nobody drew — never that.
+  wrapped in a 30px halo is the shape of a card nobody drew — never that. The one exception is
+  the open panel, a sheet lying *over* the register: the same two layers, cast sideways with a
+  24px spread, and a light scrim under it so the register stays readable through it.
 - Structure is carried by **rules and space**, not by boxes. Group with `border-top`, `divide`,
   or an eyebrow label before reaching for a card.
+- **One double rule per sheet.** The double rule is the imprint rule, under the head of the
+  proof; everything else set apart is set apart by a single rule, a mark and a position. Two
+  double rules in one document compete for the same register. The landing page's masthead
+  carries its own imprint rule, and the specimen sheet beside it is dropped (`--hero-drop`,
+  measured at 46px) so the two rules land on one line.
+- **No registration corners.** They were printed on every sheet until 2 Sep 2026 and encoded
+  nothing; the `registration` mark survives only where it means something (the agent-set view,
+  the read tool that sets the register).
+- **Three rule weights, one meaning each.** The double rule is the imprint; the strong rule
+  (`--rule-strong`) is a sheet's trim, its outer border and the head of its register; every
+  division inside a sheet is the hairline (`--rule`), including the rule over the referred group
+  and the foot of the stamp block. A darker rule between two sections that are not different in
+  kind was the tell.
+- **Three nesting levels, three devices.** A sheet is a bordered surface with a shadow; a
+  referred group is a double rule down its edge and no tint; a rule-closed alternative is muted
+  ink under its caption, with no mark and no rule of its own. The same hairline at every level is
+  how depth gets lost.
+- **A row's state is a rule form down its left edge, on the sheet and on the register alike.**
+  Solid in `--mark` for a row that is marked, double in `--hold` for a row that is referred, the
+  id struck through for a row the operator struck; 3px on both sides, reserved on every row so an
+  id does not move when its rule arrives. No glyph rides beside it on the register. That is the
+  whole join between the slip and the register it lies on: the same two rows carry the same two
+  rules at the same weight, and the eye crosses the gutter on them.
+- **The stamp block is the foot of the same sheet**, under one hairline, on the same paper. A
+  third paper tint within a hundred pixels of the stamp was a tell.
+- **The operator's stamp is inked.** `.pp-stamp` is filled `--mark` with a double paper rule
+  inside a 2px blue frame, the way a rubber stamp prints one; Refuse is the same form outlined
+  in the plain ink. It is the one filled control on the sheet.
 
 ## Marks
 
@@ -102,7 +159,7 @@ one 16-unit box, `currentColor` throughout, so a mark inherits the weight of the
 | `insert` | The caret. This correction goes in. |
 | `dele` | The deletion loop. This comes out. |
 | `stet` | Dots beneath a struck line. Let it stand; change nothing. |
-| `dagger` | The reference mark. Set apart from the main run. |
+| `dagger` | The reference mark. Set apart from the main run: a held effect, a follow-up note, a stated limit, a tool that is never automatic. **Never on a proof row**: a referred row is its double rule and its position, a rule-closed alternative is its caption and muted ink, and a cargo flag is its ruled chip. Four meanings of one glyph on one card was the tell. |
 | `query` | "Qy?" in the margin. The proofreader cannot settle this and passes it on. |
 | `registration` | The registration target, printed outside the trim. |
 
@@ -112,17 +169,24 @@ first; almost always one of the six already means it.
 ## Motion
 
 `--ease: cubic-bezier(0.16, 0.84, 0.28, 1)`. Durations 180–260ms. Entrances are an 8px rise with
-an opacity fade. Motion never carries meaning on its own — the figures that change during a
-decision must be legible without seeing them move, and audible without seeing them at all. The
-extent caption under the bar (`.br-caption`) carries `role="status"`, so unticking a row is spoken
-as well as drawn. It is the only live region on the panel: the hero count, the struck original and
-the bar are the same fact drawn, and announcing each of them would read one untick out four times.
+an opacity fade. Two moments are authored and no more: the proof arriving (the panel's slide),
+and a figure moving when the operator unticks a row. A tick-mark tally that counted up as a sheet
+opened was the third until 2 Sep 2026; it restated the count above it, needed a three-item legend
+to be read, and was the sparkline every generated dashboard ships. Nothing bounces, glows, scales
+up or parallaxes. All of it is disabled under `prefers-reduced-motion`. Motion never carries
+meaning on its own — the figures that change during a decision must be legible without seeing
+them move, and audible without seeing them at all. The extent caption (`.br-caption`) carries
+`role="status"` and is visually hidden: unticking a row is spoken in words ("20 of 42 shipments
+in the register, struck down from 27") while the count and the struck original draw it. It is the
+only live region on the panel, and it is spoken rather than printed because printing it stated
+the same figures twice in a hundred pixels.
 
 ## Voice
 
 Plain, short, concrete. Says what happened and what it costs. States limits out loud rather than
-softening them. Identifiers, figures and tool names are set in mono so a reader can tell a name
-from a description. No exclamation, no marketing verbs, no emoji.
+softening them. Identifiers and tool names are set in mono so a reader can tell a name from a
+description; a figure is set in mono only where it is a reading or a column (see Type). No
+exclamation, no marketing verbs, no emoji.
 
 ## Layout
 
@@ -130,11 +194,36 @@ from a description. No exclamation, no marketing verbs, no emoji.
 reserves that width as a right margin whenever `body.pp-active` is set, so the register stays
 both visible and clickable during a decision — the scrim dims the register but does not take
 pointer events, because the external-edit control has to be reachable *while* a proposal is open
-or the stale-abort cannot be demonstrated by hand at all. Below `1638px`, which is where nine
-columns stop fitting beside the panel, the register hides five columns rather than the panel
-narrowing. The activity list is `position: fixed` bottom-right and hides
-entirely during a decision; the tool inventory chip is bottom-left at `z-index: 9`, under the
-panel.
+or the stale-abort cannot be demonstrated by hand at all. While the panel is open the register's
+sheet runs on under the panel's edge by `--panel-overlap` (44px; measured 2 Sep 2026 at 1512:
+sheet right 996, panel left 952), and the sheet's right padding grows by the same amount so
+nothing printed on it goes under the panel. The panel's shadow then falls on paper: it is a slip
+lying on the register, not a second sheet stapled beside it. The panel's head is sized so its
+quote sits level with the tab labels and its imprint rule lands on the register's head rule
+(both at 68px at 1512), so the two double rules read as one line across the gutter. Below
+`1638px`, which is where the full register stops fitting beside the panel, the register sheds
+the consol and cargo columns, keeps house, customer, SLA, promised and revenue (plus the remedy
+column once one has landed), and lets its columns hug their content rather than spreading four
+across the sheet with the slack inside the customer column. Rows are ruled every fifth line, the
+ledger's convention, not every line.
+
+**The register knows a proposal is open.** The panel publishes what its sheet says about each
+row (`src/ui/proof-view.ts`: marked, struck, referred) and the register draws it on the row as
+the rule form described under Shape and depth (solid for marked, double for referred, the id
+struck through for struck), with a visually hidden word for a screen reader. No glyph: the sheet's
+rows carry the same rule forms, and one device on both sides is the join. The register never
+subscribes to `onProposal`; the panel is the only subscriber, because the adapter's buffer drains
+to whoever attaches first.
+
+The open tab is cut into the sheet under a double `--rule-strong` edge, the sheet's own head rule
+carried up over it. It used to be marked in `--mark`, which left blue saying three things at once:
+the open tab, a marked row, and the stamp. Blue now says the operator's mark and nothing else.
+
+The name appears once, as a running head over the landing page's claim; the two working tabs
+carry no wordmark (one at the end of the tab row read as a fourth tab). The activity list is
+`position: fixed` bottom-right and hides entirely during a decision; the tool count is printed
+with the walkthrough under the register, where the agent is driven from, and the inventory it
+opens takes a row of its own there.
 
 **The panel is a dialog and deliberately not a modal one.** It carries `role="dialog"` and no
 `aria-modal`, and `.pp-scrim` is `pointer-events: none` — a dim, not a barrier. That is what the

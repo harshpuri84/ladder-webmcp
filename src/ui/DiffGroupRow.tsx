@@ -3,7 +3,7 @@ import type { WriteRecord } from '../core/types';
 import type { BlockedAlternative, RemedyId, Shipment } from '../domain/types';
 import { ProofMark } from './ProofMark';
 import { readProofRow } from './remedy-diff';
-import { remedyCostWords, remedyFull } from './remedy-words';
+import { remedyCostWords, remedyFull, remedyShort } from './remedy-words';
 
 const signedPrice = new Intl.NumberFormat('en-GB', {
   style: 'currency',
@@ -30,22 +30,22 @@ const isMono = (field: string) => field === 'remedyCost' || field === 'promisedD
  * that expires before tomorrow morning also expires before a road route, and reading it as one
  * fact with two casualties is both shorter and truer.
  *
- * Set the way a proof sets a deletion: the loop in the gutter, the remedies struck through, and
- * the rule spelled out underneath in the words the domain itself uses. Three signals, none of
- * them a colour — the amber only ever agrees with the loop and the rule through the words.
+ * The remedies dropped to the muted ink under the caption that says why, and the rule spelled
+ * out underneath in the words the domain itself uses. Not struck through: a strike on this sheet
+ * is a correction somebody made, and a rule closing an option is a different fact from an
+ * operator or a proof cutting a figure. No mark in the gutter: the dagger on this sheet means
+ * one thing, a row referred to a second person, and this is not that. The rule's id is in the
+ * receipt's payload for anyone who needs to quote it; a proof sheet addressed to an operator
+ * does not end on a developer's slug.
  */
-function BlockedRow({ rule, ruleId, remedies }: { rule: string; ruleId: string; remedies: RemedyId[] }) {
+function BlockedRow({ rule, remedies }: { rule: string; remedies: RemedyId[] }) {
   return (
     <li className="dg-blocked">
-      <span className="dg-blocked-mark">
-        <ProofMark name="dele" size={13} />
-      </span>
       <div className="dg-blocked-body">
         {remedies.map(r => (
           <span className="dg-blocked-remedy" key={r}>{remedyFull(r)}</span>
         ))}
         <span className="dg-blocked-rule">{rule}</span>
-        <span className="dg-blocked-id mono">{ruleId}</span>
       </div>
     </li>
   );
@@ -92,10 +92,13 @@ export interface DiffGroupRowProps {
   checked: boolean;
   /**
    * Set when this row's spend is above what the operator on shift may authorise. The row is
-   * then not theirs to mark at all, so the control is withheld rather than shown and ignored,
-   * and the row says who it went to instead.
+   * then not theirs to mark at all, so it carries no control; the line above the referred
+   * group says who decides it instead.
    */
-  referredTo?: { limitEur: number; role: string };
+  referred?: boolean;
+  /** A referred row opens on demand; the specimen on the landing page is inert and so prints
+   *  it open, since nobody can open it there. */
+  expanded?: boolean;
   onToggle(): void;
 }
 
@@ -113,29 +116,101 @@ export interface DiffGroupRowProps {
  * before a single word of it is read — which is the point of showing forty-two of these at once.
  */
 export function DiffGroupRow({
-  group, record, subtitle, checked, referredTo, onToggle,
+  group, record, subtitle, checked, referred = false, expanded = false, onToggle,
 }: DiffGroupRowProps) {
   const delta = group.valueDelta;
   const { remedy, otherWrites } = readProofRow(group, record);
-  // A referred row is never struck: nothing has been declined on it. It is set apart instead —
-  // a query mark in the gutter, a double rule down its edge, and the word REFER — none of which
-  // is a colour, and all three of which read with the hue removed entirely.
-  const referred = Boolean(referredTo);
 
+  const remedyBlock = remedy && (
+    <div className="dg-remedy">
+      <p className="dg-remedy-line">
+        <span className="dg-field">remedy</span>
+        {remedy.from && <span className="dg-before">{remedyFull(remedy.from)}</span>}
+        <span className="dg-after">{remedyFull(remedy.to)}</span>
+      </p>
+      {/* The two figures the operator is actually spending: what it costs and what it
+          buys back. Tabular, so forty-two of them compare down a column. */}
+      <p className="dg-terms">
+        <span className="dg-term mono">{remedyCostWords(remedy.cost)}</span>
+        <span className="dg-term-sep" aria-hidden="true">·</span>
+        <span className="dg-term">
+          recovers <span className="mono">{remedy.recoveredHours}</span> h
+        </span>
+      </p>
+      {remedy.blocked.length > 0 && (
+        <>
+          <p className="dg-blocked-caption">
+            {remedy.blocked.length === 1
+              ? 'Blocked by rule, 1 alternative'
+              : `Blocked by rule, ${remedy.blocked.length} alternatives`}
+          </p>
+          <ul className="dg-blocked-list">
+            {byRule(remedy.blocked).map(r => (
+              <BlockedRow key={r.ruleId} rule={r.rule} remedies={r.remedies} />
+            ))}
+          </ul>
+        </>
+      )}
+    </div>
+  );
+
+  const otherBlock = otherWrites.length > 0 && (
+    <ul className="dg-changes">
+      {otherWrites.map(w => (
+        <FieldRow key={w.field} write={w} />
+      ))}
+    </ul>
+  );
+
+  // A referred row is not this operator's to read line by line before they can reach their
+  // own: it is one line, the id, the customer, the remedy and the amount, and the reason and
+  // the blocked alternatives open under it on demand. Three of these stacked as full cards put
+  // the operator's first row below the fold (2 Sep 2026, 1512x945).
+  if (referred) {
+    return (
+      <details className="dg dg--referred" open={expanded || undefined}>
+        <summary className="dg-refer-summary">
+          <span className="dg-id mono">{group.id}</span>
+          <span className="dg-refer-customer">{record?.customer ?? ''}</span>
+          {remedy && <span className="dg-refer-remedy">{remedyShort(remedy.to)}</span>}
+          {delta !== 0 && (
+            <span className="dg-delta mono">{signedPrice.format(delta)}</span>
+          )}
+          {/* The word that says the line opens, and the word that says it closes. Hidden
+              from the name: the disclosure state is already announced. */}
+          <span className="dg-refer-toggle" aria-hidden="true">
+            <span className="dg-refer-toggle-closed">reason</span>
+            <span className="dg-refer-toggle-open">close</span>
+          </span>
+        </summary>
+        <div className="dg-body">
+          <div className="dg-sub">{subtitle}</div>
+          {remedyBlock}
+          {otherBlock}
+        </div>
+      </details>
+    );
+  }
+
+  // A referred row (above) is never struck: nothing has been declined on it. It is set apart
+  // instead, by carrying no control at all, a double rule down its edge, and its place under
+  // the line that names whose decision it is. None of that is a colour. A marked row carries a
+  // solid rule down the same edge, and the register draws the same two rule forms on the same
+  // rows (see `console-row--marked` and `console-row--referred` in styles.css), so the eye
+  // crosses from the sheet to the register on one device.
   return (
-    <label className={`dg${referred ? ' dg--referred' : checked ? '' : ' dg--struck'}`}>
+    <label className={`dg${checked ? ' dg--marked' : ' dg--struck'}`}>
       {/* One checkbox for the whole record. Approving half of a two-sided change is how
           data goes incoherent, and the engine's unit of approval is the group. */}
       <input
         className="dg-check"
         type="checkbox"
-        checked={referred ? false : checked}
-        disabled={referred}
+        checked={checked}
         onChange={onToggle}
-        aria-label={referred ? `${group.id} — referred, not yours to approve` : `Include ${group.id}`}
+        aria-label={`Include ${group.id}`}
       />
       <span className="dg-mark">
-        <ProofMark name={referred ? 'query' : checked ? 'insert' : 'stet'} size={15} />
+        <ProofMark name={checked ? 'insert' : 'stet'} size={15} />
       </span>
       <div className="dg-body">
         <div className="dg-head">
@@ -145,60 +220,8 @@ export function DiffGroupRow({
           )}
         </div>
         <div className="dg-sub">{subtitle}</div>
-
-        {remedy && (
-          <div className="dg-remedy">
-            <p className="dg-remedy-line">
-              <span className="dg-field">remedy</span>
-              {remedy.from && <span className="dg-before">{remedyFull(remedy.from)}</span>}
-              <span className="dg-after">{remedyFull(remedy.to)}</span>
-            </p>
-            {/* The two figures the operator is actually spending: what it costs and what it
-                buys back. Tabular, so forty-two of them compare down a column. */}
-            <p className="dg-terms">
-              <span className="dg-term mono">{remedyCostWords(remedy.cost)}</span>
-              <span className="dg-term-sep" aria-hidden="true">·</span>
-              <span className="dg-term">
-                recovers <span className="mono">{remedy.recoveredHours}</span> h
-              </span>
-            </p>
-            {remedy.blocked.length > 0 && (
-              <>
-                <p className="dg-blocked-caption">
-                  {remedy.blocked.length === 1
-                    ? 'Blocked by rule — 1 alternative'
-                    : `Blocked by rule — ${remedy.blocked.length} alternatives`}
-                </p>
-                <ul className="dg-blocked-list">
-                  {byRule(remedy.blocked).map(r => (
-                    <BlockedRow key={r.ruleId} rule={r.rule} ruleId={r.ruleId} remedies={r.remedies} />
-                  ))}
-                </ul>
-              </>
-            )}
-          </div>
-        )}
-
-        {otherWrites.length > 0 && (
-          <ul className="dg-changes">
-            {otherWrites.map(w => (
-              <FieldRow key={w.field} write={w} />
-            ))}
-          </ul>
-        )}
-
-        {/* The stamped word. A struck line has to say why it is struck; a referred row has to
-            say whose decision it now is, and what put it out of this operator's reach. */}
-        <span className="dg-struck-note">Struck out — stands as it is</span>
-        {referredTo && (
-          <span className="dg-refer-note">
-            <span className="dg-refer-word">Refer</span>
-            <span className="dg-refer-tail">
-              over your EUR <span className="mono">{referredTo.limitEur}</span> limit — needs
-              the {referredTo.role.toLowerCase()}
-            </span>
-          </span>
-        )}
+        {remedyBlock}
+        {otherBlock}
       </div>
     </label>
   );

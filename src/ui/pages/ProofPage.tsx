@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Console } from '../Console';
+import { BuggyToolToggle, Console } from '../Console';
 import { store } from '../../domain/store';
 import { DISRUPTED_FLIGHT } from '../../domain/seed';
 import { RungStrip } from '../RungStrip';
@@ -70,7 +70,7 @@ const COPY_WORD: Record<CopyState, string> = {
  * step's own "You should see" line — `Prompt.note`, rendered once by `StepRow` — so this row
  * carries the words to reproduce and nothing else.
  */
-function PromptRow({ text }: Pick<Prompt, 'text'>) {
+function PromptRow({ text, children }: Pick<Prompt, 'text'> & { children?: React.ReactNode }) {
   const [state, setState] = useState<CopyState>('idle');
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -90,11 +90,11 @@ function PromptRow({ text }: Pick<Prompt, 'text'>) {
     timer.current = setTimeout(() => setState('idle'), COPIED_MS);
   }
 
+  // One object: the words, and the controls on them, sharing one rule. A well with a button
+  // beside it and a link beside that was three kinds of thing in one row.
   return (
     <div className="ag-prompt">
-      <div className="ag-prompt-body">
-        <span className="mono ag-prompt-text">{text}</span>
-      </div>
+      <span className="mono ag-prompt-text">{text}</span>
       <button
         className="ag-copy"
         type="button"
@@ -105,6 +105,7 @@ function PromptRow({ text }: Pick<Prompt, 'text'>) {
             everything else on this sheet. */}
         <span aria-live="polite">{COPY_WORD[state]}</span>
       </button>
+      {children}
     </div>
   );
 }
@@ -128,6 +129,7 @@ function StepRow({ step, n }: { step: Step; n: number }) {
       </p>
       <p className="ag-step-do">{step.action}</p>
       {step.prompt && <PromptRow text={step.prompt.text} />}
+      {step.control === 'buggy-tool' && <BuggyToolToggle />}
       {/* Every step ends the same way, prompt or no prompt. A prompt-carrying step's outcome is
           the prompt's own note — walkthrough.ts sets `seen` to exactly that string, so the claim
           about a call lives in one place and is held by one test. */}
@@ -190,14 +192,10 @@ function StartLine() {
       <div className="ag-start-head">
         <span className="ag-start-caps" id="ag-start-caps">Say this to an agent</span>
         <PromptRow text={PROMPTS[0].text} />
-      </div>
-      <p className="ag-start-note">
-        Nothing a tool asks for lands until you stamp it. What comes back of this, and the{' '}
-        {STEPS.length - 1} steps after it, are printed under the register.{' '}
         <button className="ag-start-jump" type="button" onClick={jumpToWalkthrough}>
-          Go to them
+          then the {STEPS.length} steps under the register
         </button>
-      </p>
+      </div>
     </section>
   );
 }
@@ -248,21 +246,31 @@ function Docket() {
   const customers = new Set(rows.map(s => s.customer)).size;
   const consols = new Set(rows.map(s => s.consol)).size;
 
+  // A title line, then the flight's particulars, then the counts as a row of their own. Not a
+  // run of items divided by pipes: that wrapped at the panel's width and orphaned two counts
+  // on a second line behind a leading pipe.
   return (
-    <p className="app-docket">
-      <span className="app-docket-lead">Flight cancelled</span>
-      <span className="app-docket-item mono">{DISRUPTED_FLIGHT.flightNumber}</span>
-      <span className="app-docket-item">
-        {DISRUPTED_FLIGHT.origin} to {DISRUPTED_FLIGHT.destination},{' '}
-        {DISRUPTED_FLIGHT.cancelledDeparture}
-      </span>
-      <span className="app-docket-item mono">{DISRUPTED_FLIGHT.mawb}</span>
-      <span className="app-docket-item">
-        <span className="mono">{rows.length}</span> house shipments ·{' '}
-        <span className="mono">{customers}</span> customers ·{' '}
-        <span className="mono">{consols}</span> consols
-      </span>
-    </p>
+    <div className="app-docket">
+      <div className="app-docket-head">
+        <p className="app-docket-title">
+          Flight <span className="mono">{DISRUPTED_FLIGHT.flightNumber}</span> cancelled
+        </p>
+        <p className="app-docket-route">
+          {DISRUPTED_FLIGHT.origin} to {DISRUPTED_FLIGHT.destination},{' '}
+          {DISRUPTED_FLIGHT.cancelledDeparture}
+          <span className="app-docket-sep" aria-hidden="true">·</span>
+          <span className="mono">{DISRUPTED_FLIGHT.mawb}</span>
+        </p>
+      </div>
+      {/* Figures inside a run of words are set in the serif's own figures. Three counts of the
+          freight and nothing else: the tool count is printed with the walkthrough, under the
+          register, where the agent is driven from. */}
+      <p className="app-docket-counts">
+        <span className="app-docket-count">{rows.length} house shipments</span>
+        <span className="app-docket-count">{customers} customers</span>
+        <span className="app-docket-count">{consols} consols</span>
+      </p>
+    </div>
   );
 }
 
@@ -304,9 +312,7 @@ export function ProofPage() {
       <Docket />
       {showBanner && <WebmcpBanner />}
       <StartLine />
-      <RungStrip />
-      <AuthorityStrip />
-      <Console />
+      <Console imprint={<><RungStrip /><AuthorityStrip /></>} />
       <RunItYourself />
     </main>
   );

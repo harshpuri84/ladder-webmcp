@@ -86,7 +86,7 @@ export function AuthorityBar() {
         </div>
 
         <p className="au-text ar-state">
-          Acting as <strong>{role.label}</strong> — {describeAuthority(role)}
+          Acting as <strong>{role.label}</strong>. {describeAuthority(role)}
           {target
             ? `. Anything above that is referred to a ${target.label.toLowerCase()}, never quietly refused.`
             : '. Nothing is referred above this role.'}
@@ -94,9 +94,8 @@ export function AuthorityBar() {
       </div>
 
       <p className="ar-note">
-        No sign-in and no server: this switches the labelled role in one browser so both sides of
-        the boundary can be driven. A deliberate demonstration, never a claim that two people are
-        signed in.
+        No sign-in and no server. This switches the labelled role in one browser so both sides
+        of the boundary can be driven. Nobody is signed in.
       </p>
 
       {referrals.length > 0 && (

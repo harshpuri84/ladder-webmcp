@@ -50,16 +50,17 @@ describe('DiffGroupRow names the blocked alternatives and their rules', () => {
     expect(screen.getByText('24')).toBeTruthy();
   });
 
-  it('names the rule that blocked the alternative, and the rule id beside it', () => {
+  it('names the rule that blocked the alternative, in words and not by its id', () => {
     const { group, record } = groupFor('HAWB-70001');
     const { container } = render(
       <DiffGroupRow group={group} record={record} subtitle="Northwind Retail" checked onToggle={() => {}} />,
     );
 
-    expect(container.textContent).toContain('Blocked by rule — 1 alternative');
+    expect(container.textContent).toContain('Blocked by rule, 1 alternative');
     expect(screen.getByText('Same carrier, tomorrow morning')).toBeTruthy();
     expect(container.textContent).toContain('cargo-aircraft-only');
-    expect(screen.getByText('lithium-cargo-aircraft-only')).toBeTruthy();
+    // The id is in the receipt's payload; a proof sheet does not end on a developer's slug.
+    expect(screen.queryByText('lithium-cargo-aircraft-only')).toBeNull();
   });
 
   it('lists every blocked alternative when a rule takes two away', () => {
@@ -69,7 +70,7 @@ describe('DiffGroupRow names the blocked alternatives and their rules', () => {
       <DiffGroupRow group={group} record={record} subtitle="Marrow Biotech" checked onToggle={() => {}} />,
     );
 
-    expect(container.textContent).toContain('Blocked by rule — 2 alternatives');
+    expect(container.textContent).toContain('Blocked by rule, 2 alternatives');
     // One rule took both, so it is stated once with both alternatives struck under it.
     expect(container.querySelectorAll('.dg-blocked')).toHaveLength(1);
     expect(container.querySelectorAll('.dg-blocked-remedy')).toHaveLength(2);
@@ -87,7 +88,7 @@ describe('DiffGroupRow names the blocked alternatives and their rules', () => {
     );
 
     expect(container.textContent).toContain("Competitor's freighter, tonight");
-    expect(container.textContent).toContain('Blocked by rule — 2 alternatives');
+    expect(container.textContent).toContain('Blocked by rule, 2 alternatives');
     expect(container.textContent).toContain('endurance clock runs out');
     // Both cheaper options are named, so the price is visibly the last resort rather than a
     // preference: the free rebook and the road route are each struck with the same rule.
@@ -148,29 +149,19 @@ describe('RemedySummary states the distribution of the run', () => {
     expect(lines.map(l => l.remedy).sort()).toEqual(['competitor', 'rebook', 'truck']);
   });
 
-  it('renders the tally and the constrained count in words', () => {
-    const { lines, constrained } = summariseRemedies(allRows);
-    const { container } = render(
-      <RemedySummary lines={lines} constrained={constrained} total={allRows.length} />,
-    );
+  it('renders the tally and nothing under it', () => {
+    const { lines } = summariseRemedies(allRows);
+    const { container } = render(<RemedySummary lines={lines} />);
 
     expect(container.textContent).toContain('Remedies in this run');
     expect(container.textContent).toContain('Same carrier, tomorrow morning');
-    expect(container.textContent).toContain('an alternative a rule took away');
-  });
-
-  it('says so plainly when nothing was constrained rather than printing a zero', () => {
-    const { group, record } = groupFor('HAWB-70003');
-    const rows = [readProofRow(group, record)];
-    const { lines, constrained } = summariseRemedies(rows);
-    const { container } = render(<RemedySummary lines={lines} constrained={constrained} total={1} />);
-
-    expect(constrained).toBe(0);
-    expect(container.textContent).toContain('Every alternative was open on the one marked row.');
+    // The count of rows a rule constrained is said on each such row, not summed above them.
+    expect(container.textContent).not.toContain('an alternative a rule took away');
+    expect(container.querySelector('.pm')).toBeNull();
   });
 
   it('renders nothing at all when the proposal has no remedies in it', () => {
-    const { container } = render(<RemedySummary lines={[]} constrained={0} total={0} />);
+    const { container } = render(<RemedySummary lines={[]} />);
     expect(container.firstChild).toBeNull();
   });
 });
@@ -179,38 +170,28 @@ describe('RemedySummary states the distribution of the run', () => {
  * A referred row is the one row on the sheet that is not the operator's to mark. It has to be
  * distinguishable from a row they struck out — the difference between "I said no" and "this
  * was never mine" — and it has to be distinguishable without any colour, since the operator
- * this is built for cannot rely on hue at all. Three signals carry it: a mark shape no other
- * state uses, a rule form on the row's own edge, and the stamped word.
+ * this is built for cannot rely on hue at all. It carries no control and no mark at all, and
+ * the rule form on its own edge; the line naming the limit and the approver sits above the
+ * group, on the panel.
  */
 describe('DiffGroupRow sets a referred row apart without using colour', () => {
-  const referredTo = { limitEur: 250, role: 'Duty manager' };
-
-  it('withholds the control and stamps the word REFER, naming the limit and the approver', () => {
+  it('carries no control and no mark, and still names the shipment and its cost', () => {
     const { group, record } = groupFor('HAWB-70001');
-    render(
-      <DiffGroupRow
-        group={group} record={record} subtitle="" checked
-        referredTo={referredTo} onToggle={() => {}}
-      />,
+    const { container } = render(
+      <DiffGroupRow group={group} record={record} subtitle="" checked={false} referred onToggle={() => {}} />,
     );
 
-    const box = screen.getByRole('checkbox') as HTMLInputElement;
-    expect(box.disabled).toBe(true);
-    expect(box.checked).toBe(false);
-    expect(box.getAttribute('aria-label')).toMatch(/not yours to approve/);
-
-    expect(screen.getByText('Refer')).toBeTruthy();
-    expect(screen.getByText(/over your EUR/)).toBeTruthy();
-    expect(screen.getByText(/duty manager/)).toBeTruthy();
+    expect(screen.queryByRole('checkbox')).toBeNull();
+    expect(container.querySelector('.dg-mark')).toBeNull();
+    expect(container.querySelector('label')).toBeNull();
+    expect(screen.getByText('HAWB-70001')).toBeTruthy();
+    expect(screen.getByText('€326')).toBeTruthy();
   });
 
   it('is not struck out — nothing on it was declined', () => {
     const { group, record } = groupFor('HAWB-70001');
     const { container } = render(
-      <DiffGroupRow
-        group={group} record={record} subtitle="" checked
-        referredTo={referredTo} onToggle={() => {}}
-      />,
+      <DiffGroupRow group={group} record={record} subtitle="" checked={false} referred onToggle={() => {}} />,
     );
 
     const row = container.querySelector('.dg')!;
@@ -218,22 +199,28 @@ describe('DiffGroupRow sets a referred row apart without using colour', () => {
     expect(row.className).not.toContain('dg--struck');
   });
 
-  it('carries a mark shape that no other row state uses', () => {
+  it('carries the solid rule form only while it is marked, the form the register draws on the same row', () => {
     const { group, record } = groupFor('HAWB-70001');
-    const referred = render(
-      <DiffGroupRow
-        group={group} record={record} subtitle="" checked
-        referredTo={referredTo} onToggle={() => {}}
-      />,
+    const marked = render(
+      <DiffGroupRow group={group} record={record} subtitle="" checked onToggle={() => {}} />,
     );
-    const referredMark = referred.container.querySelector('.dg-mark svg')!.innerHTML;
+    expect(marked.container.querySelector('.dg')!.className).toContain('dg--marked');
     cleanup();
+    const struck = render(
+      <DiffGroupRow group={group} record={record} subtitle="" checked={false} onToggle={() => {}} />,
+    );
+    expect(struck.container.querySelector('.dg')!.className).not.toContain('dg--marked');
+    expect(struck.container.querySelector('.dg')!.className).toContain('dg--struck');
+  });
 
+  it('keeps the control and the mark on every row that is the operator\'s own', () => {
+    const { group, record } = groupFor('HAWB-70001');
     for (const checked of [true, false]) {
-      const other = render(
+      const own = render(
         <DiffGroupRow group={group} record={record} subtitle="" checked={checked} onToggle={() => {}} />,
       );
-      expect(other.container.querySelector('.dg-mark svg')!.innerHTML).not.toBe(referredMark);
+      expect(own.container.querySelector('input[type="checkbox"]')).toBeTruthy();
+      expect(own.container.querySelector('.dg-mark svg')).toBeTruthy();
       cleanup();
     }
   });

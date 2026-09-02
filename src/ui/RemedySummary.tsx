@@ -1,17 +1,17 @@
-import { ProofMark } from './ProofMark';
 import { money, remedyFull } from './remedy-words';
 import type { RemedyTallyLine } from './remedy-diff';
 
 export interface RemedySummaryProps {
   /** One line per remedy actually proposed in the current selection, richest first. */
   lines: RemedyTallyLine[];
-  /** Rows in the selection where a rule took at least one alternative away. */
-  constrained: number;
-  /** Rows in the selection, for the "3 of 41" reading on the constrained line. */
-  total: number;
 }
 
-export function RemedySummary({ lines, constrained, total }: RemedySummaryProps) {
+/**
+ * The tally and nothing under it. A line that counted how many rows lost an alternative to a
+ * rule stood here until 2 Sep 2026; each such row already says so on its own line below, and
+ * the count was the sheet explaining its rows before the reader reached them.
+ */
+export function RemedySummary({ lines }: RemedySummaryProps) {
   if (lines.length === 0) return null;
 
   return (
@@ -26,24 +26,6 @@ export function RemedySummary({ lines, constrained, total }: RemedySummaryProps)
           </li>
         ))}
       </ul>
-      {/* The dagger says "set apart from the run" before the words do, and before any hue
-          does — the same mark held actions and flagged cargo already carry. */}
-      <p className="rm-constrained">
-        <ProofMark name="dagger" size={13} />
-        {constrained === 0 ? (
-          total === 1 ? (
-            <>Every alternative was open on the one marked row.</>
-          ) : (
-            <>Every alternative was open on all <span className="mono">{total}</span> marked rows.</>
-          )
-        ) : (
-          <>
-            <span className="mono">{constrained}</span> of <span className="mono">{total}</span>{' '}
-            marked {total === 1 ? 'row' : 'rows'} {constrained === 1 ? 'has' : 'have'} an
-            alternative a rule took away. Each one is named on the row.
-          </>
-        )}
-      </p>
     </section>
   );
 }

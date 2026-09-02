@@ -135,7 +135,7 @@ describe('the edge product states its own authority boundary', () => {
     const bucket = payload.rejected.find((r: any) => r.pending !== undefined);
     expect(bucket).toEqual({
       count: 3,
-      reason: "above the release engineer's 0.50% of production traffic exposure authority — referred to a traffic lead, not refused",
+      reason: "above the release engineer's 0.50% of production traffic exposure authority, referred to a traffic lead",
       ids: ['nrt1', 'syd1', 'icn1'],
       pending: 'traffic lead',
     });
@@ -203,7 +203,7 @@ describe('the edge product states its own authority boundary', () => {
     // lhr1 is in the referral bucket — struck out or not, it was never the operator's to strike.
     expect(payload.rejected.find((r: any) => r.pending !== undefined)).toEqual({
       count: 3,
-      reason: "above the release engineer's 0.50% of production traffic exposure authority — referred to a traffic lead, not refused",
+      reason: "above the release engineer's 0.50% of production traffic exposure authority, referred to a traffic lead",
       ids: ['ams1', 'lhr1', 'fra1'],
       pending: 'traffic lead',
     });

@@ -89,7 +89,7 @@ function RuleForm({ onSubmit, onCancel }: RuleFormProps) {
         />
       </label>
       <label className="rs-field">
-        Up to EUR
+        Up to €
         <input
           type="number" min={0} value={maxValue}
           onChange={e => setMaxValue(Math.max(0, Number(e.target.value)))}
@@ -121,7 +121,7 @@ function ChipState({ tool }: { tool: string }) {
     return (
       <span className="rs-chip-state rs-chip-state--never">
         <ProofMark name="dagger" size={12} />
-        never automatic — always reviewed
+        never automatic, always reviewed
       </span>
     );
   }
@@ -130,19 +130,26 @@ function ChipState({ tool }: { tool: string }) {
     return (
       <span className="rs-chip-state rs-chip-state--rung1">
         <ProofMark name="insert" size={12} />
-        standing rule — {describePolicy(pol)}
+        standing rule, {describePolicy(pol)}
       </span>
     );
   }
   return <span className="rs-chip-state">reviewed every time</span>;
 }
 
+/**
+ * One line in the register's toolbar, and the chips behind it. "Standing rules: none." is the
+ * whole of what an operator needs to know at a glance; which tool carries which rule is one
+ * click away. The draft an agent earns by three clean approvals is not behind that click: it
+ * is an offer awaiting a decision and prints whether the chips are open or not.
+ */
 export function RungStrip() {
   // No policy state is read directly out of the adapter's map into React state — activePolicy()
   // is read fresh on every render. This counter is never read itself; bumping it is only ever
   // used to force that render whenever ratify() fires, from either door.
   const [, setTick] = useState(0);
   const [draft, setDraft] = useState<Policy | null>(null);
+  const [open, setOpen] = useState(false);
   const [formOpen, setFormOpen] = useState(false);
 
   useEffect(() => onDraft(setDraft), []);
@@ -153,50 +160,70 @@ export function RungStrip() {
     ratify(p);
     setFormOpen(false);
   };
+  const addOne = () => {
+    setOpen(true);
+    setFormOpen(true);
+  };
+
+  const inForce = WRITE_TOOLS.filter(t => activePolicy(t)?.ratified).length;
+  const summary = inForce === 0 ? 'none' : `${inForce} in force`;
 
   return (
-    <section className="rs" aria-label="Standing rules">
-      <p className="rs-heading">Standing rules</p>
-      <div className="rs-chips">
-        {WRITE_TOOLS.map(tool => {
-          const pol = activePolicy(tool);
-          const never = NEVER_ELIGIBLE.includes(tool);
-          const rung1 = Boolean(pol?.ratified);
-          return (
-            <div
-              key={tool}
-              className={`rs-chip${rung1 ? ' rs-chip--rung1' : ''}${never ? ' rs-chip--never' : ''}`}
-            >
-              <span className="rs-chip-tool mono">{tool}</span>
-              <ChipState tool={tool} />
-              {/* F5: the only exits from a ratified rule used to be waiting for expiry or
-                  reloading the page. Revoking goes through the same path expiry already uses
-                  (see revoke() in webmcp/adapter.ts) — the tool goes back to its base
-                  description and the next call is reviewed again. */}
-              {rung1 && (
-                <button
-                  className="rs-revoke"
-                  type="button"
-                  onClick={() => revoke(tool)}
-                  aria-label={`Revoke the standing rule for ${tool}`}
-                >
-                  Revoke
-                </button>
-              )}
-            </div>
-          );
-        })}
-        <button
-          className="rs-add"
-          type="button"
-          onClick={() => setFormOpen(v => !v)}
-          aria-expanded={formOpen}
-        >
-          {formOpen ? 'Cancel' : 'Add a standing rule'}
-        </button>
-      </div>
+    <>
+      {/* A toolbar control, set like the filter beside it: one bordered button that says the
+          state and opens the rules under the toolbar. The add-a-rule door is inside. */}
+      <button
+        className="tb-btn rs-line-toggle"
+        type="button"
+        aria-expanded={open}
+        onClick={() => setOpen(v => !v)}
+      >
+        <span className="tb-btn-caps">Standing rules</span> {summary}
+      </button>
 
-      {formOpen && <RuleForm onSubmit={ratifyForm} onCancel={() => setFormOpen(false)} />}
+      {open && (
+        <div className="rs-open" aria-label="Standing rules">
+          {!formOpen && (
+            <p className="rs-open-line">
+              <button className="rs-line-add" type="button" onClick={addOne}>
+                Add one.
+              </button>
+            </p>
+          )}
+          <div className="rs-chips">
+            {WRITE_TOOLS.map(tool => {
+              const pol = activePolicy(tool);
+              const never = NEVER_ELIGIBLE.includes(tool);
+              const rung1 = Boolean(pol?.ratified);
+              return (
+                <div
+                  key={tool}
+                  className={`rs-chip${rung1 ? ' rs-chip--rung1' : ''}${never ? ' rs-chip--never' : ''}`}
+                >
+                  <span className="rs-chip-tool mono">{tool}</span>
+                  <ChipState tool={tool} />
+                  {/* F5: the only exits from a ratified rule used to be waiting for expiry or
+                      reloading the page. Revoking goes through the same path expiry already uses
+                      (see revoke() in webmcp/adapter.ts) — the tool goes back to its base
+                      description and the next call is reviewed again. */}
+                  {rung1 && (
+                    <button
+                      className="rs-revoke"
+                      type="button"
+                      onClick={() => revoke(tool)}
+                      aria-label={`Revoke the standing rule for ${tool}`}
+                    >
+                      Revoke
+                    </button>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+
+          {formOpen && <RuleForm onSubmit={ratifyForm} onCancel={() => setFormOpen(false)} />}
+        </div>
+      )}
 
       {draft && (
         <div className="rs-draft">
@@ -214,6 +241,6 @@ export function RungStrip() {
           </div>
         </div>
       )}
-    </section>
+    </>
   );
 }

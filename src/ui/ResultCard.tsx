@@ -9,6 +9,7 @@ interface Framing {
    */
   stamp: string;
   title: string;
+  /** Only what the table cannot say. Empty where the four lines already say it all. */
   note: string;
 }
 
@@ -29,25 +30,18 @@ function frame(o: ProposalOutcome): Framing {
         tone: partial ? 'partial' : 'applied',
         stamp: partial ? 'OK with changes' : 'OK to run',
         title: partial ? 'Applied, partly' : 'Applied',
-        note: partial
-          ? `${o.payload.applied} of ${o.payload.requested} went through as approved. The rest is accounted for above, and ${o.toolName} has been told to replan around it.`
-          : `${o.toolName} did exactly what you approved — ${o.payload.applied} of ${o.payload.requested}, nothing left over.`,
+        note: '',
       };
     }
     // Not a failure and not a partial refusal: the operator did everything they were allowed
     // to do, and the rest is with a colleague. `REFER` is the stamped word for that, opposite
     // `OK TO RUN` — the two halves of an authority boundary, told apart by the word first.
     case 'referred': {
-      const r = o.payload.referred;
-      const n = r?.count ?? 0;
-      const who = r?.awaiting ?? 'a second approver';
       return {
         tone: 'referred',
         stamp: 'Refer',
         title: o.payload.applied > 0 ? 'Applied what you can authorise' : 'Referred, nothing applied',
-        note: `${o.payload.applied} of ${o.payload.requested} went through on your authority. ` +
-          `${n} ${n === 1 ? 'shipment is' : 'shipments are'} above your spend limit and ${n === 1 ? 'is' : 'are'} ` +
-          `now with the ${who} — not refused, not yet decided. ${o.toolName} has been told exactly that.`,
+        note: '',
       };
     }
     case 'auto_applied':
@@ -56,7 +50,7 @@ function frame(o: ProposalOutcome): Framing {
         stamp: 'Standing rule',
         title: 'Applied automatically',
         note: o.ruleDescription
-          ? `Matched the standing rule for ${o.toolName} — ${o.ruleDescription} — so this went through with no review.`
+          ? `Matched the standing rule for ${o.toolName}, ${o.ruleDescription}, so this went through with no review.`
           : `Matched the standing rule for ${o.toolName}, so this went through with no review.`,
       };
     // Two operators working the same consol, which is what a stale abort actually models —
@@ -78,14 +72,14 @@ function frame(o: ProposalOutcome): Framing {
         tone: 'blocked',
         stamp: 'Blocked',
         title: 'Ladder blocked this',
-        note: 'The tool tried to write outside what you approved, so every change was rolled back. The guard did its job.',
+        note: 'The whole commit was rolled back.',
       };
     case 'tool_error':
       return {
         tone: 'fault',
         stamp: 'Tool error',
         title: 'The tool errored',
-        note: `${o.toolName} threw while it ran. Nothing was blocked and nothing was written — this is a fault in the tool, not the guard stopping it.`,
+        note: `${o.toolName} threw while it ran. Nothing was blocked and nothing was written. The fault is in the tool.`,
       };
     case 'nothing_to_decide': {
       // F12: `payload.reason` is only ever set on the zero-match case (see its own doc comment
@@ -99,7 +93,7 @@ function frame(o: ProposalOutcome): Framing {
         title: 'Nothing to change',
         note: noMatch
           ? `${o.toolName} found nothing that matched this request, so no panel was needed. The agent has been told why.`
-          : `${o.toolName} found nothing it could change, so no panel was needed — every matching row was already accounted for. The agent has been told why.`,
+          : `${o.toolName} found nothing it could change, so no panel was needed. Every matching row was already accounted for. The agent has been told why.`,
       };
     }
     case 'refused':
@@ -107,14 +101,14 @@ function frame(o: ProposalOutcome): Framing {
         tone: 'sent',
         stamp: 'Revise',
         title: 'Sent back to the agent',
-        note: 'You refused the whole change. The agent has been told, in the same words as above.',
+        note: '',
       };
     default:
       return {
         tone: 'sent',
         stamp: 'Revise',
         title: 'Sent back to the agent',
-        note: 'Your judgement left as structured data, not as a silent success.',
+        note: '',
       };
   }
 }
@@ -134,6 +128,12 @@ export function ResultCard({ outcome, shifted, onDismiss }: ResultCardProps) {
   // count" case left to render.
   const refused = p.rejected;
   const hasCounts = p.requested > 0;
+  // The path the guard caught (`shipments:HAWB-70001:slaTier`) stays in the payload the agent
+  // reads; the person reads what it means.
+  const reasonFor = (r: { reason: string }) =>
+    outcome.cause === 'blocked' && /\(.+\)/.test(r.reason)
+      ? 'wrote a field the proof never showed'
+      : r.reason;
 
   return (
     <aside className={`rc rc--${tone}${shifted ? ' rc--shifted' : ''}`} role="status">
@@ -174,17 +174,18 @@ export function ResultCard({ outcome, shifted, onDismiss }: ResultCardProps) {
                     would read as the receipt arguing with itself. */}
                 <dt>{r.pending ? 'referred' : 'refused'}</dt>
                 <dd className="mono">{r.count}</dd>
-                <span className="rc-reason">— {r.reason}</span>
+                <span className="rc-reason">{reasonFor(r)}</span>
               </div>
             ))
           )}
-          <div className="rc-row">
-            <dt>replan required</dt>
-            <dd className="mono">{p.replan_required ? 'yes' : 'no'}</dd>
-          </div>
         </dl>
       )}
-      <p className="rc-note">{note}</p>
+      {hasCounts && (
+        <p className="rc-replan">
+          {p.replan_required ? 'The agent was told to replan.' : 'The agent was told no replan is needed.'}
+        </p>
+      )}
+      {note && <p className="rc-note">{note}</p>}
       {p.error && <p className="rc-note">{p.error}</p>}
     </aside>
   );

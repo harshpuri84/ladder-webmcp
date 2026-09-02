@@ -49,11 +49,18 @@ function ReferralRow({ referral, canReview }: { referral: Referral; canReview: b
   );
 }
 
+/**
+ * One line in the register's toolbar: who is acting and up to what, with the switch behind
+ * one word. The role buttons come out on "Switch" and go back the moment one is chosen. A
+ * referral queue, when there is one, is never folded away: it is work waiting on a person,
+ * and it prints as a row of its own under the toolbar for as long as it stands.
+ */
 export function AuthorityStrip() {
   // Neither the role nor the referral queue is copied into React state — both are read fresh
   // on every render, exactly the way RungStrip reads activePolicy(). These counters are never
   // read; bumping them is only ever how a change out in the adapter forces that render.
   const [, setTick] = useState(0);
+  const [switching, setSwitching] = useState(false);
   useEffect(() => onRoleChange(() => setTick(t => t + 1)), []);
   useEffect(() => onReferralsChange(() => setTick(t => t + 1)), []);
 
@@ -61,47 +68,59 @@ export function AuthorityStrip() {
   const target = referralTarget(role);
   const referrals = listReferrals();
 
+  const pick = (id: string) => {
+    setRole(id);
+    setSwitching(false);
+  };
+
   return (
-    <section className="au" aria-label="Spend authority">
-      <p className="au-heading">Spend authority</p>
+    <>
+      {/* A toolbar control like the standing-rules one beside it: the role on shift and its
+          limit, and the switch is what it opens. */}
+      <button
+        className="tb-btn au-line-switch"
+        type="button"
+        aria-expanded={switching}
+        onClick={() => setSwitching(v => !v)}
+      >
+        <span className="tb-btn-caps">Acting as</span> {role.label}, {authorityVocabulary().amount(role.limit)}
+      </button>
 
-      <div className="au-roles" role="group" aria-label="Acting as">
-        {ROLES.map(r => {
-          const active = r.id === role.id;
-          return (
-            <button
-              key={r.id}
-              className={`au-role${active ? ' au-role--on' : ''}`}
-              type="button"
-              aria-pressed={active}
-              onClick={() => setRole(r.id)}
-            >
-              {active && <ProofMark name="insert" size={12} />}
-              <span className="au-role-name">{r.label}</span>
-              <span className="au-role-limit mono">{authorityVocabulary().amount(r.limit)}</span>
-            </button>
-          );
-        })}
-      </div>
-
-      <p className="au-state">
-        <span className="au-state-caps">Acting as</span> {role.label} — {describeAuthority(role)}
-        {target
-          ? `. Anything above that is referred to a ${target.label.toLowerCase()}.`
-          : '. Nothing is referred above this role.'}
-      </p>
-
-      <p className="au-demo-note">
-        There is no sign-in here and no server. This switches the labelled role in this one
-        browser so both sides of the boundary can be driven — a deliberate demonstration, like
-        the register&rsquo;s buggy-tool toggle, never a claim that two people are signed in.
-      </p>
+      {switching && (
+        <div className="au-open">
+          <div className="au-roles" role="group" aria-label="Acting as">
+            {ROLES.map(r => {
+              const active = r.id === role.id;
+              return (
+                <button
+                  key={r.id}
+                  className={`au-role${active ? ' au-role--on' : ''}`}
+                  type="button"
+                  aria-pressed={active}
+                  onClick={() => pick(r.id)}
+                >
+                  {active && <ProofMark name="insert" size={12} />}
+                  <span className="au-role-name">{r.label}</span>
+                  <span className="au-role-limit mono">{authorityVocabulary().amount(r.limit)}</span>
+                </button>
+              );
+            })}
+          </div>
+          <p className="au-state">
+            {role.label} {describeAuthority(role)}
+            {target
+              ? `. Anything above that is referred to a ${target.label.toLowerCase()}.`
+              : '. Nothing is referred above this role.'}
+            {' '}This switches the labelled role in this one browser; nobody is signed in.
+          </p>
+        </div>
+      )}
 
       {referrals.length > 0 && (
         <div className="au-refs">
           <p className="au-refs-caption">
             <ProofMark name="query" size={13} />
-            <span className="au-refs-caption-caps">Referred — awaiting a second approver</span>
+            <span className="au-refs-caption-caps">Referred, awaiting a second approver</span>
           </p>
           <ul className="au-refs-list">
             {referrals.map(r => (
@@ -110,6 +129,6 @@ export function AuthorityStrip() {
           </ul>
         </div>
       )}
-    </section>
+    </>
   );
 }

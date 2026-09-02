@@ -76,7 +76,7 @@ describe('the walkthrough is printed on the proof tab', () => {
     expect(head.textContent).not.toContain(PROMPTS[0].note);
     expect(head.querySelector('.ag-step-seen')).toBeNull();
     // And it says where the rest is rather than leaving a judge to find it.
-    const jump = screen.getByRole('button', { name: 'Go to them' });
+    const jump = screen.getByRole('button', { name: `then the ${STEPS.length} steps under the register` });
     expect(head.contains(jump)).toBe(true);
     expect(container.querySelector('.ag')!.id).toBe('run-it-yourself');
   });

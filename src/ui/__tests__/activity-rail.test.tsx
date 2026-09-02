@@ -106,8 +106,8 @@ describe('the returned-proofs rail follows the page', () => {
     expect(block('.app-shell')).toMatch(/align-items:\s*flex-start/);
   });
 
-  it('keeps the panel its reserved width, and hides the rail during a decision', () => {
-    expect(block('body.pp-active .app-shell')).toMatch(/margin-right:\s*var\(--panel-width\)/);
+  it('reserves the panel its width less the overlap it lies over, and hides the rail during a decision', () => {
+    expect(block('body.pp-active .app-shell')).toMatch(/margin-right:\s*calc\(var\(--panel-width\) - var\(--panel-overlap\)\)/);
     expect(block('body.pp-active .al')).toMatch(/display:\s*none/);
   });
 

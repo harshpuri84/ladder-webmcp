@@ -1,4 +1,4 @@
-import { useState, useSyncExternalStore } from 'react';
+import { useState, useSyncExternalStore, type ReactNode } from 'react';
 import { store } from '../domain/store';
 import { setBuggyToolEnabled } from '../domain/tools';
 import {
@@ -7,6 +7,24 @@ import {
 import type { Shipment } from '../domain/types';
 import { ProofMark } from './ProofMark';
 import { remedyCostWords, remedyShort } from './remedy-words';
+import {
+  onProofViewChange, proofView, proofViewVersion, type ProofRow, type ProofRowState,
+} from './proof-view';
+
+/**
+ * How the register draws a row the open proof sheet touches: the same rule form the row carries
+ * on the sheet, down the row's left edge (see `console-row--*` in styles.css), and a word for
+ * the reader who cannot see it. A solid rule for a row that is marked, a double rule for one
+ * that is referred, the id struck through for one the operator struck. One device on both
+ * sides of the gutter, at one weight, so the eye crosses from the sheet to the register on it.
+ * Until 2 Sep 2026 each row also carried a glyph in the gutter, a caret or a dagger beside a
+ * rule of a second weight: two encodings for one fact.
+ */
+const ROW_WORD: Record<ProofRowState, string> = {
+  marked: 'marked on the open proof',
+  struck: 'struck out on the open proof',
+  referred: 'referred on the open proof',
+};
 
 function subscribe(onStoreChange: () => void) {
   return store.subscribe(onStoreChange);
@@ -98,7 +116,64 @@ export function resetConsoleSession(): void {
   clearRegisterView();
 }
 
-export function Console() {
+/**
+ * The buggy-tool switch, on its own so the walkthrough can print it at the step that uses it
+ * rather than above the register. It reads and writes the same `session` cell as the console,
+ * so it survives a tab round trip exactly as the filter does.
+ */
+export function BuggyToolToggle() {
+  const [buggyTool, setBuggyTool] = useState(session.buggyTool);
+
+  const toggleBuggyTool = (on: boolean) => {
+    session.buggyTool = on;
+    setBuggyTool(on);
+    setBuggyToolEnabled(on);
+  };
+
+  return (
+    <div className="console-demo-row">
+      <label className="console-buggy-toggle">
+        <input
+          type="checkbox"
+          checked={buggyTool}
+          onChange={e => toggleBuggyTool(e.target.checked)}
+        />
+        Simulate a buggy tool
+      </label>
+      <p className="console-demo-note">
+        Makes <code>propose_remedy</code> rewrite one shipment&rsquo;s SLA tier at commit time,
+        a field the proof never showed. The guard stops it and rolls the whole commit back.
+      </p>
+    </div>
+  );
+}
+
+/**
+ * What the open sheet proposes for this row, in the row. A marked row carries the caret the
+ * sheet's own line carries, a struck row carries the remedy struck through, and a referred row
+ * carries the word beside the figure: three readings the strikethrough and the word tell apart
+ * before any hue does. Once the sheet closes the cell goes back to what the record holds.
+ */
+function ProposedRemedy({ state, remedy, cost }: {
+  state: ProofRowState; remedy: NonNullable<ProofRow['remedy']>; cost: number;
+}) {
+  return (
+    <span className={`console-remedy console-remedy--${state}`}>
+      {state === 'marked' && <ProofMark name="insert" size={12} />}
+      <span className="console-remedy-word">{remedyShort(remedy)}</span>
+      <span className="console-remedy-cost mono">{remedyCostWords(cost)}</span>
+      {state === 'referred' && <span className="console-remedy-note">referred</span>}
+    </span>
+  );
+}
+
+interface ConsoleProps {
+  /** The register's imprint: the one-line standing-rules and spend-authority controls, set
+   *  into the toolbar beside the filter so nothing stands between the prompt and the rows. */
+  imprint?: ReactNode;
+}
+
+export function Console({ imprint }: ConsoleProps = {}) {
   // Subscribed for the re-render only: the snapshot is a counter, because the state object
   // is mutated in place and never changes identity. Memoising the rows against a mutable
   // store is what made this table go stale after a commit, so the filter runs each render.
@@ -108,18 +183,14 @@ export function Console() {
   // `store.version` would have every filtered search look, to anything watching, exactly like a
   // shipment changing.
   useSyncExternalStore(subscribeView, registerViewVersion);
+  // The open proof sheet's reading of each row, published by the panel (see proof-view.ts).
+  useSyncExternalStore(onProofViewChange, proofViewVersion);
+  const proof = proofView();
   const [filter, setFilterState] = useState(session.filter);
-  const [buggyTool, setBuggyTool] = useState(session.buggyTool);
 
   const setFilter = (value: string) => {
     session.filter = value;
     setFilterState(value);
-  };
-
-  const toggleBuggyTool = (on: boolean) => {
-    session.buggyTool = on;
-    setBuggyTool(on);
-    setBuggyToolEnabled(on);
   };
 
   const total = Object.keys(store.state.shipments).length;
@@ -152,22 +223,36 @@ export function Console() {
       )
     : all;
 
+  // A column that is empty on every row is not a column yet. Until a remedy has landed on any
+  // row, or the open sheet proposes one, there is nothing to compare down it, so it is not
+  // printed; the operator sees it appear when the first proof opens, which is also the moment
+  // it starts carrying information, and it stays once a remedy has landed.
+  const anyProposed = Boolean(proof && [...proof.rows.values()].some(r => r.remedy !== null));
+  const anyRemedy = anyProposed || onRegister.some(s => s.remedy !== null);
+
   return (
     <div className="console">
       <div className="console-toolbar">
         <input
           className="console-filter"
           type="text"
-          placeholder="Filter by customer, consol or cargo…"
+          placeholder="Filter by id or customer"
           spellCheck={false}
           value={filter}
           onChange={e => setFilter(e.target.value)}
         />
         {/* Counted against the register, never against whatever narrowing is on top of it. An
-            agent that could move this denominator could make six rows read as the whole flight. */}
+            agent that could move this denominator could make six rows read as the whole flight.
+            Unnarrowed, it says so in a word rather than as a figure over itself. */}
         <span className="console-count">
-          {shipments.length} of {total} house shipments
+          {shipments.length === total
+            ? `All ${total} house shipments`
+            : `${shipments.length} of ${total} house shipments`}
         </span>
+        {/* `display: contents`, so the lines and whatever they open are laid out by the
+            toolbar itself: a line sits on the filter's row and an opened block takes a row of
+            its own under it. */}
+        {imprint && <div className="console-imprint">{imprint}</div>}
       </div>
       {view && (
         // The one thing on this page an agent changed without being asked, said plainly, with
@@ -183,7 +268,7 @@ export function Console() {
             <ProofMark name="registration" size={12} />
             <span>
               The agent set this view. <code>{view.toolName}</code> matched{' '}
-              {view.ids.length} of {total} rows — {view.words}. Nothing was changed and nothing
+              {view.ids.length} of {total} rows, {view.words}. Nothing was changed and nothing
               left the register; the rest are still on it.
             </span>
           </p>
@@ -196,22 +281,6 @@ export function Console() {
           </button>
         </div>
       )}
-      <div className="console-demo-row">
-        <label className="console-buggy-toggle">
-          <input
-            type="checkbox"
-            checked={buggyTool}
-            onChange={e => toggleBuggyTool(e.target.checked)}
-          />
-          Simulate a buggy tool
-        </label>
-        <p className="console-demo-note">
-          Makes <code>propose_remedy</code> rewrite a shipment&rsquo;s SLA tier at commit time —
-          a field the proof never showed and you never approved — so you can watch Ladder&rsquo;s
-          guard stop it and roll the whole commit back. A deliberate demonstration, not a real
-          bug.
-        </p>
-      </div>
       {/* The register is wider than a phone; it scrolls in its own frame, the page never does. */}
       <div className="console-scroll">
         <table className="console-table">
@@ -222,26 +291,58 @@ export function Console() {
               <th>Consol</th>
               <th>SLA</th>
               <th>Promised</th>
-              <th>Revenue</th>
+              <th className="console-num">Revenue</th>
               <th>Cargo</th>
-              <th>Remedy</th>
-              <th>External edit</th>
+              {anyRemedy && <th>Remedy</th>}
+              {/* Marta's control rides here, drawn only on the row that is pointed at, so the
+                  cell stays where a decision can reach it however many columns the register
+                  sheds beside the panel. No heading: a column whose every cell is the same
+                  hidden control is not a column the operator reads. */}
+              <th className="console-edit-cell" aria-label="External edit" />
             </tr>
           </thead>
           <tbody>
             {shipments.map(s => {
               const constraints = constraintsOn(s);
+              // Marta's control rides at the right edge of the row's last cell and is drawn
+              // only when the row is pointed at or the control itself has focus: forty-two
+              // identical buttons in a column of their own said nothing forty-one times. It
+              // stays in the tab order throughout, and stands always on a device with no
+              // pointer. The visible words are the same four on every row on purpose, so the
+              // row it belongs to is carried in the accessible name, with the visible label as
+              // the leading phrase so a voice-control user can still say what they see.
+              const martaButton = (
+                <button
+                  className="console-edit-row"
+                  type="button"
+                  aria-label={`Marta edits this: ${s.id}`}
+                  title="Simulates Marta, the other operator on this shift, changing this record outside any agent proposal."
+                  onClick={() => editRowExternally(s.id)}
+                >
+                  Marta edits this
+                </button>
+              );
+              const row = proof?.rows.get(s.id) ?? null;
+              const state = row?.state ?? null;
               return (
-                <tr key={s.id}>
-                  <td className="mono">
+                <tr key={s.id} className={state ? `console-row--${state}` : undefined}>
+                  <td className="mono console-house">
+                    {/* What the open sheet says about this row, on the row: the rule down the
+                        row's left edge (see styles.css), and the word for a reader who cannot
+                        see it. The hue only agrees. */}
+                    {state && (
+                      <span className="console-row-mark vh">{ROW_WORD[state]}</span>
+                    )}
                     {s.id}
-                    <span className="console-version">v{s.version}</span>
+                    {/* Printed only once a record has moved on from its first version: on
+                        forty-two first versions the same two characters said nothing. */}
+                    {s.version > 1 && <span className="console-version">v{s.version}</span>}
                   </td>
                   <td>{s.customer}</td>
                   <td className="mono">{s.consol}</td>
                   <td>{s.slaTier}</td>
                   <td className="mono">{s.promisedDelivery}</td>
-                  <td className="mono">{revenue.format(s.revenueEur)}</td>
+                  <td className="mono console-num">{revenue.format(s.revenueEur)}</td>
                   <td>
                     {constraints.length === 0 ? (
                       <span className="console-none" aria-label="no cargo constraints">
@@ -249,50 +350,35 @@ export function Console() {
                       </span>
                     ) : (
                       constraints.map(c => (
-                        // The dagger says "set apart from the run" before the amber does — the
-                        // colour is the second reading, never the first.
-                        <span className="badge" key={c}>
-                          <ProofMark name="dagger" size={11} />
-                          {c}
-                        </span>
+                        // A ruled chip in tracked capitals: the form says "flagged" before the
+                        // amber does. No dagger: on this product the dagger means a row referred
+                        // to a second person, and a cargo constraint is not that.
+                        <span className="badge" key={c}>{c}</span>
                       ))
                     )}
                   </td>
-                  <td>
-                    {s.remedy === null ? (
-                      <span className="console-none" aria-label="no remedy proposed yet">
-                        —
-                      </span>
-                    ) : (
-                      // The caret is the same mark the proof line used when this correction
-                      // went in, so a row that took one reads the same in both places.
-                      <span className="console-remedy">
-                        <ProofMark name="insert" size={12} />
-                        {remedyShort(s.remedy)}
-                        <span className="console-remedy-cost mono">
-                          {remedyCostWords(s.remedyCost)}
+                  {anyRemedy && (
+                    <td>
+                      {row?.remedy ? (
+                        <ProposedRemedy state={row.state} remedy={row.remedy} cost={row.cost} />
+                      ) : s.remedy === null ? (
+                        <span className="console-none" aria-label="no remedy proposed yet">
+                          —
                         </span>
-                      </span>
-                    )}
-                  </td>
-                  <td>
-                    {/* Forty-two of these, and the visible words are the same four on every
-                        row on purpose — the note above the register explains who Marta is and
-                        a per-row rewording would break that one explanation into forty-two.
-                        So the row it belongs to is carried in the accessible name instead,
-                        which is the only reading where the four words arrive alone. The
-                        visible label stays the leading phrase of that name, so a voice-control
-                        user can still say what they can see. */}
-                    <button
-                      className="console-edit-row"
-                      type="button"
-                      aria-label={`Marta edits this: ${s.id}`}
-                      title="Simulates Marta, the other operator on this shift, changing this record outside any agent proposal."
-                      onClick={() => editRowExternally(s.id)}
-                    >
-                      Marta edits this
-                    </button>
-                  </td>
+                      ) : (
+                        // The caret is the same mark the proof line used when this correction
+                        // went in, so a row that took one reads the same in both places.
+                        <span className="console-remedy">
+                          <ProofMark name="insert" size={12} />
+                          {remedyShort(s.remedy)}
+                          <span className="console-remedy-cost mono">
+                            {remedyCostWords(s.remedyCost)}
+                          </span>
+                        </span>
+                      )}
+                    </td>
+                  )}
+                  <td className="console-edit-cell">{martaButton}</td>
                 </tr>
               );
             })}

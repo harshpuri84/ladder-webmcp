@@ -24,6 +24,6 @@ export const PROMPTS: Prompt[] = [
   },
   {
     text: 'Show me the shipments carrying lithium-ion batteries.',
-    note: 'Two of the forty-two. The register narrows to those two, labelled as set by the agent and cleared by you in one click. Nothing is changed and nothing leaves the register — the count above the table goes on reading 2 of 42.',
+    note: 'Two of the forty-two. The register narrows to those two, labelled as set by the agent and cleared by you in one click. Nothing is changed and nothing leaves the register. The count above the table goes on reading 2 of 42.',
   },
 ];

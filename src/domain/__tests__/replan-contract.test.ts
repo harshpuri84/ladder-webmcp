@@ -87,7 +87,7 @@ describe('the replan contract', () => {
   ];
   const PENDING_CLAUSE = 'An entry carrying `pending` is with a second person';
   const RULE_CLAUSE = 'applied without review';
-  const AUTHORITY_CLAUSE = 'may authorise up to EUR';
+  const AUTHORITY_CLAUSE = 'may authorise up to €';
 
   const standingRule = () => ({
     id: 'pol-replan-contract', tool: 'propose_remedy', maxRecords: 20, maxValue: 500,

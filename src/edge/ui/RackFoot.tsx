@@ -15,7 +15,7 @@ const DESTINATIONS = [
   {
     href: '/#/proof',
     label: 'The freight console',
-    note: 'The same engine on a cancelled flight — forty-two house shipments, one proposal, one operator marking it down.',
+    note: 'The same engine on a cancelled flight. Forty-two house shipments, one proposal, one operator marking it down.',
   },
   {
     href: '/#/problem',

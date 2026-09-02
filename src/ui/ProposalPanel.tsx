@@ -8,11 +8,12 @@ import { DiffGroupRow } from './DiffGroupRow';
 import { RemedySummary } from './RemedySummary';
 import { ActionCard } from './ActionCard';
 import { ResultCard } from './ResultCard';
-import { ProofMark, RegistrationCorners } from './ProofMark';
+import { ProofMark } from './ProofMark';
 import { readProofRow, summariseRemedies } from './remedy-diff';
 import { TABPANEL_ID } from './TabBar';
 import { money, remedyFull } from './remedy-words';
 import { followUpTail, followUpTime } from './follow-up-words';
+import { setProofView, type ProofRow } from './proof-view';
 
 // 8s read back as "already fading" from a paused frame two seconds in — that turned out to be
 // an opaque-background bug on the auto-apply tone (see .rc--auto in styles.css), not the hold
@@ -97,6 +98,13 @@ function describeRequest(toolName: string, input: unknown): string {
  */
 const NAMED_SKIPS = 6;
 
+/**
+ * How many rows the landing specimen prints before it stops on a row boundary and says how
+ * many are below. The specimen has no scroll: it is a sheet in the page, read once, so it ends
+ * where a printed page would end rather than mid-line under a footer.
+ */
+const SPECIMEN_ROWS = 1;
+
 /** Rows the tool itself left alone, folded to one line per reason, each naming its shipments. */
 function byReason(notes: { id: string; reason: string }[]) {
   const byText = new Map<string, string[]>();
@@ -110,14 +118,21 @@ const tierWord: Record<SlaTier, string> = {
   basic: 'basic SLA',
 };
 
-/** Who this house shipment belongs to, which consol it rode, and when it was promised. */
-function subtitleFor(id: string): string {
+/** Who this house shipment belongs to, which consol it rode, and when it was promised. A
+ *  referred row already names the customer on its one line, so its subtitle starts at the consol. */
+function subtitleFor(id: string, withCustomer = true): string {
   const s = store.state.shipments[id];
   if (!s) return '';
-  return `${s.customer} · ${s.consol} · ${tierWord[s.slaTier]} · promised ${s.promisedDelivery}`;
+  const rest = `${s.consol} · ${tierWord[s.slaTier]} · promised ${s.promisedDelivery}`;
+  return withCustomer ? `${s.customer} · ${rest}` : rest;
 }
 
-export function ProposalPanel() {
+/**
+ * `specimen`: render one proposal as a read-only sheet in the page flow, for the landing page.
+ * The panel subscribes to nothing, takes no focus, sets no body class and resolves nothing;
+ * the sheet is inert. Everything drawn is what a live proposal would draw.
+ */
+export function ProposalPanel({ specimen }: { specimen?: PendingProposal } = {}) {
   // A queue, not a slot. The adapter broadcasts each pending proposal to its listeners with no
   // queue of its own, so two tool calls that arrive together each broadcast independently. A
   // single-slot panel would replace the first and orphan its promise, and nothing in the
@@ -153,11 +168,17 @@ export function ProposalPanel() {
     setQueue(q => q.filter(x => x !== p));
   };
 
-  useEffect(() => onProposal(p => {
-    if (p) setQueue(q => (q.includes(p) ? q : [...q, p]));
-  }), []);
+  useEffect(() => {
+    if (specimen) return;
+    return onProposal(p => {
+      if (p) setQueue(q => (q.includes(p) ? q : [...q, p]));
+    });
+  }, [specimen]);
 
-  useEffect(() => onResult(o => setOutcome(o)), []);
+  useEffect(() => {
+    if (specimen) return;
+    return onResult(o => setOutcome(o));
+  }, [specimen]);
 
   useEffect(() => {
     if (!outcome) return;
@@ -165,7 +186,7 @@ export function ProposalPanel() {
     return () => clearTimeout(t);
   }, [outcome]);
 
-  const head = queue[0] ?? null;
+  const head = specimen ?? queue[0] ?? null;
 
   // Task 9's "Edit a row" beat needs the console reachable while a decision is pending, but
   // the panel is `position: fixed` over the right side of the viewport and would otherwise sit
@@ -175,9 +196,31 @@ export function ProposalPanel() {
   // the first one resolving and the next one appearing — the console must not spring back to
   // full width for a frame in between.
   useEffect(() => {
+    if (specimen) return;
     document.body.classList.toggle('pp-active', Boolean(head));
     return () => { document.body.classList.remove('pp-active'); };
-  }, [head]);
+  }, [head, specimen]);
+
+  /*
+   * What this sheet says about each row of the register, published for the register to draw
+   * on its own rows: marked, struck by the operator, or referred. Read off the head and the
+   * selection the panel already holds, never off the adapter, so the register needs no
+   * subscription of its own and cannot race this one for the buffer. Cleared the moment the
+   * sheet closes; the specimen on the landing page publishes nothing, because it is inert.
+   */
+  useEffect(() => {
+    if (specimen) return;
+    if (!head) { setProofView(null); return; }
+    const cannot = new Set(head.authority.referred);
+    const rows = new Map<string, ProofRow>();
+    for (const g of head.diff.groups) {
+      const state = cannot.has(g.group) ? 'referred' : groups.has(g.group) ? 'marked' : 'struck';
+      const { remedy } = readProofRow(g, store.state.shipments[g.id]);
+      rows.set(g.id, { state, remedy: remedy?.to ?? null, cost: remedy?.cost ?? 0 });
+    }
+    setProofView({ proposalId: head.diff.proposalId, rows });
+  }, [head, groups, specimen]);
+  useEffect(() => () => { if (!specimen) setProofView(null); }, [specimen]);
 
   /*
    * F2: the panel arrived with `document.activeElement` still on <body>. Measured with real key
@@ -191,7 +234,9 @@ export function ProposalPanel() {
    * editing a record mid-decision is the thing the stale abort exists to catch, and a judge has
    * to be able to do it while the panel is open.
    */
+  const wasOpen = useRef(false);
   useEffect(() => {
+    if (specimen) return;
     if (head) {
       // Recorded once per opening, not once per queued proposal: two proposals back to back are
       // one interruption, and the second must not overwrite where the first came from.
@@ -199,9 +244,15 @@ export function ProposalPanel() {
         const a = document.activeElement;
         openerRef.current = a instanceof HTMLElement && a !== document.body ? a : null;
       }
+      wasOpen.current = true;
       panelRef.current?.focus();
       return;
     }
+    // Nothing to hand back on first mount: this effect also runs when the page loads with no
+    // proposal, and focusing the register's tab panel then scrolled the page's head off the
+    // top of the viewport and drew its focus ring for no reason.
+    if (!wasOpen.current) return;
+    wasOpen.current = false;
     const opener = openerRef.current;
     openerRef.current = null;
     // An operator who tabbed out into the register while deciding keeps their place; the browser
@@ -212,20 +263,20 @@ export function ProposalPanel() {
     // Nowhere to go back to — the agent opened this, not a click. The register is the sensible
     // place to land, and the tab panel is its focusable frame.
     document.getElementById(TABPANEL_ID)?.focus();
-  }, [head]);
+  }, [head, specimen]);
 
   // F11: the panel carries role="dialog" and aria-modal="true", which sets the expectation
   // that Escape closes it. It has to take the same path Refuse does — resolving the proposal
   // with a real decision — rather than a silent dismiss, which would just be F1 again by
   // another route: a proposal vanishing off screen with its promise never settled.
   useEffect(() => {
-    if (!head) return;
+    if (!head || specimen) return;
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') decideOn(head, null);
     };
     document.addEventListener('keydown', onKeyDown);
     return () => document.removeEventListener('keydown', onKeyDown);
-  }, [head]);
+  }, [head, specimen]);
 
   // Everything the agent asked for starts ticked: narrowing is the human act, and starting
   // from nothing would make "Apply 0 of 47" the resting state. Everything except the rows this
@@ -251,7 +302,6 @@ export function ProposalPanel() {
   const authorisable = diff.groups.filter(g => !referredKeys.has(g.group));
   const referredGroups = diff.groups.filter(g => referredKeys.has(g.group));
   const referredSpend = referredGroups.reduce((n, g) => n + g.valueDelta, 0);
-  const referredTo = { limitEur: authority.role.limit, role: authority.target?.label ?? 'second approver' };
   const selectedGroups = diff.groups.filter(g => groups.has(g.group));
   const selectedActions = diff.actions.filter(a => actions.has(a.actionId));
   const valueDelta = selectedGroups.reduce((n, g) => n + g.valueDelta, 0);
@@ -264,9 +314,18 @@ export function ProposalPanel() {
   // The remedy breakdown, read off the same selection the extent above it is read off, so the
   // two never disagree about what is marked.
   const selectedRows = selectedGroups.map(g => readProofRow(g, store.state.shipments[g.id]));
-  const { lines: remedyLines, constrained } = summariseRemedies(selectedRows);
+  const { lines: remedyLines } = summariseRemedies(selectedRows);
   const waiting = queue.length - 1;
   const nothingPicked = selectedGroups.length === 0 && selectedActions.length === 0;
+
+  // The specimen ends on a row boundary. Referred rows come first in its ordering (see
+  // specimen.ts), so the first rows printed are the ones set apart, and the line under them
+  // counts what a reader would find by opening the real sheet. The live panel prints everything
+  // and scrolls.
+  const rowCap = specimen ? SPECIMEN_ROWS : Number.POSITIVE_INFINITY;
+  const shownReferred = referredGroups.slice(0, rowCap);
+  const shownAuthorisable = authorisable.slice(0, Math.max(0, rowCap - shownReferred.length));
+  const hiddenRows = diff.groups.length - shownReferred.length - shownAuthorisable.length;
 
   const toggle = (set: ReadonlySet<string>, key: string) => {
     const next = new Set(set);
@@ -280,40 +339,59 @@ export function ProposalPanel() {
   const decide = (d: Decision | null) => decideOn(head, d);
   const decided = resolvedIds.current.has(diff.proposalId);
 
-  // The grade the stamp will carry. Everything the agent asked for, or a cut-down subset —
-  // the two readings a proof comes back with when it comes back at all.
-  const whole =
-    selectedGroups.length === authorisable.length &&
-    selectedActions.length === diff.actions.length;
   // A sheet where every row is above this operator's limit still has to be stampable: sending
   // it on is the act. Left disabled, the boundary would look like a dead end rather than a
   // handover — and the freight would sit in Frankfurt while the panel said "nothing marked".
   const onlyReferral = nothingPicked && referredGroups.length > 0;
-  const grade = onlyReferral ? 'Refer'
-    : nothingPicked ? 'Nothing marked'
-    : whole ? 'OK to run'
-    : 'OK with changes';
+  const actionsOnly = diff.totals.records === 0 && diff.actions.length > 0;
+
+  // The stamp says both halves of what pressing it does, each with its count and, for the
+  // referred half, who it goes to: "Apply 23 · Refer 4 to duty manager". Two lines at most.
+  // The apply count is what is marked, live, so three unticks read "Apply 20"; it is not
+  // counted against the whole sheet, because "of 27" with four rows referred would read as
+  // four rows they struck out, which is the one thing they did not do.
+  const awaiting = authority.target ? authority.target.label.toLowerCase() : 'a second approver';
+  const heldWord = selectedActions.length === 1 ? 'held action' : 'held actions';
+  const stampParts: string[] = [];
+  if (actionsOnly) {
+    stampParts.push(`Release ${selectedActions.length} of ${diff.actions.length} ${heldWord}`);
+  } else {
+    if (authorisable.length > 0) stampParts.push(`Apply ${selectedGroups.length}`);
+    if (referredGroups.length > 0) stampParts.push(`Refer ${referredGroups.length} to ${awaiting}`);
+    if (selectedActions.length > 0) stampParts.push(`Release ${selectedActions.length} ${heldWord}`);
+  }
+
+  const referredWord = referredGroups.length === 1 ? 'shipment' : 'shipments';
+  const referredLine = authority.target
+    ? `The ${authority.target.label.toLowerCase()} decides ${referredGroups.length === 1 ? 'it' : 'these'}.`
+    : `There is nobody above you to refer ${referredGroups.length === 1 ? 'it' : 'them'} to.`;
 
   return (
     <>
-      <div className="pp-scrim" />
+      {!specimen && <div className="pp-scrim" />}
       {/*
         * A dialog, and deliberately not a modal one. `aria-modal` would promise that everything
         * behind the scrim is out of reach — and the register behind it is the one thing that must
         * stay reachable, so the promise would be false the moment it was made.
         */}
       <aside
-        className="pp"
+        className={specimen ? 'pp pp--specimen' : 'pp'}
         key={diff.proposalId}
         ref={panelRef}
-        tabIndex={-1}
-        role="dialog"
-        aria-label="Review this change"
+        tabIndex={specimen ? undefined : -1}
+        role={specimen ? undefined : 'dialog'}
+        aria-label={specimen ? undefined : 'Review this change'}
+        inert={specimen ? true : undefined}
       >
-        <RegistrationCorners />
         <header className="pp-head">
+          {/* The register over the quote: whose words these are, and which tool they came
+              through. Who signs it is on the stamp block at the foot, where the signing is. */}
           <div className="pp-head-top">
-            <span className="pp-tool mono">{head.toolName}</span>
+            <p className="pp-eyebrow">
+              <span className="pp-eyebrow-caps">Agent proposal</span>
+              <span className="pp-eyebrow-sep" aria-hidden="true">·</span>
+              <span className="pp-tool mono">{head.toolName}</span>
+            </p>
             {waiting > 0 && (
               <span className="pp-waiting">{waiting} more waiting</span>
             )}
@@ -335,15 +413,11 @@ export function ProposalPanel() {
             <p className="pp-followup">
               <ProofMark name="dagger" size={12} className="pp-followup-mark" />
               <span>
-                Follows the <span className="mono">{followUpTime(head.followUp)}</span> run — asks
+                Follows the <span className="mono">{followUpTime(head.followUp)}</span> run. Asks
                 only about {followUpTail(head.followUp)}.
               </span>
             </p>
           )}
-          <p className="pp-slug">
-            <span className="pp-slug-caps">Proof for approval</span>
-            <span className="pp-slug-tail"> · nothing here has been applied yet</span>
-          </p>
           <hr className="rule" />
         </header>
 
@@ -353,54 +427,26 @@ export function ProposalPanel() {
             requested={diff.totals.records}
             datasetSize={Object.keys(store.state.shipments).length}
             valueDelta={valueDelta}
+            referredValue={referredSpend}
+            referredCount={referredGroups.length}
             showMoney={touchesPrice}
             irreversible={selectedActions.length}
-            actionsOnly={diff.totals.records === 0 && diff.actions.length > 0}
+            actionsOnly={actionsOnly}
           />
 
-          <RemedySummary
-            lines={remedyLines}
-            constrained={constrained}
-            total={selectedGroups.length}
-          />
-
-          {referredGroups.length > 0 && (
-            <section className="pp-refer">
-              <p className="pp-refer-caption">
-                <ProofMark name="query" size={13} />
-                <span className="pp-refer-caption-caps">Not yours to authorise</span>
-                <span className="pp-refer-caption-tail"> — referred, not refused</span>
-              </p>
-              <p className="pp-refer-line">
-                <span className="mono">{referredGroups.length}</span>{' '}
-                {referredGroups.length === 1 ? 'shipment costs' : 'shipments cost'} more than
-                your EUR <span className="mono">{authority.role.limit}</span> limit
-                {referredSpend > 0 && (
-                  <> — <span className="mono">{money(referredSpend)}</span> in total</>
-                )}
-                . {authority.target
-                  ? `Applying will send ${referredGroups.length === 1 ? 'it' : 'them'} to a ${authority.target.label.toLowerCase()}, who decides ${referredGroups.length === 1 ? 'it' : 'them'} separately.`
-                  : 'There is nobody above you to refer them to.'}
-              </p>
-              <p className="pp-refer-ids mono">
-                {referredGroups.slice(0, NAMED_SKIPS).map(g => g.id).join(', ')}
-                {referredGroups.length > NAMED_SKIPS &&
-                  ` and ${referredGroups.length - NAMED_SKIPS} more`}
-              </p>
-            </section>
-          )}
+          <RemedySummary lines={remedyLines} />
 
           {notes.length > 0 && (
             <section className="pp-notes">
               <p className="pp-notes-caption">
                 <ProofMark name="dele" size={13} />
                 <span className="pp-notes-caption-caps">Left alone by the tool</span>
-                <span className="pp-notes-caption-tail"> — not by Ladder</span>
+                <span className="pp-notes-caption-tail">, not by Ladder</span>
               </p>
               {byReason(notes).map(n => (
                 <div className="pp-note" key={n.reason}>
                   <p className="pp-note-line">
-                    <span className="mono">{n.count}</span> skipped — {n.reason}
+                    {n.count} skipped: {n.reason}
                   </p>
                   {/* Named, not just counted. A shipment nobody can help is a real outcome and
                       the operator has to know which one it is to go and do something about it. */}
@@ -414,14 +460,46 @@ export function ProposalPanel() {
           )}
 
           <div className="pp-list">
-            {diff.groups.map(g => (
+            {/*
+              * The rows this operator cannot mark, set aside at the top of the sheet before the
+              * rows they can, under one line that says why and whose decision they now are.
+              * Nothing on them has been declined, so they are never struck: they carry no
+              * control at all, a double rule down the edge, and their position. The amber only
+              * agrees with all of that.
+              */}
+            {referredGroups.length > 0 && (
+              <section className="pp-refer" aria-label="Referred, not yours to authorise">
+                {/* No mark on the line: the register draws the same rows with the same double
+                    rule and no glyph, and the sheet says it the same way. */}
+                <p className="pp-refer-line">
+                  {referredGroups.length} {referredWord} over your{' '}
+                  {money(authority.role.limit)} limit. {referredLine}
+                </p>
+                {shownReferred.map(g => (
+                  <DiffGroupRow
+                    key={g.group}
+                    group={g}
+                    record={store.state.shipments[g.id]}
+                    subtitle={subtitleFor(g.id, false)}
+                    checked={false}
+                    referred
+                    // Shut on the specimen too. Printed open it stood the sheet at 725px, and on
+                    // a 714px laptop viewport the stamp fell 100px below the fold: the one
+                    // control the whole page is about was the thing you could not see. The line
+                    // above the group already says four are referred and to whom.
+                    expanded={false}
+                    onToggle={() => {}}
+                  />
+                ))}
+              </section>
+            )}
+            {shownAuthorisable.map(g => (
               <DiffGroupRow
                 key={g.group}
                 group={g}
                 record={store.state.shipments[g.id]}
                 subtitle={subtitleFor(g.id)}
                 checked={groups.has(g.group)}
-                referredTo={referredKeys.has(g.group) ? referredTo : undefined}
                 onToggle={() => setGroups(s => toggle(s, g.group))}
               />
             ))}
@@ -433,63 +511,49 @@ export function ProposalPanel() {
                 onToggle={() => setActions(s => toggle(s, a.actionId))}
               />
             ))}
+            {hiddenRows > 0 && (
+              <p className="pp-more">
+                {hiddenRows} more {hiddenRows === 1 ? 'row' : 'rows'} on the sheet.
+                {' '}The whole of it is on the proof tab.
+              </p>
+            )}
           </div>
         </div>
 
-        <hr className="rule" />
         <footer className="pp-foot">
+          {/* Who signs. The role on shift and the limit it signs up to, set as the signature
+              line of the sheet: the stamp below is theirs, and a row above that limit was set
+              apart at the top before they read it. */}
+          <p className="pp-foot-by">
+            <span className="pp-foot-by-lead">For approval by</span>{' '}
+            the {authority.role.label.toLowerCase()}, up to {money(authority.role.limit)}
+          </p>
+          {/* The commit boundary, in one line above the two controls: the sheet is a proposal
+              until the stamp, and the words say so where the hand is about to go. */}
+          <p className="pp-foot-nothing">Nothing changes until you stamp it.</p>
           {/*
-            The stamp block. A press proof does not come back yes or no — it comes back graded,
-            and the grade is the whole point of this product: the operator cuts a change down
-            rather than accepting or rejecting it whole. "OK to run" is everything as asked;
-            "OK with changes" is the partial consent the engine was built for.
-            The count stays in the label because narrowing has to be legible without reading
-            anything else, and it is what the button's accessible name is made of.
+            The stamp block. The counts are the label because narrowing has to be legible without
+            reading anything else, and they are what the button's accessible name is made of.
+            Refuse sits left and the stamp right at every width.
           */}
+          <button className="pp-refuse" type="button" disabled={decided} onClick={() => decide(null)}>
+            Refuse all
+          </button>
           <button
             className="pp-stamp"
             type="button"
             disabled={(nothingPicked && !onlyReferral) || decided}
             onClick={() => decide({ groups: [...groups], actions: [...actions] })}
           >
-            <span className="pp-stamp-grade">{grade}</span>
-            <span className="pp-stamp-label">
-              {/* Counted against what this operator can authorise, not against the whole
-                  sheet: "Apply 23 of 27" with four rows referred would read as four rows they
-                  struck out, which is the one thing they did not do. */}
-              {diff.totals.records === 0 && diff.actions.length > 0
-                ? `Release ${selectedActions.length} of ${diff.actions.length}`
-                : authorisable.length === 0 && referredGroups.length > 0
-                ? `Refer ${referredGroups.length} of ${referredGroups.length}`
-                : `Apply ${selectedGroups.length} of ${authorisable.length}`}
-            </span>
-            {referredGroups.length > 0 && authorisable.length > 0 && (
-              <span className="pp-stamp-sub">
-                and refer {referredGroups.length}{' '}
-                {referredGroups.length === 1 ? 'shipment' : 'shipments'}
+            {/* A space between the parts as text, not only as a gap: the accessible name is
+                the text, and "Apply 23Refer 4" is not a name. Flex layout ignores it. */}
+            {stampParts.map((part, i) => (
+              <span className="pp-stamp-part" key={part}>
+                {i > 0 && ' '}
+                <span className="pp-stamp-label">{part}</span>
+                {i < stampParts.length - 1 && <span className="pp-stamp-sep" aria-hidden="true">·</span>}
               </span>
-            )}
-            {selectedActions.length > 0 && (
-              <span className="pp-stamp-sub">
-                {diff.totals.records === 0
-                  ? selectedActions.length === 1 ? 'held action' : 'held actions'
-                  : `and release ${selectedActions.length} ${
-                      selectedActions.length === 1 ? 'held action' : 'held actions'
-                    }`}
-              </span>
-            )}
-          </button>
-          {/*
-            The third grade of the proof tradition, on the control that produces it — set the
-            way the stamp beside it sets its own grade, above the words that say what pressing
-            it does. Outside the button and under it, it read as a greyed-out third control
-            sitting next to two live ones; inside it, it is what it always was, the grade this
-            stamp carries. Hidden from assistive tech so the button keeps its own plain name,
-            which is also what "Sent back to the agent — Revise" on the returned proof says.
-          */}
-          <button className="pp-refuse" type="button" disabled={decided} onClick={() => decide(null)}>
-            <span className="pp-refuse-grade" aria-hidden="true">Revise</span>
-            <span className="pp-refuse-label">Refuse all</span>
+            ))}
           </button>
         </footer>
       </aside>

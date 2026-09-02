@@ -59,23 +59,18 @@ describe('ProposalPanel: Escape refuses the open proposal (F11)', () => {
   });
 
   /**
-   * "Revise" is the third grade of the proof tradition and it belongs to this control — it is
-   * set inside the button now, above the words that say what pressing it does, the way the
-   * stamp beside it sets its own grade. Outside and under the button it read as a greyed-out
-   * third control standing next to two live ones, which is a sighted problem only: the span is
-   * `aria-hidden`, so the button's name has to stay the two plain words either way.
+   * The control refuses, so it says so and nothing else: one verb, which is also its whole
+   * accessible name. The proof tradition's "Revise" grade used to sit inside it as a second
+   * line, and two verbs on one button read as two controls.
    */
-  it('keeps the refusal button named by its words, not by its grade', async () => {
+  it('keeps the refusal button named by its one verb', async () => {
     render(<ProposalPanel />);
     const result = registered.get('escape_test_tool')!.execute({});
     await act(async () => { await flush(); });
 
     const refuse = screen.getByRole('button', { name: 'Refuse all' });
-    // The grade is drawn inside the control and skipped by the name computation.
-    expect(refuse.querySelector('.pp-refuse-grade')?.textContent).toBe('Revise');
-    expect(refuse.querySelector('.pp-refuse-grade')?.getAttribute('aria-hidden')).toBe('true');
-    // And it is a child of the button, not a third thing beside it.
-    expect(screen.getByText('Revise').closest('button')).toBe(refuse);
+    expect(refuse.textContent!.trim()).toBe('Refuse all');
+    expect(screen.queryByText('Revise')).toBeNull();
 
     act(() => { fireEvent.keyDown(document, { key: 'Escape' }); });
     await result;

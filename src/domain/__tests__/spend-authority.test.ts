@@ -101,7 +101,7 @@ describe('spend authority: two humans, one boundary', () => {
     const pendingBucket = payload.rejected.find((r: any) => r.pending);
     expect(pendingBucket.count).toBe(referred.size);
     expect(pendingBucket.pending).toBe(ROLES[1].label.toLowerCase());
-    expect(pendingBucket.reason).toMatch(/not refused/);
+    expect(pendingBucket.reason).toMatch(/referred to a duty manager/);
     expect(payload.rejected.some((r: any) => /operator removed/.test(r.reason))).toBe(false);
 
     // Nothing was refused outright, so there is nothing for the agent to replan around.
@@ -153,12 +153,12 @@ describe('spend authority: two humans, one boundary', () => {
 
   it('tells the agent about the boundary in the tool description, and re-registers when the role changes', () => {
     const asOperator = registered.get('propose_remedy')!.description;
-    expect(asOperator).toContain(`EUR ${ROLES[0].limit}`);
+    expect(asOperator).toContain(`€${ROLES[0].limit}`);
     expect(asOperator).toContain(ROLES[1].label.toLowerCase());
 
     setRole(ROLES[1].id);
     const asManager = registered.get('propose_remedy')!.description;
-    expect(asManager).toContain(`EUR ${ROLES[1].limit}`);
+    expect(asManager).toContain(`€${ROLES[1].limit.toLocaleString('en-GB')}`);
     expect(asManager).not.toBe(asOperator);
 
     setRole(ROLES[0].id);

@@ -834,6 +834,21 @@ body.rk-drawn .rk-body {
   display: block;
   margin: 6px 0 2px;
 }
+/* Two readouts on one face: what this operator can sign, and what goes up. The legend under each
+   carries the meaning; the lamp hue on the second only agrees with the word "referred". */
+.mtr-pair { display: flex; align-items: flex-start; gap: 22px; margin-bottom: 6px; }
+.mtr-cell { display: flex; flex-direction: column; min-width: 0; }
+.mtr-cell--referred { padding-left: 22px; border-left: 1px solid var(--score-strong); }
+.mtr-cell--referred .mtr-val { color: var(--lamp); }
+.mtr-lg {
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--legend-mid);
+  white-space: nowrap;
+}
+.mtr-cell--referred .mtr-lg { color: var(--lamp); }
 .mtr-unit { font-size: 11px; color: var(--legend-mid); letter-spacing: 0.04em; }
 
 /* The exposure scale. A ruled instrument face: ticks at the quarters, a hatched band for
@@ -1041,14 +1056,23 @@ body.rk-drawn .rk-body {
   left: 0;
   z-index: 10;
   background: var(--panel);
-  border-top: 1px solid var(--score-strong);
-  box-shadow: inset 0 1px 0 var(--bezel-hi), 0 -20px 44px -20px rgba(0, 0, 0, 0.95);
+  /* A solid top edge: a band of bay above the face, a structural score above that, and the
+     drawer's own lift. The rack behind is cut by a panel lip, never by a hairline through a
+     line of its text. */
+  border-top: 10px solid var(--rack);
+  box-shadow:
+    0 -1px 0 var(--score-strong),
+    inset 0 1px 0 var(--bezel-hi),
+    0 -2px 4px rgba(0, 0, 0, 0.5),
+    0 -22px 46px -18px rgba(0, 0, 0, 0.95);
   animation: dw-rise 220ms var(--ease) both;
   max-height: min(56vh, 520px);
   display: flex;
   flex-direction: column;
 }
 .rr--shifted { bottom: var(--drawer-h); }
+/* The rack's last band can always be scrolled clear of a record standing over it. */
+body.rk-record .rk-body { padding-bottom: min(56vh, 520px); }
 
 .rr-head {
   display: flex;
@@ -1083,25 +1107,61 @@ body.rk-drawn .rk-body {
 .rr-dismiss:hover { color: var(--legend); border-color: var(--legend-dim); }
 
 .rr-body { display: flex; min-height: 0; flex: 1; }
+/* The ledger: the four buckets the agent got, summed, as a column of readouts on the rail. */
+.rr-ledger {
+  margin: 0;
+  width: 250px;
+  flex: 0 0 250px;
+  padding: 13px 22px 18px;
+  border-right: 1px solid var(--score);
+  background: var(--panel-sunk);
+  box-shadow: inset -1px 0 0 rgba(0, 0, 0, 0.4);
+}
+.rr-sum {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  padding: 5px 0;
+  border-bottom: 1px solid var(--score);
+}
+.rr-sum:last-child { border-bottom: 0; }
+.rr-sum dt { margin: 0; flex: 0 0 34px; text-align: right; font-size: 15px; color: var(--legend); }
+.rr-sum dd { margin: 0; font-size: 12px; color: var(--legend-mid); }
+.rr-sum--lamp dt { color: var(--lamp); }
 .rr-buckets { flex: 1; min-width: 0; padding: 13px 22px 18px; overflow-y: auto; }
 .rr-line { margin: 0 0 3px; font-size: 12.5px; color: var(--legend-mid); }
 .rr-line b { color: var(--legend); font-weight: 500; }
-.rr-ids { margin: 0 0 11px; font-size: 11px; color: var(--legend-dim); }
-.rr-bucket { padding: 8px 0; border-top: 1px solid var(--score); }
+.rr-ids { margin: 0 0 7px; font-size: 11px; color: var(--legend-dim); }
+.rr-bucket { padding: 6px 0; border-top: 1px solid var(--score); }
 .rr-bucket:first-of-type { border-top: 0; }
 
-/* What actually left the page. The judge asked for it; it goes on the panel. */
-.rr-wire {
-  width: 46%;
-  flex: 0 0 46%;
-  border-left: 1px solid var(--score);
-  background: var(--rack);
-  padding: 13px 18px 18px;
-  overflow: auto;
-  box-shadow: inset 1px 0 0 rgba(0, 0, 0, 0.5);
+/* What actually left the page, behind a disclosure. Shut by default: the ledger and the reasons
+   say what happened, and the wire is there for whoever wants the exact bytes. */
+.rr-wire { margin-top: 12px; border-top: 1px solid var(--score); padding-top: 10px; }
+.rr-wire summary {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  cursor: pointer;
+  list-style: none;
 }
+.rr-wire summary::-webkit-details-marker { display: none; }
+.rr-wire summary:hover { color: var(--legend-mid); }
+.rr-wire-word {
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--legend-mid);
+  border: 1px solid var(--score-strong);
+  padding: 2px 8px;
+}
+.rr-wire[open] .rr-wire-word { color: var(--legend); border-color: var(--legend-dim); }
 .rr-wire pre {
-  margin: 8px 0 0;
+  margin: 10px 0 0;
+  padding: 12px 16px;
+  background: var(--rack);
+  box-shadow: inset 0 0 0 1px var(--score);
   font-family: var(--face-mono);
   font-size: 11px;
   line-height: 1.55;
@@ -1156,5 +1216,6 @@ body.rk-drawn .rk-body {
   }
   .dw-field { padding: 12px 16px 16px; }
   .rr-body { flex-direction: column; }
-  .rr-wire { width: auto; flex: 1 1 auto; border-left: 0; border-top: 1px solid var(--score); }
+  .rr-ledger { width: auto; flex: 0 0 auto; border-right: 0; border-bottom: 1px solid var(--score); padding: 11px 16px 12px; }
+  .rr-buckets { padding: 11px 16px 16px; }
 }

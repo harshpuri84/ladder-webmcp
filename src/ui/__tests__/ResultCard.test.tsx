@@ -98,7 +98,7 @@ describe('ResultCard framing for a referred run', () => {
         status: 'partially_applied' as any, requested, applied,
         rejected: [{
           count,
-          reason: "above the gateway operator's EUR 250 spend authority — referred to a duty manager, not refused",
+          reason: "above the gateway operator's EUR 250 spend authority, referred to a duty manager",
           ids: ['HAWB-70001'],
           pending: 'duty manager',
         }],
@@ -109,12 +109,16 @@ describe('ResultCard framing for a referred run', () => {
     };
   }
 
-  it('stamps REFER, names who has it, and says plainly that it was not refused', () => {
-    render(<ResultCard outcome={referred(23, 27, 4)} shifted={false} onDismiss={() => {}} />);
+  it('stamps REFER, counts the referred bucket as referred, and adds no paragraph under the table', () => {
+    const { container } = render(<ResultCard outcome={referred(23, 27, 4)} shifted={false} onDismiss={() => {}} />);
     expect(screen.getByText('Refer')).toBeTruthy();
     expect(screen.getByText('Applied what you can authorise')).toBeTruthy();
-    expect(screen.getByText(/now with the duty manager/)).toBeTruthy();
-    expect(screen.getByText(/not refused, not yet decided/)).toBeTruthy();
+    const row = [...container.querySelectorAll('.rc-row')].find(r => r.querySelector('dt')?.textContent === 'referred')!;
+    expect(row.querySelector('dd')!.textContent).toBe('4');
+    expect(row.textContent).toContain('referred to a duty manager');
+    // The four lines say it all; nothing restates them underneath.
+    expect(container.querySelector('.rc-note')).toBeNull();
+    expect(screen.getByText('The agent was told no replan is needed.')).toBeTruthy();
   });
 
   it('says nothing landed when nothing did, rather than claiming a partial success', () => {
@@ -125,6 +129,37 @@ describe('ResultCard framing for a referred run', () => {
   it('carries a rule form of its own, not one it shares with a blocked or refused receipt', () => {
     const { container } = render(<ResultCard outcome={referred(23, 27, 4)} shifted={false} onDismiss={() => {}} />);
     expect(container.querySelector('.rc')!.className).toContain('rc--referred');
+  });
+});
+
+/**
+ * The two lines that used to be a fifth count and a leaked path. `replan required: yes` is a
+ * sentence to the agent, so it is rendered as one; and the guard's own violation path stays in
+ * the payload the agent reads, not on the card a person does.
+ */
+describe('ResultCard says what the agent was told, and not where the guard looked', () => {
+  it('renders replan required as a sentence', () => {
+    render(<ResultCard outcome={outcome('applied', 'partially_applied', 3, 5)} shifted={false} onDismiss={() => {}} />);
+    expect(screen.getByText('The agent was told to replan.')).toBeTruthy();
+    expect(screen.queryByText('replan required')).toBeNull();
+  });
+
+  it('keeps the violated path out of the blocked receipt', () => {
+    const blocked: ProposalOutcome = {
+      toolName: 'propose_remedy',
+      cause: 'blocked',
+      payload: {
+        status: 'denied', requested: 15, applied: 0,
+        rejected: [{ count: 15, reason: 'the tool tried to write outside the approved set (shipments:HAWB-70001:slaTier); everything was rolled back', ids: [] }],
+        actions_released: 0, actions_dropped: 0,
+        replan_required: true, rule_offered: null,
+      },
+    };
+    const { container } = render(<ResultCard outcome={blocked} shifted={false} onDismiss={() => {}} />);
+    expect(container.textContent).not.toContain('slaTier');
+    expect(container.textContent).not.toContain('shipments:HAWB-70001');
+    expect(screen.getByText('wrote a field the proof never showed')).toBeTruthy();
+    expect(container.textContent).toContain('rolled back');
   });
 });
 

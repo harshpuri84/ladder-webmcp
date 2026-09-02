@@ -38,6 +38,12 @@ export interface Step {
    * signed in.
    */
   demonstration?: string;
+  /**
+   * Set on the one step that drives a control the console keeps for it. The buggy-tool switch
+   * is printed at this step, where it is used, rather than above the register where it was
+   * the first thing an operator read.
+   */
+  control?: 'buggy-tool';
 }
 
 export const STEPS: Step[] = [
@@ -54,17 +60,15 @@ export const STEPS: Step[] = [
     action: 'Untick three rows in the panel’s list.',
     seen:
       'Every figure moves with you. The hero count falls to 20 with the 27 still struck through '
-      + 'beside it, and the caption under the bar reads “20 of 42 shipments in the register · '
-      + 'struck down from 27”. The stamp changes grade — “OK to run” becomes “OK with changes” — '
-      + 'and its label goes from “Apply 23 of 23” to “Apply 20 of 23”, counted against the 23 you '
-      + 'may authorise rather than the 27 on the sheet. The four referred rows keep their own line '
-      + 'underneath: “and refer 4 shipments”.',
+      + 'beside it, counted against the 23 you may authorise rather than the 27 on the sheet. '
+      + 'The stamp goes from “Apply 23 · Refer 4 to duty manager” to “Apply 20 · Refer 4 to duty '
+      + 'manager”: the four referred rows are not yours either way.',
   },
   {
     title: 'Apply',
     action: 'Press the stamp, and read the receipt that comes back.',
     seen:
-      'requested 27 · applied 20 · referred 4, above the gateway operator’s EUR 250 spend '
+      'requested 27 · applied 20 · referred 4, above the gateway operator’s €250 spend '
       + 'authority · refused 3, the operator removed these from the change · replan required yes. '
       + 'Twenty and four and three is twenty-seven: the receipt accounts for every row it was '
       + 'asked about. The register behind it now carries a remedy against 20 shipments.',
@@ -72,14 +76,14 @@ export const STEPS: Step[] = [
   {
     title: 'Refer, and sign as the second person',
     action:
-      'The four referred shipments are queued in the Spend authority strip above the register, '
-      + 'and their button reads “Waiting on the duty manager” — it is disabled, because you are '
-      + 'not one. Press Duty manager in that strip, then Review as duty manager.',
+      'The four referred shipments are queued under the register’s toolbar, and their button '
+      + 'reads “Waiting on the duty manager”. It is disabled, because you are not one. Press '
+      + 'Switch on the Acting as line, pick Duty manager, then Review as duty manager.',
     seen:
       'The same tool runs again over only those four ids, and the panel says so above the '
-      + 'figures: “Follows the … run — asks only about 4 rows sent to a duty manager”, '
-      + 'with the clock time of your first run where the dots are. It is stamped “OK to run” '
-      + 'over “Apply 4 of 4”, and the hero carries the +€1,331 that was over '
+      + 'figures: “Follows the … run. Asks only about 4 rows sent to a duty manager”, '
+      + 'with the clock time of your first run where the dots are. It is stamped “Apply 4”, '
+      + 'and the hero carries the +€1,331 that was over '
       + 'the first role’s limit. Sign it and the receipt reads requested 4 · applied 4 · refused 0 '
       + '· replan required no. The referral queue empties.',
   },
@@ -87,28 +91,29 @@ export const STEPS: Step[] = [
     title: 'Watch a change land underneath you',
     action:
       'Say the first prompt again. While the panel is open, type one of the shipment ids it lists '
-      + 'into the register’s filter box — the register stays live behind the panel, which is the '
-      + 'point — then press “Marta edits this” on that row and stamp the proposal.',
+      + 'into the register’s filter box. The register stays live behind the panel, which is the '
+      + 'point. Point at that row, press “Marta edits this” at its right edge, and stamp the '
+      + 'proposal.',
     seen:
       'The row’s version number goes up by one and its revenue moves €25 while you watch. Then a '
       + 'receipt stamped “Superseded”, titled “Marta got there first”: applied 0, every row refused '
-      + 'with “a record changed after the preview; nothing was applied”. Not only her row — the '
-      + 'whole commit aborted rather than land against a world that had moved.',
+      + 'with “a record changed after the preview; nothing was applied”. Her row and every other '
+      + 'row. The whole commit aborted rather than land against a world that had moved.',
     demonstration:
-      'Marta is a button on the register, not a second person signed in. The console labels her as '
+      'Marta is a button on the register. The console labels her as '
       + 'a simulation of the other operator on the shift.',
   },
   {
     title: 'Make the tool misbehave',
     action:
-      'Tick “Simulate a buggy tool” under the register, say the first prompt again, and stamp the '
-      + 'proposal. Untick it afterwards.',
+      'Tick “Simulate a buggy tool” below, say the first prompt again, and stamp the proposal. '
+      + 'Untick it afterwards.',
+    control: 'buggy-tool',
     seen:
       'A receipt stamped “Blocked”, titled “Ladder blocked this”: applied 0, and the reason names '
-      + 'the exact field the tool reached for outside what you approved — an SLA tier on one of the '
+      + 'the exact field the tool reached for outside what you approved, an SLA tier on one of the '
       + 'shipments in the run. '
-      + 'The SLA column in the register is untouched — the whole commit rolled back, not just the '
-      + 'write that went off-script.',
+      + 'The SLA column in the register is untouched. The whole commit rolled back.',
     demonstration:
       'The toggle exists to give the guard something to stop, and says so beside itself. It is not '
       + 'a real defect and nothing else on this page depends on it.',

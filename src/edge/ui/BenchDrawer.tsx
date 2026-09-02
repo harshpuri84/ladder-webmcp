@@ -57,7 +57,7 @@ function describeRequest(toolName: string, input: unknown): string {
     case 'roll_config': {
       const release = i.release ?? CANDIDATE_RELEASE;
       if (i.mode) {
-        return `Put ${release} on ${scoped(i)} as ${modeWord[i.mode]} — ${modeFull[i.mode]} — wherever no rule closes it.`;
+        return `Put ${release} on ${scoped(i)} as ${modeWord[i.mode]}, ${modeFull[i.mode]}, wherever no rule closes it.`;
       }
       return `Stage ${release} across ${scoped(i)}, taking the most cautious mode still open to each.`;
     }
@@ -122,6 +122,13 @@ export function BenchDrawer() {
   }, [outcome]);
 
   const head = queue[0] ?? null;
+
+  // A record standing over the rack reserves its own height under the last band, so the estate
+  // can always be scrolled clear of it rather than read through its lip.
+  useEffect(() => {
+    document.body.classList.toggle('rk-record', Boolean(outcome));
+    return () => { document.body.classList.remove('rk-record'); };
+  }, [outcome]);
 
   // The rack behind the drawer loses the light while a decision is open. Driven off `head` rather
   // than off queue length, so two proposals back to back never let the rack flash back up for a
@@ -210,6 +217,7 @@ export function BenchDrawer() {
     Math.round(ids.reduce((n, id) => n + (readById.get(id)?.exposedPct ?? 0), 0) * 100) / 100;
   const selectedExposure = exposureOf(selectedGroups.map(g => g.id));
   const requestedExposure = exposureOf(diff.groups.map(g => g.id));
+  const referredExposure = exposureOf(referredGroups.map(g => g.id));
   const slowest = selectedGroups.reduce(
     (n, g) => Math.max(n, readById.get(g.id)?.convergeMinutes ?? 0), 0,
   );
@@ -254,7 +262,7 @@ export function BenchDrawer() {
             */}
           {head.followUp && (
             <p className="dw-follows">
-              Follows the <span className="rd">{followUpTime(head.followUp)}</span> run — asks only
+              Follows the <span className="rd">{followUpTime(head.followUp)}</span> run. Asks only
               about {followUpTail(head.followUp)}.
             </p>
           )}
@@ -265,6 +273,7 @@ export function BenchDrawer() {
             <ExposureMeter
               selectedPct={selectedExposure}
               requestedPct={requestedExposure}
+              referredPct={referredExposure}
               marked={selectedGroups.length}
               requested={diff.groups.length}
             />
@@ -288,7 +297,7 @@ export function BenchDrawer() {
 
             {referredGroups.length > 0 && (
               <div className="rail-block">
-                <span className="lg">Not yours to authorise — referred, not refused</span>
+                <span className="lg">Not yours to authorise. Referred.</span>
                 <p className="skip-line">
                   <b className="rd">{referredGroups.length}</b>{' '}
                   {referredGroups.length === 1 ? 'site exposes' : 'sites expose'} more than your{' '}
@@ -303,7 +312,7 @@ export function BenchDrawer() {
 
             {notes.length > 0 && (
               <div className="rail-block">
-                <span className="lg">Closed by a rule — skipped by the tool</span>
+                <span className="lg">Closed by a rule, skipped by the tool</span>
                 {byReason(notes).map(n => (
                   <div className="skip" key={n.reason}>
                     <p className="skip-line">

@@ -142,16 +142,20 @@ function RuntimeRow() {
               */}
             <ul className="pl-routes">
               <li className="pl-route">
-                <b>ChatGPT desktop’s built-in browser</b> — announced as supporting WebMCP with no
-                setup; announced, not verified here. It is the only route we know of to a browser
-                that ships an agent able to call these tools. Open this page inside it.
-              </li>
-              <li className="pl-route">
-                <b>Google Chrome 149 or newer</b> — enable{' '}
+                <b>Google Chrome 149 or newer, with the WebMCP extension</b>. Enable{' '}
                 <span className="pl-flag rd">chrome://flags/#enable-webmcp-testing</span> and
                 restart. Paste that into the address bar; Chrome will not let a page link to a
-                chrome:// URL. The flag registers the four tools and nothing more: no shipping
-                Chrome carries an agent to call them, so the rack reads and the drawer stays shut.
+                chrome:// URL. Then install the Model Context Tool Inspector extension from
+                Chrome’s origin-trial documentation and give it a model key. The flag registers
+                the tools; the extension is what brings an agent to call them.
+              </li>
+              <li className="pl-route">
+                <b>ChatGPT desktop’s built-in browser</b>. No setup and no flag.
+              </li>
+              <li className="pl-route">
+                <b>The flag on its own</b> registers the tools and brings no agent, so the rack
+                reads and the drawer stays shut until you add the extension or open the drawer
+                yourself.
               </li>
             </ul>
           </>

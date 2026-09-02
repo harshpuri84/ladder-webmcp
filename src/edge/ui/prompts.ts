@@ -22,6 +22,6 @@ export const PROMPTS: Prompt[] = [
   },
   {
     text: 'Stage the candidate release in eu-north only.',
-    note: 'Four sites — small enough to read whole, and two of them are somebody else’s call.',
+    note: 'Four sites, small enough to read whole, and two of them are somebody else’s call.',
   },
 ];

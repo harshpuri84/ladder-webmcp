@@ -12,11 +12,22 @@ describe('ExposureMeter announces the reading it prints (F6)', () => {
   afterEach(cleanup);
 
   it('puts the exposure reading in a polite live region', () => {
-    render(<ExposureMeter selectedPct={2.66} requestedPct={7.86} marked={22} requested={36} />);
+    render(
+      <ExposureMeter
+        selectedPct={2.66} requestedPct={7.86} referredPct={5.2}
+        marked={22} requested={36}
+      />,
+    );
     const status = screen.getByRole('status');
-    expect(status.textContent).toMatch(/2\.66%/);
+    expect(status.textContent).toMatch(/2\.66%you can authorise/);
+    expect(status.textContent).toMatch(/5\.20%referred/);
     expect(status.textContent).toMatch(/of 7\.86% proposed/);
     expect(status.textContent).toMatch(/22 of 36 sites latched/);
+  });
+
+  it('prints one readout when nothing was referred', () => {
+    render(<ExposureMeter selectedPct={2.66} requestedPct={2.66} marked={22} requested={22} />);
+    expect(screen.getByRole('status').textContent).not.toMatch(/referred/);
   });
 
   it('announces the new reading when a site is unlatched', () => {

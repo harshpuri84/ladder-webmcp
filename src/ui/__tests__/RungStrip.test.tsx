@@ -34,7 +34,8 @@ describe('RungStrip rule form expiry validation (F6/F7)', () => {
 
   it('refuses an empty expiry inline instead of throwing a RangeError', () => {
     render(<RungStrip />);
-    fireEvent.click(screen.getByRole('button', { name: 'Add a standing rule' }));
+    fireEvent.click(screen.getByRole('button', { name: /^Standing rules/ }));
+    fireEvent.click(screen.getByRole('button', { name: 'Add one.' }));
 
     const expiryInput = screen.getByLabelText('Expires') as HTMLInputElement;
     fireEvent.change(expiryInput, { target: { value: '' } });
@@ -44,29 +45,31 @@ describe('RungStrip rule form expiry validation (F6/F7)', () => {
 
     expect(screen.getByText(/expiry/i)).toBeTruthy();
     // Nothing was ratified — no rung-1 chip appeared.
-    expect(screen.queryByText(/standing rule —/)).toBeNull();
+    expect(screen.queryByText(/standing rule, /)).toBeNull();
   });
 
   it('refuses a past expiry inline rather than ratifying silently', () => {
     render(<RungStrip />);
-    fireEvent.click(screen.getByRole('button', { name: 'Add a standing rule' }));
+    fireEvent.click(screen.getByRole('button', { name: /^Standing rules/ }));
+    fireEvent.click(screen.getByRole('button', { name: 'Add one.' }));
 
     const expiryInput = screen.getByLabelText('Expires') as HTMLInputElement;
     fireEvent.change(expiryInput, { target: { value: '2020-01-01' } });
     fireEvent.click(screen.getByRole('button', { name: 'Ratify' }));
 
     expect(screen.getByText(/expiry/i)).toBeTruthy();
-    expect(screen.queryByText(/standing rule —/)).toBeNull();
+    expect(screen.queryByText(/standing rule, /)).toBeNull();
   });
 
   it('still ratifies normally with a valid future expiry', () => {
     render(<RungStrip />);
-    fireEvent.click(screen.getByRole('button', { name: 'Add a standing rule' }));
+    fireEvent.click(screen.getByRole('button', { name: /^Standing rules/ }));
+    fireEvent.click(screen.getByRole('button', { name: 'Add one.' }));
 
     const expiryInput = screen.getByLabelText('Expires') as HTMLInputElement;
     fireEvent.change(expiryInput, { target: { value: '2099-01-01' } });
     fireEvent.click(screen.getByRole('button', { name: 'Ratify' }));
 
-    expect(screen.getByText(/standing rule —/)).toBeTruthy();
+    expect(screen.getByText(/standing rule, /)).toBeTruthy();
   });
 });

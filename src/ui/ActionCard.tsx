@@ -34,7 +34,7 @@ export function ActionCard({ action, checked, onToggle }: ActionCardProps) {
       </span>
       <div className="ac-body">
         <div className="ac-head">
-          <span className="ac-flag">Held — cannot be undone</span>
+          <span className="ac-flag">Held. Cannot be undone</span>
           <span className="ac-kind mono">{action.kind}</span>
         </div>
         <dl className="ac-payload">
@@ -45,7 +45,6 @@ export function ActionCard({ action, checked, onToggle }: ActionCardProps) {
             </Fragment>
           ))}
         </dl>
-        <span className="ac-struck-note">Struck out — not sent</span>
       </div>
     </label>
   );

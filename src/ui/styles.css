@@ -42,6 +42,8 @@
   --mark: #1B4B9E;
   --mark-wash: rgba(27, 75, 158, 0.09);
   --mark-tint: rgba(27, 75, 158, 0.22);
+  /* The mark under a hand: the filled stamp and the ratify button, pressed. */
+  --mark-pressed: #143A7B;
 
   /* Held, declined, set apart from the run. 5.3:1 on paper. */
   --hold: #8A5A00;
@@ -58,6 +60,8 @@
   --face-mono: Menlo, 'Cascadia Mono', 'DejaVu Sans Mono', Consolas, ui-monospace, monospace;
 
   --panel-width: 560px;
+  /* How far the open panel lies over the register's sheet. */
+  --panel-overlap: 44px;
   --ease: cubic-bezier(0.16, 0.84, 0.28, 1);
 }
 
@@ -126,41 +130,336 @@ hr.rule {
   vertical-align: -0.16em;
 }
 
+/* Said to a screen reader and drawn to nobody: the word behind a mark. */
+.vh {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
 /*
  * Small caps by hand: the proof-sheet voice for anything that is an instruction about the
  * work rather than the work itself — captions, field names, stamp words, flags.
  */
 .rs-heading,
 .al-heading,
-.br-label,
-.dg-field,
 .ac-flag,
 .ac-payload dt,
-.console-table th,
-.pp-slug-caps,
+.pp-eyebrow-caps,
 .pp-notes-caption-caps,
 .rs-draft-caption,
-.rm-caption,
-.dg-blocked-caption,
-.app-docket-lead,
-.dg-struck-note,
-.dg-refer-word,
 .au-heading,
 .au-state-caps,
 .au-refs-caption-caps,
-.pp-refer-caption-caps,
 .pr-note-caption,
 .ag-heading,
-.ag-start-caps,
 .ag-step-seen-caps,
 .ag-step-demo-caps,
-.ac-struck-note {
+.hero-webmcp,
+.hero-return-caps {
   text-transform: uppercase;
   /* 11.5px, not 10.5px: below an 11px floor a letterspaced caps label stops being
      legible on a small viewport, and every one of these is functional text. */
   font-size: 0.72rem;
   letter-spacing: 0.09em;
   font-weight: 600;
+}
+
+/*
+ * The captions that are not stamps. A caption on a proof is set in italic, in the muted ink,
+ * at the secondary size: it is an instruction about the work and not a heading over it. Tracked
+ * capitals are kept for three things only, the sheet's register, the specimen's own label and
+ * the stamps, so that when a run of capitals does appear it is read as one.
+ */
+.br-label,
+.dg-field,
+.rm-caption,
+.dg-blocked-caption,
+.ag-start-caps,
+.tb-btn-caps,
+.pp-foot-by-lead {
+  font-style: italic;
+  font-size: 0.82rem;
+  font-weight: 400;
+  color: var(--ink-muted);
+}
+
+/* ---------- the landing page's first viewport ---------- */
+
+/*
+ * The name, the claim and a specimen proof sheet, side by side above the tab strip. The sheet
+ * is the product; nobody without a WebMCP runtime saw it before.
+ *
+ * The left column is set on three sizes and no more: the claim at a display size, the running
+ * head, the standfirst and the path's head at the body size, and the path's rows a step down.
+ * It ends where its content ends. Two earlier versions stretched it to the sheet's height and
+ * pinned the last sentence to the foot, and three reviews in a row read that sentence as a
+ * footer across a void.
+ */
+.hero {
+  --hero-drop: 3px;
+  display: block;
+  margin-bottom: 30px;
+}
+
+.hero-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+/* The name as a running head at the body size. It stood at 50px over a 31px claim until 2 Sep
+   2026, and two headlines at nearly one size fought for the page. */
+.hero-name {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  line-height: 1;
+}
+
+/* The claim is the headline, but the sheet beside it is the hero: the claim is set a clear
+   step below the sheet's 50px figures, so the eye lands on the proof and reads the claim
+   second. It stood at 40px until 2 Sep 2026 and the two display sizes fought for the entry. */
+.hero-claim-lead {
+  margin: 12px 0 0;
+  font-size: 26px;
+  font-weight: 400;
+  line-height: 1.1;
+  letter-spacing: -0.01em;
+  color: var(--ink);
+}
+
+.hero-claim-line {
+  display: block;
+}
+
+/* Then what it does, at the body size, as the standfirst under the imprint rule. */
+.hero-claim {
+  margin: 14px 0 0;
+  font-size: 1rem;
+  line-height: 1.5;
+  color: var(--ink-muted);
+}
+
+/*
+ * The head is sized to the sheet's own head so the two imprint rules land on one line: the
+ * specimen's double rule sits under its quote, and this one sits under the claim, at the same
+ * height. Measured, not estimated: with the sheet dropped by `--hero-drop` both rules fall at
+ * 113px (2 Sep 2026, 1512 wide, claim at 26px). Re-measure after any change to either head.
+ */
+.hero-head {
+  min-height: 0;
+}
+
+.hero-rule {
+  margin-top: 12px;
+}
+
+/* The sheet starts below the name (see `.hero-specimen`): the name is the entry point, and
+   the sheet's imprint rule is dropped exactly far enough to land on the masthead's. */
+
+/*
+ * The path from prompt to proof: five stages, ruled, each a verb in the body face, what
+ * happens, and who acts. Who acts is a word in italic at the end of the line, against the
+ * rule's own right edge, so the agent's part and the operator's part are told apart by type
+ * and position and never by a colour.
+ */
+.hero-path {
+  margin-top: 16px;
+}
+
+.hero-path-head {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 600;
+  line-height: 1.35;
+}
+
+.hero-path-prompt {
+  margin: 6px 0 0;
+  font-size: 1rem;
+  line-height: 1.4;
+  color: var(--ink);
+}
+
+.hero-stages {
+  list-style: none;
+  margin: 12px 0 0;
+  padding: 0;
+}
+
+.hero-stage {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr) max-content;
+  align-items: baseline;
+  gap: 0 16px;
+  padding: 7px 0;
+  border-top: 1px solid var(--rule);
+  font-size: 0.86rem;
+  line-height: 1.45;
+}
+
+.hero-stage:last-child {
+  border-bottom: 1px solid var(--rule);
+}
+
+.hero-stage-name {
+  min-width: 4.5rem;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.hero-stage-what {
+  color: var(--ink-muted);
+}
+
+.hero-stage-tool {
+  color: var(--ink);
+}
+
+.hero-stage-who {
+  font-style: italic;
+  text-align: right;
+  color: var(--ink-muted);
+  white-space: nowrap;
+}
+
+/* The operator's own stage, in the full ink. The word and its place in the list say it first. */
+.hero-stage-who--operator {
+  color: var(--ink);
+}
+
+/* What "lands" means, directly under the Proof row it follows from. */
+.hero-path-after {
+  margin: 14px 0 0;
+  max-width: 58ch;
+  font-size: 0.86rem;
+  line-height: 1.5;
+  color: var(--ink);
+}
+
+/* The runtime line over the path, in the sheet's own caps register and the muted ink: a
+   register entry, not a badge. The count is the registry's. */
+.hero-webmcp {
+  margin: 0 0 10px;
+  color: var(--ink-muted);
+}
+
+.hero-webmcp-sep {
+  margin: 0 0.35em;
+}
+
+/* What goes back to the agent, printed under the sheet in the problem page's payload block.
+   The caption is the same caps register as the line over the path, so the two ends of the
+   loop are labelled in one voice. */
+.hero-return {
+  margin-top: 18px;
+}
+
+.hero-return-caps {
+  margin: 0;
+  color: var(--ink-muted);
+}
+
+.hero-return .hero-payload {
+  margin: 8px 0 0;
+  max-width: none;
+}
+
+.hero-return .hero-check {
+  margin: 8px 0 0;
+}
+
+.hero-specimen {
+  margin: var(--hero-drop, 0px) 0 0;
+  min-width: 0;
+}
+
+/*
+ * The sheet in the page flow rather than fixed to the viewport edge. Same paper, same rules,
+ * same shadow recipe as any slip on the desk. Its height is its content's: the component prints
+ * a fixed number of rows in this mode and ends on a row boundary with a count of the rest, so
+ * nothing is cut mid-line under a footer and nothing needs to scroll.
+ *
+ * This is the same component as the panel, set for reading rather than for operating: wider
+ * margins, the hero figures at the display size, the quote at the reading size.
+ */
+.pp.pp--specimen {
+  position: relative;
+  top: auto;
+  right: auto;
+  bottom: auto;
+  width: 100%;
+  max-width: none;
+  height: auto;
+  border: 1px solid var(--rule-strong);
+  /* No shadow: a sheet printed in the page is on the page, and a soft screen shadow is the one
+     effect that says otherwise. The live panel keeps its own, which says it lies over the
+     register. */
+  box-shadow: none;
+  animation: none;
+  z-index: auto;
+}
+
+.pp--specimen .pp-head {
+  padding: 22px 26px 14px;
+}
+
+.pp--specimen .pp-request {
+  font-size: 1.06rem;
+}
+
+.pp--specimen .pp-scroll {
+  flex: none;
+  overflow: visible;
+  padding: 16px 26px 16px;
+  mask-image: none;
+  -webkit-mask-image: none;
+}
+
+/* On the sheet the three figures are set plain at the sheet's display size, on one baseline,
+   and the struck ask at the sheet's secondary size beside the count. */
+.pp--specimen .br-count,
+.pp--specimen .br-money {
+  font-size: 50px;
+  font-weight: 400;
+}
+
+.pp--specimen .br-count-was {
+  font-size: 31px;
+}
+
+.pp--specimen .pp-foot {
+  padding: 12px 26px 16px;
+}
+
+/* The specimen's referred row is printed open, and a word that opens nothing is not printed. */
+.pp--specimen .dg-refer-toggle {
+  display: none;
+}
+
+/* Below the width where the reading column can hold its 420px measure beside a 560px specimen,
+   the two stack. Measured on the shipped sheet: the sheet's content box reaches 1020px, which is
+   420 + 40 + 560, at a viewport of about 1180. It was 1100 until 2 Sep 2026, and the eighty
+   pixels in between rendered the stage list one word to a line. */
+@media (max-width: 1180px) {
+  .hero-fold {
+    grid-template-columns: minmax(0, 1fr);
+    row-gap: 26px;
+    min-height: 0;
+  }
+
+  .hero-specimen {
+    margin-top: 0;
+    max-width: var(--panel-width);
+  }
 }
 
 /* ---------- sheet layout ---------- */
@@ -171,7 +470,7 @@ hr.rule {
   gap: 22px;
   max-width: 1420px;
   margin: 0 auto;
-  padding: 34px 26px 72px;
+  padding: 28px 26px 72px;
 }
 
 .app {
@@ -192,7 +491,26 @@ hr.rule {
  */
 body.pp-active .app-shell {
   margin-left: 0;
-  margin-right: var(--panel-width);
+  /* A slip lying on the register, not a second sheet stapled beside it: the sheet runs on
+     under the panel's edge by `--panel-overlap`, so the panel's shadow falls on paper and the
+     two are one stack. The sheet's own right padding grows by the same amount (below), so
+     nothing printed on it goes under the panel. */
+  margin-right: calc(var(--panel-width) - var(--panel-overlap));
+  max-width: none;
+  padding-right: 0;
+}
+
+body.pp-active .app {
+  max-width: none;
+}
+
+body.pp-active .app-rail {
+  display: none;
+}
+
+body.pp-active .app-sheet {
+  padding-left: 28px;
+  padding-right: calc(28px + var(--panel-overlap));
 }
 
 /*
@@ -205,83 +523,125 @@ body.pp-active .al {
   display: none;
 }
 
-.app-header {
-  margin-bottom: 26px;
-}
-
-.app-header h1 {
-  margin: 0;
-  font-size: 2.1rem;
-  font-weight: 600;
-  letter-spacing: -0.015em;
-  line-height: 1.1;
-}
-
-.app-subtitle {
-  margin: 5px 0 0;
-  color: var(--ink-muted);
-  font-size: 0.92rem;
-}
-
 /*
- * The docket: the one fact every row on this page shares. Set as a run of items separated by
- * a rule rather than by punctuation, so it reads as a shipping document's header block and not
- * as a sentence — and so a narrow viewport can wrap it without the separators piling up.
+ * The docket: the one fact every row on this page shares, set as a shipping document's header
+ * block. A title line, the flight's particulars under it, and the counts as a row of their own
+ * against the right edge, so nothing wraps into a stray line behind a separator.
  */
 .app-docket {
   display: flex;
   flex-wrap: wrap;
-  align-items: baseline;
-  gap: 0 14px;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 8px 24px;
   /* No border-top/padding-top and no top margin of its own: the docket is now the first line
      printed on the sheet, and the sheet's own top padding is the space above it. A hairline
      here would double up the head rule the tabs are cut into a few pixels above. */
-  margin: 0 0 14px;
-  font-size: 0.84rem;
+  margin: 0 0 12px;
   color: var(--ink-muted);
 }
 
-/* The only part that is an assertion rather than a reference number, so it carries the ink. */
-.app-docket-lead {
+.app-docket-head {
+  min-width: 0;
+}
+
+.app-docket-title {
+  margin: 0;
+  font-size: 1.06rem;
+  font-weight: 600;
+  line-height: 1.3;
   color: var(--ink);
 }
 
-.app-docket-item + .app-docket-item::before,
-.app-docket-lead + .app-docket-item::before {
-  content: '';
-  display: inline-block;
-  width: 1px;
-  height: 0.82em;
-  margin-right: 14px;
-  vertical-align: -0.06em;
-  background: var(--rule-strong);
+.app-docket-title .mono {
+  font-weight: 400;
+  font-size: 0.96rem;
 }
 
-/* Ruled above and below rather than tabbed down one edge — matter set apart from the sheet. */
+.app-docket-route {
+  margin: 2px 0 0;
+  font-size: 0.86rem;
+  line-height: 1.45;
+}
+
+.app-docket-route .mono {
+  font-size: 0.8rem;
+}
+
+.app-docket-sep {
+  margin: 0 8px;
+  color: var(--ink-faint);
+}
+
+/* The counts, a stat row in the serif's own figures, reading right to the edge of the sheet. */
+.app-docket-counts {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 18px;
+  margin: 0;
+  font-size: 0.86rem;
+  line-height: 1.45;
+  white-space: nowrap;
+}
+
+/* The tool count, printed with the walkthrough under the register: one line, and the
+   inventory it opens as a block of its own under that line, floating over nothing. */
+.ag-tools {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 6px;
+  margin: 8px 0 0;
+  font-size: 0.78rem;
+  line-height: 1.45;
+  color: var(--ink-muted);
+}
+
+.ag-tools > .tp-panel {
+  flex-basis: 100%;
+  margin-top: 6px;
+}
+
+/* One ruled line under the docket, set apart from the sheet. The two routes to a runtime sit
+   behind "How." and take a row of their own only while they are open. */
 .webmcp-banner {
   background: var(--paper);
   border-top: 3px double var(--rule-strong);
   border-bottom: 3px double var(--rule-strong);
-  padding: 16px 0 18px;
-  margin-bottom: 22px;
+  padding: 7px 0 8px;
+  margin-bottom: 14px;
+}
+
+.webmcp-banner-line {
+  margin: 0;
+  font-size: 0.86rem;
+  color: var(--ink-muted);
 }
 
 .webmcp-banner-heading {
-  margin: 0 0 8px;
-  font-size: 1rem;
   font-weight: 600;
+  color: var(--ink);
 }
 
-.webmcp-banner p {
-  margin: 0 0 8px;
-  font-size: 0.9rem;
-  max-width: 68ch;
+/* Underlined, not tinted: the affordance survives greyscale, and the hue only agrees with it. */
+.webmcp-banner-how {
+  padding: 0;
+  border: 0;
+  background: none;
+  font-family: inherit;
+  font-size: inherit;
+  color: var(--mark);
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 2px;
+  cursor: pointer;
 }
 
 .webmcp-banner-list {
-  margin: 0;
+  margin: 8px 0 2px;
   padding-left: 20px;
-  font-size: 0.9rem;
+  font-size: 0.86rem;
   max-width: 68ch;
 }
 
@@ -300,10 +660,13 @@ body.pp-active .al {
 
 /* ---------- the register ---------- */
 
+/*
+ * The register is the sheet itself, not a box on it: no border of its own, so the sheet, the
+ * toolbar, the table and the cells are not four hairline frames on four greys. The toolbar is
+ * ruled off above and below and the table's head rule does the rest.
+ */
 .console {
   background: var(--paper);
-  border: 1px solid var(--rule-strong);
-  box-shadow: 0 1px 0 var(--paper-raised) inset;
 }
 
 /* Wraps, because the count beside the filter box is a figure line set in tabular mono and does
@@ -313,19 +676,119 @@ body.pp-active .al {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  justify-content: space-between;
-  gap: 8px 16px;
-  padding: 12px 18px;
+  gap: 6px 14px;
+  padding: 8px 0;
+  border-top: 1px solid var(--rule-strong);
   border-bottom: 1px solid var(--rule);
+}
+
+/*
+ * The register's imprint, laid out by the toolbar itself. `display: contents` hands the two
+ * lines and whatever they open straight to the toolbar's flex: a line sits on the filter's row,
+ * pushed to its right edge, and an opened block (`order: 1`, full basis) takes a row of its own
+ * under the toolbar. A plain div, not a landmark: the role would be lost with the box.
+ */
+.console-imprint {
+  display: contents;
+}
+
+/*
+ * The two imprint controls, set as the same kind of thing as the count beside them: a caption
+ * and a value on the filter's row, in the caption size. A rule under the pair is what says it
+ * opens; the rule takes the operator's ink under a hand and while the block is open. They
+ * were two bordered chips beside a bare mono count until 2 Sep 2026, three components in one
+ * row that did not read as one row.
+ */
+.tb-btn {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+  flex: 0 0 auto;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--ink);
+  font-family: inherit;
+  font-size: 0.82rem;
+  line-height: 1.4;
+  white-space: nowrap;
+  cursor: pointer;
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 3px;
+  text-decoration-color: var(--rule-strong);
+}
+
+.tb-btn:hover,
+.tb-btn[aria-expanded="true"] {
+  text-decoration-color: var(--mark);
+}
+
+.tb-btn[aria-expanded="true"] {
+  color: var(--mark);
+}
+
+.rs-line-toggle {
+  margin-left: auto;
+}
+
+.rs-open-line {
+  margin: 0 0 8px;
+  font-size: 0.78rem;
+}
+
+/* Once the toolbar is too narrow for the lines to share the filter's row they pack left with
+   it, so a line that wraps does not land alone against the right edge. */
+.console-toolbar {
+  container-type: inline-size;
+}
+
+@container (max-width: 900px) {
+  .rs-line-toggle {
+    margin-left: 0;
+  }
+}
+
+.rs-open,
+.au-open,
+.au-refs,
+.rs-draft {
+  flex-basis: 100%;
+  order: 1;
+}
+
+/* Inside the opened block, a text control is at home. Underlined, not tinted: the affordance
+   survives greyscale, and the hue only agrees with it. */
+.rs-line-add {
+  padding: 0;
+  border: 0;
+  background: none;
+  font-family: inherit;
+  font-size: inherit;
+  color: var(--mark);
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
+
+.rs-line-add:hover {
+  text-decoration-thickness: 2px;
+}
+
+.rs-open,
+.au-open {
+  padding: 10px 0 4px;
+  border-top: 1px solid var(--rule);
 }
 
 /* A declared basis rather than 0: it is what tells the toolbar the box wants 220px, and so
    what makes the line break above rather than squeezing the box to a slot nothing fits in. */
 .console-filter {
-  flex: 1 1 220px;
+  flex: 1 1 130px;
   min-width: 0;
   max-width: 340px;
-  padding: 7px 11px;
+  padding: 6px 11px;
   border: 1px solid var(--rule-strong);
   background: var(--paper-raised);
   color: var(--ink);
@@ -343,11 +806,11 @@ body.pp-active .al {
   border-color: var(--mark);
 }
 
+/* A count inside a run of words is prose, so it is set as the captions beside it are. */
 .console-count {
   color: var(--ink-muted);
-  font-family: var(--face-mono);
-  font-variant-numeric: tabular-nums;
-  font-size: 0.78rem;
+  font-style: italic;
+  font-size: 0.82rem;
   white-space: nowrap;
 }
 
@@ -361,7 +824,7 @@ body.pp-active .al {
   align-items: baseline;
   justify-content: space-between;
   gap: 16px;
-  padding: 9px 18px;
+  padding: 9px 12px;
   border-bottom: 1px solid var(--rule);
   background: var(--hold-wash);
 }
@@ -410,8 +873,9 @@ body.pp-active .al {
 }
 
 .console-demo-row {
-  padding: 10px 18px;
-  border-bottom: 1px solid var(--rule);
+  margin: 8px 0 10px;
+  padding: 9px 14px 10px;
+  border: 1px solid var(--rule);
   background: var(--paper-sunk);
 }
 
@@ -451,36 +915,27 @@ body.pp-active .al {
 /*
  * The external-edit control is the one thing in the register a human must be able to reach
  * while a proposal is open — it is what makes a record move underneath a decision, and half
- * the enforcement story rests on it. The register grew four columns with the disruption
- * reframe, so at every viewport under about 1430px the table is now wider than the narrowed
- * content box and scrolls inside its own frame: `min-width: 0` cannot shrink an intrinsic
- * minimum, and this column was ending up scrolled off the right edge of the frame — outside
- * the register entirely, where `elementFromPoint` returns the panel's scrim and no click
- * lands. (Measured 27 Aug 2026 at 1200px, before this rule: table 815px in a 586px frame.)
+ * the enforcement story rests on it. It no longer has a column: forty-two identical buttons
+ * said nothing forty-one times. It rides the right edge of the last cell, out of the row's
+ * flow, and is drawn when the row is pointed at or the control has focus. Opacity, not
+ * display: it stays in the tab order, and a keyboard user reaching it sees it. A device with
+ * no pointer has no hover to reveal it with, so there it stands all the time.
  *
- * Pinning the column to the right edge of its own scroll frame fixes that at every width at
- * once, rather than a ladder of media queries dropping one column per breakpoint. It needs a
- * z-index because it needs to clear the scrim (10), which is the one place in this interface
- * where stacking is doing real work — so it is stated once, here, with an opaque ground so
- * the columns scrolling behind it do not read through.
+ * It needs a z-index because it needs to clear the scrim (10), which is the one place in this
+ * interface where stacking is doing real work.
  */
-.console-table th:last-child,
-.console-table td:last-child {
-  position: sticky;
-  right: 0;
-  z-index: 12;
-  background: var(--paper);
-  border-left: 1px solid var(--rule);
-}
-
-.console-table tbody tr:hover td:last-child {
-  background: var(--paper-raised);
+.console-edit-cell {
+  position: relative;
+  width: 132px;
+  padding-left: 0 !important;
+  padding-right: 0 !important;
 }
 
 .console-edit-row {
-  /* Above the scrim in its own right, so the control clears it even if the cell around it
-     ever stops being the stacking context that carries it there. */
-  position: relative;
+  position: absolute;
+  right: 4px;
+  top: 50%;
+  transform: translateY(-50%);
   z-index: 12;
   padding: 3px 10px;
   border: 1px solid var(--rule-strong);
@@ -490,11 +945,23 @@ body.pp-active .al {
   font-size: 0.78rem;
   cursor: pointer;
   white-space: nowrap;
+  opacity: 0;
+}
+
+.console-table tbody tr:hover .console-edit-row,
+.console-edit-row:focus-visible {
+  opacity: 1;
 }
 
 .console-edit-row:hover {
   border-color: var(--mark);
   color: var(--mark);
+}
+
+@media (hover: none) {
+  .console-edit-row {
+    opacity: 1;
+  }
 }
 
 /* The register is wider than a phone. It scrolls inside its own frame; the page never does. */
@@ -518,9 +985,65 @@ body.pp-active .al {
 
 .console-table th,
 .console-table td {
-  padding: 7px 18px;
+  padding: 7px 14px;
   text-align: left;
+}
+
+/* A ledger rules every fifth line, not every line: the id column already keeps the rows, and a
+   hairline under each of forty-two was the default table and not a ruled sheet. */
+.console-table tbody tr:nth-child(5n) td {
   border-bottom: 1px solid var(--rule);
+}
+
+
+/*
+ * The open proof, on the register's own rows: the rule form the row carries on the sheet, down
+ * the row's left edge, at the same weight. A solid rule for a row that is marked, a double rule
+ * for a row that is referred, and the id struck through for one the operator struck out. The
+ * sheet's rows (`.dg--marked`, `.dg--referred`) draw the same three, so the eye crosses the
+ * gutter on one device. The hue only agrees. The 3px is reserved on every row, so an id does
+ * not move when its rule arrives.
+ */
+.console-house {
+  border-left: 3px solid transparent;
+  padding-left: 12px !important;
+}
+
+.console-table th:first-child {
+  padding-left: 15px;
+}
+
+.console-row--marked .console-house {
+  border-left-color: var(--mark);
+  font-weight: 600;
+}
+
+.console-row--referred .console-house {
+  border-left: 3px double var(--hold);
+}
+
+/*
+ * A marked row carries two signals, not three: the rule down its left edge and the weight on
+ * its id. Both are shapes, so both survive greyscale, which is the requirement for the
+ * operator this is built for. Until 2 Sep 2026 it also carried a blue-grey wash over every
+ * cell, and the wash was the one of the three that went muddy on cream and read as a third
+ * encoding of one fact; the rule and the weight were kept because the rule is the same device
+ * the sheet draws on the same row (see `.dg--marked`), and the weight is what tells a marked
+ * row from an untouched one at a glance down forty-two, which is the job the wash was doing.
+ * A referred row keeps its wash: the double rule and the amber agree with the word "referred"
+ * in its remedy cell, and that treatment reads correctly.
+ */
+.console-row--referred td {
+  background: var(--hold-wash);
+}
+
+.console-row--struck td {
+  color: var(--ink-muted);
+}
+
+.console-row--struck .console-house {
+  text-decoration: line-through;
+  text-decoration-thickness: 1.5px;
 }
 
 /*
@@ -542,8 +1065,13 @@ body.pp-active .console-table td {
   padding-right: 9px;
 }
 
+/* Column heads in italic, the ledger's own convention, so the head is read as a caption on the
+   figures and not as a row of stamps over them. */
 .console-table th {
   color: var(--ink-muted);
+  font-style: italic;
+  font-weight: 400;
+  font-size: 0.82rem;
   border-bottom: 1px solid var(--rule-strong);
 }
 
@@ -551,12 +1079,13 @@ body.pp-active .console-table td {
   font-size: 0.82rem;
 }
 
-.console-table tbody tr:hover {
-  background: var(--paper-raised);
+/* A money column lines up on its right edge or it is not a column. */
+.console-table .console-num {
+  text-align: right;
 }
 
-.console-table tbody tr:last-child td {
-  border-bottom: none;
+.console-table tbody tr:hover {
+  background: var(--paper-raised);
 }
 
 /*
@@ -604,6 +1133,33 @@ body.pp-active .console-table td {
   font-size: 0.82em;
 }
 
+/*
+ * The remedy the open sheet proposes for the row, before anything has landed. Marked: the caret
+ * and the weight, as above. Struck: the remedy struck through in the muted ink, the same device
+ * the id carries. Referred: plain, with the word beside the figure, since the sheet has not
+ * proposed it to this operator at all.
+ */
+.console-remedy--struck {
+  color: var(--ink-muted);
+  font-weight: 400;
+}
+
+.console-remedy--struck .console-remedy-word {
+  text-decoration: line-through;
+  text-decoration-thickness: 1.5px;
+}
+
+.console-remedy--referred {
+  color: var(--ink);
+  font-weight: 400;
+}
+
+.console-remedy-note {
+  font-style: italic;
+  color: var(--ink-muted);
+  font-size: 0.82em;
+}
+
 /* Several flags can land on one shipment, so they wrap instead of forcing the column wider. */
 .console-table td .badge + .badge {
   margin-top: 3px;
@@ -620,10 +1176,8 @@ body.pp-active .console-table td {
  * is wrong with this browser — and this is an instruction about work that is going fine.
  */
 .ag-start {
-  border-top: 1px solid var(--rule-strong);
-  border-bottom: 1px solid var(--rule-strong);
-  padding: 11px 0 10px;
-  margin: 0 0 20px;
+  padding: 0 0 12px;
+  margin: 0;
 }
 
 /*
@@ -634,6 +1188,11 @@ body.pp-active .console-table td {
  * character to a line, a 900px-tall rope of letters down the side of the panel. Wrapped, the
  * label sits above the well exactly as every other eyebrow on this sheet does.
  */
+/*
+ * One line: the caption, the words in a well, and the pointer to the rest as a sentence. Not
+ * three boxes in a row on a sheet already made of boxes: the well is the one drawn thing, and
+ * the two controls around it are text.
+ */
 .ag-start-head {
   display: flex;
   flex-wrap: wrap;
@@ -643,44 +1202,35 @@ body.pp-active .console-table td {
 
 .ag-start-caps {
   flex: none;
-  color: var(--ink-muted);
 }
 
 /* The prompt row is shared with a step below the register, where it hangs under a line of
    prose. Up here it is the line — until the basis stops fitting beside the label, at which
    point it takes a line of its own rather than being squeezed into a column. */
 .ag-start .ag-prompt {
-  flex: 1 1 300px;
+  flex: 0 1 auto;
   min-width: 0;
   margin-top: 0;
-  align-items: center;
 }
 
-/* No measure cap: this is a caption on the sheet's head, set the way the docket above it is,
-   and at 1100px it is one line. Prose measure applies to the prose under the register. */
-.ag-start-note {
-  margin: 7px 0 0;
-  font-size: 0.76rem;
-  line-height: 1.45;
-  color: var(--ink-muted);
-}
-
-/* Underlined, not tinted: the affordance survives greyscale, and the hue only agrees with it. */
+/* Where the rest of the steps are, as a sentence with a rule under it. */
 .ag-start-jump {
+  flex: none;
   padding: 0;
   border: 0;
   background: none;
   font-family: inherit;
-  font-size: inherit;
-  color: var(--mark);
+  font-size: 0.86rem;
+  white-space: nowrap;
+  color: var(--ink-muted);
   text-decoration: underline;
   text-decoration-thickness: 1px;
-  text-underline-offset: 2px;
+  text-underline-offset: 3px;
   cursor: pointer;
 }
 
 .ag-start-jump:hover {
-  text-decoration-thickness: 2px;
+  color: var(--mark);
 }
 
 /* ---------- the imprint: run it yourself ---------- */
@@ -817,64 +1367,61 @@ body.pp-active .console-table td {
  * a hue — the words on the button carry the copy state, and the well is a luminance step, not a
  * tint.
  */
+/*
+ * The prompt and its controls are one ruled object: the words in a sunk well, and each control
+ * a segment on its shoulder divided by the same rule. One treatment for the one interaction the
+ * sheet most wants a judge to make.
+ */
 .ag-prompt {
   display: flex;
-  align-items: flex-start;
-  gap: 14px;
+  align-items: center;
+  gap: 12px;
   margin-top: 9px;
-}
-
-.ag-prompt-body {
-  flex: 1;
-  min-width: 0;
 }
 
 /* The one string on the sheet meant to be reproduced verbatim, so it is set the way the flag URL
    in the banner above it is: mono, in a cut well, and selectable whole by one drag. */
 .ag-prompt-text {
+  flex: 0 1 auto;
+  min-width: 0;
   display: block;
   font-size: 0.86rem;
   line-height: 1.45;
   color: var(--ink);
   background: var(--paper-sunk);
   border: 1px solid var(--rule);
-  padding: 4px 8px;
+  padding: 5px 10px;
   user-select: all;
   overflow-wrap: anywhere;
 }
 
-/* Fixed width so the word swapping to "Copied" does not shift the row it sits in. */
+/* A word with a rule under it, set exactly as the pointer to the steps beside it is: one
+   treatment for the two text controls on the row. Fixed width so "Copied" does not shift the
+   row it sits in. */
 .ag-copy {
   flex: none;
-  min-width: 92px;
-  text-align: center;
-  padding: 7px 13px;
-  border: 1px solid var(--rule-strong);
-  background: var(--paper-raised);
-  color: var(--ink);
+  min-width: 56px;
+  text-align: left;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--ink-muted);
   font-family: inherit;
-  font-size: 0.78rem;
+  font-size: 0.86rem;
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 3px;
   cursor: pointer;
 }
 
 .ag-copy:hover {
-  background: var(--mark-wash);
-  border-color: var(--mark);
+  color: var(--mark);
 }
 
 /* ---------- the imprint: standing rules ---------- */
 
-.rs {
-  background: var(--paper);
-  border: 1px solid var(--rule-strong);
-  padding: 15px 18px 17px;
-  margin-bottom: 22px;
-}
-
-.rs-heading {
-  margin: 0 0 11px;
-  color: var(--ink-muted);
-}
+/* The chips and the form open under the register's toolbar; see `.rs-open` beside the toolbar
+   above. The one-line summary that opens them is `.rs-line`, laid out there too. */
 
 .rs-chips {
   display: flex;
@@ -953,24 +1500,6 @@ body.pp-active .console-table td {
   color: var(--mark);
 }
 
-.rs-add {
-  align-self: center;
-  padding: 8px 14px;
-  border: 1px dashed var(--rule-strong);
-  background: none;
-  color: var(--ink-muted);
-  font-family: inherit;
-  font-size: 0.82rem;
-  font-weight: 600;
-  cursor: pointer;
-  white-space: nowrap;
-}
-
-.rs-add:hover {
-  border-color: var(--mark);
-  color: var(--mark);
-}
-
 .rs-form {
   display: flex;
   flex-wrap: wrap;
@@ -999,6 +1528,14 @@ body.pp-active .console-table td {
   color: var(--ink);
   font-family: inherit;
   font-size: 0.86rem;
+}
+
+/* An expiry is a figure, so it is set in the mono face with the same rule as its neighbours,
+   not in the browser's own widget face. */
+.rs-field input[type="date"] {
+  font-family: var(--face-mono);
+  font-size: 0.82rem;
+  color-scheme: light;
 }
 
 .rs-field select:focus,
@@ -1034,7 +1571,7 @@ body.pp-active .console-table td {
 }
 
 .rs-ratify:hover:not(:disabled) {
-  background: #143A7B;
+  background: var(--mark-pressed);
 }
 
 .rs-ratify:disabled {
@@ -1059,7 +1596,7 @@ body.pp-active .console-table td {
 }
 
 .rs-draft {
-  margin-top: 14px;
+  margin-top: 4px;
   padding: 12px 16px 14px;
   border-top: 3px double var(--mark);
   border-bottom: 3px double var(--mark);
@@ -1087,21 +1624,11 @@ body.pp-active .console-table td {
 /* ---------- the imprint: spend authority ---------- */
 
 /*
- * Set as a second imprint block beside the standing rules, because they answer the two halves
- * of one question — how far the agent may go without this person, and how far this person may
- * go without a second one. Same stock, same frame, same caps voice.
+ * One line beside the standing rules, because they answer the two halves of one question — how
+ * far the agent may go without this person, and how far this person may go without a second
+ * one. The roles come out under the toolbar on "Switch" (`.au-open`, laid out beside the
+ * toolbar above); a referral queue prints there too, and is never folded away.
  */
-.au {
-  background: var(--paper);
-  border: 1px solid var(--rule-strong);
-  padding: 15px 18px 17px;
-  margin-bottom: 22px;
-}
-
-.au-heading {
-  margin: 0 0 11px;
-  color: var(--ink-muted);
-}
 
 .au-roles {
   display: flex;
@@ -1141,10 +1668,11 @@ body.pp-active .console-table td {
 }
 
 .au-state {
-  margin: 11px 0 0;
-  font-size: 0.86rem;
-  line-height: 1.55;
-  color: var(--ink);
+  margin: 9px 0 0;
+  max-width: 82ch;
+  font-size: 0.78rem;
+  line-height: 1.45;
+  color: var(--ink-muted);
 }
 
 .au-state-caps {
@@ -1152,17 +1680,9 @@ body.pp-active .console-table td {
   margin-right: 5px;
 }
 
-.au-demo-note {
-  margin: 5px 0 0;
-  max-width: 74ch;
-  font-size: 0.78rem;
-  line-height: 1.45;
-  color: var(--ink-muted);
-}
-
 .au-refs {
-  margin-top: 13px;
-  padding-top: 11px;
+  margin-top: 2px;
+  padding: 9px 0 4px;
   border-top: 3px double var(--hold);
 }
 
@@ -1246,7 +1766,9 @@ body.pp-active .console-table td {
 .pp-scrim {
   position: fixed;
   inset: 0;
-  background: rgba(23, 21, 15, 0.34);
+  /* A dim, and a light one: the register has to stay readable through it, because it is the
+     world the decision is about. The panel's own shadow says which of the two is on top. */
+  background: rgba(23, 21, 15, 0.14);
   animation: pp-fade 180ms var(--ease);
   pointer-events: none;
   z-index: 10;
@@ -1277,8 +1799,11 @@ body.pp-active .console-table td {
   flex-direction: column;
   background: var(--paper);
   border-left: 1px solid var(--rule-strong);
-  /* Real offset, real blur: the sheet is lying on the desk, not glowing at it. */
-  box-shadow: -14px 0 44px -8px rgba(23, 21, 15, 0.26);
+  /* A sheet lying over the register: a contact shadow at the edge and one long soft lift with
+     real spread, so the register is visibly under it rather than butted against it. */
+  box-shadow:
+    -1px 0 2px rgba(23, 21, 15, 0.12),
+    -24px 0 48px -8px rgba(23, 21, 15, 0.34);
   /*
    * The one authored moment in this interface: the proof arrives. Exponential ease-out from
    * off-stage, and nothing else in the product enters this way.
@@ -1291,32 +1816,17 @@ body.pp-active .console-table td {
   from { transform: translateX(100%); }
 }
 
-/* Registration targets, printed outside the trim the way they are on a real proof. */
-.reg {
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 0;
-  color: var(--rule-strong);
-  pointer-events: none;
-}
-
-.reg-tl,
-.reg-tr {
-  position: absolute;
-  top: 9px;
-}
-
-.reg-tl { left: 9px; }
-.reg-tr { right: 9px; }
-
+/* Panel density. The specimen widens these (see .pp--specimen above); the panel is the
+   operating context and is set a step tighter than the sheet a reader looks at. The head is
+   sized so the quote sits level with the tab labels beside it and the panel's imprint rule
+   lands on the register's head rule: measured 2 Sep 2026 at 1512, and re-measure after any
+   change to the tab row. */
 .pp-head {
-  padding: 26px 26px 15px;
+  padding: 11px 22px 9px;
 }
 
 .pp-head hr.rule {
-  margin-top: 15px;
+  margin-top: 5px;
 }
 
 .pp-head-top {
@@ -1344,16 +1854,31 @@ body.pp-active .console-table td {
 }
 
 .pp-request {
-  margin: 9px 0 0;
+  margin: 8px 0 0;
   max-width: 60ch;
-  font-size: 1.06rem;
+  font-size: 0.98rem;
   line-height: 1.4;
   color: var(--ink);
 }
 
-.pp-slug {
-  margin: 9px 0 0;
+/* The eyebrow: what this sheet is, then the tool it came from, on one line over the quote. */
+.pp-eyebrow {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin: 0;
+  min-width: 0;
   color: var(--ink-muted);
+}
+
+/* The register: whose words the sheet carries. In the full ink, tracked wider than a caption. */
+.pp-eyebrow-caps {
+  color: var(--ink);
+  letter-spacing: 0.16em;
+}
+
+.pp-eyebrow-sep {
+  color: var(--ink-faint);
 }
 
 /*
@@ -1388,7 +1913,6 @@ body.pp-active .console-table td {
  * shape, and caps flattens both. So the caps sit on the opening phrase only and the rest of
  * the line drops back into sentence case.
  */
-.pp-slug-tail,
 .pp-notes-caption-tail {
   font-size: 0.86rem;
 }
@@ -1396,16 +1920,21 @@ body.pp-active .console-table td {
 .pp-scroll {
   flex: 1;
   overflow-y: auto;
-  padding: 20px 26px 26px;
+  padding: 16px 22px 44px;
   scrollbar-color: var(--rule-strong) var(--paper);
+  /* The sheet runs on under the signature block. A row cut mid-line at a hard edge reads as a
+     fault; the last 36px fade into the paper instead, which is what a page under a page does. */
+  mask-image: linear-gradient(to bottom, black calc(100% - 36px), transparent);
+  -webkit-mask-image: linear-gradient(to bottom, black calc(100% - 36px), transparent);
 }
 
 /* ---------- extent ---------- */
 
 .br-figures {
   display: flex;
-  align-items: flex-end;
-  gap: 34px;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 12px 30px;
 }
 
 .br-figure {
@@ -1415,9 +1944,6 @@ body.pp-active .console-table td {
   min-width: 0;
 }
 
-.br-figure--money {
-  padding-bottom: 5px;
-}
 
 .br-count-line {
   display: flex;
@@ -1425,12 +1951,29 @@ body.pp-active .console-table td {
   gap: 10px;
 }
 
+/*
+ * Three figures, one size, one baseline, in the serif's own lining figures: mono at a display
+ * size gave a spindly euro sign and a one that read as an ell, and it is kept for what is read
+ * down a column. The count is the one heavy figure; the money on either side of the authority
+ * line is plain. The panel sets all three a step down from the sheet.
+ */
+.br-count,
+.br-money,
+.br-count-was {
+  font-variant-numeric: lining-nums tabular-nums;
+}
+
 .br-count {
-  font-size: 50px;
+  font-size: 40px;
   line-height: 1;
   font-weight: 600;
   color: var(--ink);
   animation: br-pulse 220ms var(--ease);
+}
+
+.br-figure--referred .br-label,
+.br-figure--net .br-label {
+  white-space: nowrap;
 }
 
 /*
@@ -1439,7 +1982,7 @@ body.pp-active .console-table td {
  * how a proof records a figure that was cut.
  */
 .br-count-was {
-  font-size: 22px;
+  font-size: 26px;
   line-height: 1;
   color: var(--ink-muted);
   text-decoration: line-through;
@@ -1447,11 +1990,16 @@ body.pp-active .console-table td {
 }
 
 .br-money {
-  font-size: 31px;
+  font-size: 40px;
   line-height: 1;
-  font-weight: 600;
+  font-weight: 400;
   color: var(--ink);
   animation: br-pulse 220ms var(--ease);
+}
+
+/* The money a second person signs for does not move while the operator marks. */
+.br-money--referred {
+  animation: none;
 }
 
 @keyframes br-pulse {
@@ -1459,83 +2007,29 @@ body.pp-active .console-table td {
 }
 
 .br-label {
-  color: var(--ink-muted);
+  margin-top: 2px;
 }
 
 /*
- * Held matter, set apart above and below rather than tabbed down one edge. The dagger is the
- * first reading, the double rules the second, the amber a distant third.
+ * Held matter, set as a note in the margin: the reference mark and one rule down its edge.
+ * The dagger is the first reading, the rule the second, the amber only agrees with them and
+ * the words themselves stay in the plain ink and the plain weight.
  */
 .br-held {
   display: flex;
   align-items: baseline;
   gap: 7px;
-  margin: 14px 0 0;
-  padding: 7px 0;
-  border-top: 3px double var(--hold);
-  border-bottom: 3px double var(--hold);
-  color: var(--hold);
-  font-size: 0.84rem;
-  font-weight: 600;
+  margin: 12px 0 0;
+  padding: 2px 0 2px 9px;
+  border-left: 1px solid var(--hold);
+  color: var(--ink-muted);
+  font-size: 0.82rem;
+  line-height: 1.45;
   max-width: 58ch;
 }
 
-.br-bar {
-  position: relative;
-  height: 15px;
-  margin-top: 18px;
-  background: var(--paper-sunk);
-  border: 1px solid var(--rule-strong);
-  overflow: hidden;
-}
-
-/*
- * Both extents are full-width elements scaled from the left edge, never widths being animated:
- * this is the most-watched motion in the product, and animating width would force layout on
- * every frame of it. Nothing is nested inside either one, so nothing needs counter-scaling.
- */
-.br-bar-ask,
-.br-bar-take {
-  position: absolute;
-  inset: 0;
-  transform-origin: left center;
-  transition: transform 240ms var(--ease);
-  will-change: transform;
-}
-
-/*
- * What the agent asked for. A tint against the solid marked extent is a luminance step of
- * roughly 0.72 against 0.08 — the difference greyscale actually reads, and the one this
- * operator can rely on. The tick below marks where the ask ended, which is the third signal.
- */
-.br-bar-ask {
-  background: var(--mark-tint);
-}
-
-.br-bar-take {
-  background: var(--mark);
-}
-
-/* Where the ask ended. Legible at any fill, including a one-record sliver. */
-.br-bar-tick {
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  width: 1px;
-  margin-left: -1px;
-  background: var(--ink);
-  transition: left 240ms var(--ease);
-}
-
-.br-caption {
-  margin: 9px 0 0;
-  font-size: 0.82rem;
-  color: var(--ink-muted);
-}
-
-.br-caption-narrowed {
-  color: var(--ink);
-  font-weight: 600;
+.br-held .pm {
+  color: var(--hold);
 }
 
 /* ---------- remedies in this run ---------- */
@@ -1547,14 +2041,13 @@ body.pp-active .console-table td {
  * glance where three sentences are not.
  */
 .rm {
-  margin-top: 22px;
-  padding-top: 13px;
+  margin-top: 14px;
+  padding-top: 9px;
   border-top: 1px solid var(--rule);
 }
 
 .rm-caption {
   margin: 0 0 7px;
-  color: var(--ink-muted);
 }
 
 .rm-list {
@@ -1578,7 +2071,6 @@ body.pp-active .console-table td {
 
 .rm-count {
   text-align: right;
-  font-weight: 600;
 }
 
 .rm-name {
@@ -1588,25 +2080,6 @@ body.pp-active .console-table td {
 .rm-cost {
   color: var(--ink-muted);
   white-space: nowrap;
-}
-
-/*
- * How many rows lost an option to a rule. Ruled above and below with the dagger against it —
- * the same "set apart from the run" treatment held actions and flagged cargo already carry,
- * so the reader meets one mark for one meaning across the whole interface.
- */
-.rm-constrained {
-  display: flex;
-  align-items: baseline;
-  gap: 7px;
-  margin: 11px 0 0;
-  padding: 7px 0;
-  border-top: 3px double var(--hold);
-  border-bottom: 3px double var(--hold);
-  color: var(--hold);
-  font-size: 0.84rem;
-  font-weight: 600;
-  max-width: 58ch;
 }
 
 /* ---------- what the tool skipped ---------- */
@@ -1650,18 +2123,43 @@ body.pp-active .console-table td {
 
 /* ---------- the change set ---------- */
 
+/* Ruled off with the same hairline every division inside the sheet uses. The double rule is
+   the imprint, the strong rule is the sheet's trim, and nothing in between has a weight of
+   its own. */
 .pp-list {
-  margin-top: 22px;
-  border-top: 1px solid var(--rule-strong);
-  border-bottom: 1px solid var(--rule-strong);
+  margin-top: 14px;
+  border-top: 1px solid var(--rule);
+  border-bottom: 1px solid var(--rule);
+}
+
+/* Where the specimen stops: a count of the rows below, on the rule the last row ends on. */
+.pp-more {
+  margin: 0;
+  padding: 9px 4px 8px;
+  border-top: 1px solid var(--rule);
+  font-size: 0.82rem;
+  color: var(--ink-muted);
 }
 
 .dg,
 .ac {
   display: flex;
   gap: 10px;
-  padding: 12px 4px;
+  padding: 10px 4px;
   cursor: pointer;
+}
+
+/*
+ * The rule down the row's left edge, the same device the register draws on the same rows: a
+ * solid rule in the operator's ink for a row that is marked, a double rule for one that is
+ * referred, none for one struck out. Reserved on every row so nothing shifts on an untick.
+ */
+.dg {
+  border-left: 3px solid transparent;
+}
+
+.dg--marked {
+  border-left-color: var(--mark);
 }
 
 .dg + .dg,
@@ -1676,13 +2174,57 @@ body.pp-active .console-table td {
   background: var(--paper-raised);
 }
 
+/*
+ * The operator's own tick, drawn. A stock checkbox was the one control on the sheet the
+ * browser drew, a filled blue rounded box on a hand-ruled page. It stays a real checkbox for
+ * the keyboard and the screen reader; only its face is the sheet's: a square ruled box, and
+ * when marked, a tick in the operator's ink at the proof marks' own stroke (ProofMark.tsx
+ * draws at 1.4 on a 16 box; this is 1.5px on the same box). Two states told by shape, ink or
+ * no ink, and the mark in the gutter beside it says the same thing a second way.
+ */
 .dg-check,
 .ac-check {
+  appearance: none;
+  -webkit-appearance: none;
+  position: relative;
   margin: 2px 0 0;
   width: 16px;
   height: 16px;
-  accent-color: var(--mark);
+  border: 1.5px solid var(--rule-strong);
+  border-radius: 0;
+  background: var(--paper-raised);
   flex: none;
+  cursor: pointer;
+}
+
+.dg-check:checked,
+.ac-check:checked {
+  border-color: var(--mark);
+}
+
+.dg-check::after,
+.ac-check::after {
+  content: '';
+  position: absolute;
+  left: 4px;
+  top: 0.5px;
+  width: 5px;
+  height: 9px;
+  border-right: 1.5px solid var(--mark);
+  border-bottom: 1.5px solid var(--mark);
+  transform: rotate(45deg);
+  opacity: 0;
+}
+
+.dg-check:checked::after,
+.ac-check:checked::after {
+  opacity: 1;
+}
+
+.dg-check:focus-visible,
+.ac-check:focus-visible {
+  outline: 2px solid var(--mark);
+  outline-offset: 2px;
 }
 
 /* The mark gutter. Fixed width so every mark on the sheet aligns down one axis. */
@@ -1715,9 +2257,10 @@ body.pp-active .console-table td {
   gap: 12px;
 }
 
+/* Plain weight: the id is mono, and that is what tells it from a word. The one heavy thing on
+   a row is the remedy going in, so the eye enters there. */
 .dg-id {
   font-size: 0.86rem;
-  font-weight: 600;
 }
 
 /*
@@ -1787,27 +2330,20 @@ body.pp-active .console-table td {
  */
 .dg-blocked-caption {
   margin: 9px 0 0;
-  color: var(--hold);
 }
 
+/* No rule down the edge and no mark in the gutter: a rule down an edge is the referred group's
+   device, one level up, and the dagger means referred. The caption above and the muted ink are
+   this level's own. */
 .dg-blocked-list {
   list-style: none;
   margin: 4px 0 0;
   padding: 0;
-  border-left: 1px solid var(--hold);
 }
 
 .dg-blocked {
   display: flex;
-  gap: 7px;
-  padding: 3px 0 3px 9px;
-}
-
-.dg-blocked-mark {
-  flex: none;
-  width: 13px;
-  padding-top: 2px;
-  color: var(--hold);
+  padding: 3px 0;
 }
 
 .dg-blocked-body {
@@ -1816,17 +2352,15 @@ body.pp-active .console-table td {
 }
 
 /*
- * Struck through, because a rule took it out — the mark in the gutter says so first. One line
- * per alternative the rule above it removed, stacked, so two options lost to one rule read as
- * one deletion with two names rather than as two separate findings.
+ * Not struck through. A strike on this sheet is a correction somebody made, and the count
+ * above carries one; a rule closing an option is a different fact and gets a different mark:
+ * the dagger in the gutter, the muted ink, and the rule spelled out under it. One line per
+ * alternative, stacked, so two options lost to one rule read as one finding with two names.
  */
 .dg-blocked-remedy {
   display: block;
   font-size: 0.86rem;
   color: var(--ink-muted);
-  text-decoration: line-through;
-  text-decoration-thickness: 1.5px;
-  text-decoration-color: var(--hold);
 }
 
 /* The rule in the domain's own words. Not struck: it is what happened, not what was removed. */
@@ -1839,20 +2373,18 @@ body.pp-active .console-table td {
   max-width: 56ch;
 }
 
-/* Named the way a linter names a rule, so an engineer reading this as a policy engine can. */
-.dg-blocked-id {
-  display: block;
-  margin-top: 2px;
-  font-size: 0.72rem;
-  color: var(--ink-faint);
+/*
+ * Declined by the operator. The row drops to the muted ink and the id alone is struck: the
+ * unticked box and the stet mark already say the record stands, and a second strike through
+ * every line said it a fourth time.
+ */
+.dg--struck .dg-body {
+  color: var(--ink-muted);
 }
 
-/* Declining the row strikes the whole correction, alternatives included. */
 .dg--struck .dg-remedy-line,
-.dg--struck .dg-terms {
-  text-decoration: line-through;
-  text-decoration-thickness: 1.5px;
-  text-decoration-color: var(--hold);
+.dg--struck .dg-terms,
+.dg--struck .dg-blocked-rule {
   color: var(--ink-muted);
 }
 
@@ -1892,136 +2424,128 @@ body.pp-active .console-table td {
 
 .dg-after {
   color: var(--ink);
-  font-weight: 700;
+  font-weight: 600;
 }
 
-/*
- * Struck out by the operator. A rule is drawn through the whole correction and the record
- * stands as it is — which is what `stet` means, and why the mark in the gutter changes to it.
- */
-.dg--struck .dg-changes {
-  text-decoration: line-through;
-  text-decoration-thickness: 1.5px;
-  text-decoration-color: var(--hold);
+.dg--struck .dg-changes,
+.dg--struck .dg-after,
+.dg--struck .dg-delta {
   color: var(--ink-muted);
-}
-
-.dg--struck .dg-after {
   font-weight: 400;
 }
 
-.dg--struck .dg-id,
-.dg--struck .dg-delta {
+.dg--struck .dg-id {
   color: var(--ink-muted);
   text-decoration: line-through;
   text-decoration-thickness: 1.5px;
-}
-
-.dg-struck-note,
-.ac-struck-note {
-  display: none;
-  margin-top: 5px;
-  color: var(--hold);
-}
-
-.dg--struck .dg-struck-note,
-.ac--struck .ac-struck-note {
-  display: block;
 }
 
 /*
  * ── The authority boundary, on the sheet ──────────────────────────────────────────────────
  *
  * A referred row is not struck and must never look struck: nothing about it has been declined.
- * It is set apart, which this interface already has a vocabulary for — and it is set apart by
- * three signals that all survive the colour being removed:
- *
- *   1. a query mark in the gutter, a shape no other state uses;
- *   2. a double rule down the row's own edge, a rule *form* rather than a rule colour — the
- *      same double form held matter carries top and bottom, turned onto the axis that says
- *      "this row", not "this band";
- *   3. the stamped word REFER, which is the whole point: OK TO RUN is what this person can
- *      authorise, REFER is what they cannot.
- *
- * The amber only ever agrees with all three. Take it out and the row still reads.
+ * It is set apart by three signals that all survive the colour being removed: it carries no
+ * control at all; a double rule runs down its own edge, a rule form rather than a rule colour;
+ * and it sits at the top of the sheet under one line that says whose decision it is. The
+ * amber only ever agrees with those. Take it out and the group still reads.
  */
+.pp-refer {
+  border-bottom: 1px solid var(--rule);
+}
+
+/* The line over the referred group, in the plain ink and with no mark: the double rule down
+   the rows under it is the device, on this sheet and on the register both. */
+.pp-refer-line {
+  margin: 0;
+  padding: 10px 4px 9px;
+  font-size: 0.86rem;
+  line-height: 1.5;
+  color: var(--ink);
+}
+
+.pp-refer-line + .dg {
+  border-top: 1px solid var(--rule);
+}
+
+.pp-refer + .dg {
+  border-top: none;
+}
+
+/* The double rule down the edge is the whole of it. No tint behind the row: the sheet is one
+   paper, and the group is set apart by the rule form and by its place under the line above. */
 .dg--referred {
   border-left: 3px double var(--hold);
-  padding-left: 9px;
-  background: var(--hold-wash);
   cursor: default;
 }
 
-.dg--referred .dg-mark {
-  color: var(--hold);
-}
-
-/* An unusable control reads as unusable, not as an unticked one the operator forgot. */
-.dg--referred .dg-check {
-  accent-color: var(--rule-strong);
-  cursor: not-allowed;
-  opacity: 0.45;
-}
-
-.dg-refer-note {
-  display: flex;
-  align-items: baseline;
-  flex-wrap: wrap;
-  gap: 7px;
-  margin-top: 6px;
-}
-
-.dg-refer-word {
-  padding: 1px 7px;
-  border: 3px double var(--hold);
-  color: var(--hold);
-}
-
-.dg-refer-tail {
-  font-size: 0.82rem;
-  color: var(--ink-muted);
-}
-
 /*
- * The same news, once, above the list — because forty rows deep is too late to find out that
- * four of them were never yours. Set like the tool's own skip note (a dashed frame on sunk
- * stock) rather than like a diff row, since neither is something the operator can act on here.
+ * One line that opens. The row is a disclosure: the summary line is the whole of what the
+ * operator needs to read past it, the id, the customer, the remedy and the amount, and the
+ * reason with the blocked alternatives is under it for whoever wants it. No control, so the
+ * line begins where every other id on the sheet begins: past the box, the mark and the gaps.
  */
-.pp-refer {
-  margin-top: 22px;
-  padding: 11px 13px 12px;
-  background: var(--paper-sunk);
-  border: 1px dashed var(--hold);
+details.dg--referred {
+  display: block;
+  padding: 0;
 }
 
-.pp-refer-caption {
+.dg-refer-summary {
   display: flex;
   align-items: baseline;
-  gap: 6px;
-  margin: 0 0 6px;
-  color: var(--hold);
+  gap: 10px;
+  padding: 9px 4px 9px 56px;
+  list-style: none;
+  cursor: pointer;
 }
 
-.pp-refer-caption-tail {
-  text-transform: none;
-  letter-spacing: 0;
-  font-weight: 400;
-  font-size: 0.8rem;
-  color: var(--ink-muted);
+.dg-refer-summary::-webkit-details-marker {
+  display: none;
 }
 
-.pp-refer-line {
-  margin: 0;
+.dg-refer-summary:focus-visible {
+  outline: 2px solid var(--mark);
+  outline-offset: -2px;
+}
+
+.dg-refer-customer {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   font-size: 0.86rem;
-  line-height: 1.55;
   color: var(--ink);
 }
 
-.pp-refer-ids {
-  margin: 3px 0 0;
-  padding-left: 2ch;
+.dg-refer-remedy {
+  font-size: 0.86rem;
+  color: var(--ink-muted);
+  white-space: nowrap;
+}
+
+/* The word that says the line opens, in the caption size and underlined the way the register's
+   own openers are. Which word depends on the state the browser already holds. */
+.dg-refer-toggle {
   font-size: 0.78rem;
-  color: var(--ink);
+  font-style: italic;
+  color: var(--ink-muted);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  white-space: nowrap;
+}
+
+.dg-refer-toggle-open,
+details[open] > .dg-refer-summary .dg-refer-toggle-closed {
+  display: none;
+}
+
+details[open] > .dg-refer-summary .dg-refer-toggle-open {
+  display: inline;
+}
+
+.dg--referred > .dg-body {
+  margin-left: 56px;
+  padding: 0 4px 10px;
 }
 
 /* ---------- held actions ---------- */
@@ -2034,15 +2558,15 @@ body.pp-active .console-table td {
 .ac {
   margin: -1px 0;
   padding: 12px 8px;
-  border-top: 3px double var(--hold);
-  border-bottom: 3px double var(--hold);
+  border-top: 2px solid var(--hold);
+  border-bottom: 2px solid var(--hold);
   background: var(--hold-wash);
 }
 
 .dg + .ac,
 .ac + .ac,
 .ac + .dg {
-  border-top: 3px double var(--hold);
+  border-top: 2px solid var(--hold);
 }
 
 .ac-head {
@@ -2079,128 +2603,151 @@ body.pp-active .console-table td {
   overflow-wrap: anywhere;
 }
 
-.ac--struck .ac-payload {
+.ac--struck .ac-body {
+  color: var(--ink-muted);
+}
+
+.ac--struck .ac-kind {
   text-decoration: line-through;
   text-decoration-thickness: 1.5px;
-  text-decoration-color: var(--hold);
-  color: var(--ink-muted);
 }
 
 /* ---------- the stamp block ---------- */
 
+/*
+ * The signature block: the foot of the same sheet, under one hairline. One line says who
+ * signs, then the two stamps. It sat on the sunk stock until 2 Sep 2026, which put three
+ * tints of paper within a hundred pixels of the stamp; the rule and the stamps say "foot"
+ * without a third paper.
+ */
 .pp-foot {
   display: grid;
   grid-template-columns: 1fr auto;
   align-items: center;
   gap: 8px 14px;
-  padding: 16px 26px 20px;
+  padding: 11px 22px 16px;
+  border-top: 1px solid var(--rule);
   background: var(--paper);
 }
 
+.pp-foot-by {
+  grid-column: 1 / -1;
+  margin: 0;
+  font-size: 0.82rem;
+  color: var(--ink-muted);
+}
+
+/* The commit boundary, said once, in the full ink, on its own line above the two controls. */
+.pp-foot-nothing {
+  grid-column: 1 / -1;
+  grid-row: 2;
+  margin: 0;
+  font-size: 0.86rem;
+  line-height: 1.4;
+  color: var(--ink);
+}
+
 /*
- * The stamp itself. A proof does not come back yes or no; it comes back graded, and this block
- * is where the grade is applied. The grade word is the headline and the count is beneath it,
- * because the count is what makes narrowing legible without reading anything else.
+ * The stamps. Both are impressions rather than filled web buttons: a ruled box and tracked
+ * capitals, the way a rubber stamp prints. The operator's is in the operator's ink with the
+ * heavier rule, and says both halves of what pressing it does, each with its count: "Apply 23
+ * · Refer 4 to duty manager". One line where it fits and two at most, so narrowing stays
+ * legible without reading anything else. Refuse is the same form in the plain ink, one verb,
+ * the lighter rule.
  */
 .pp-stamp {
   grid-column: 2;
-  grid-row: 1 / 3;
-  min-width: 236px;
+  grid-row: 3;
+  min-width: 220px;
   display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 2px;
-  padding: 12px 20px;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: center;
+  column-gap: 0.5em;
+  row-gap: 1px;
+  padding: 8px 18px 7px;
+  /* Inked: the operator's stamp is the one filled thing on the sheet, and the double paper
+     rule inside the blue frame is the stamp's own border, the way a rubber stamp prints one. */
   border: 3px double var(--paper-raised);
+  box-shadow: 0 0 0 2px var(--mark);
   background: var(--mark);
   color: var(--paper-raised);
   font-family: inherit;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
   cursor: pointer;
 }
 
-.pp-stamp-grade {
-  font-size: 0.74rem;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.16em;
+.pp-stamp-part {
+  display: inline-flex;
+  align-items: baseline;
+  column-gap: 0.5em;
+  white-space: nowrap;
 }
 
 .pp-stamp-label {
-  font-size: 1.02rem;
-  font-weight: 600;
+  font-size: 0.92rem;
+  font-weight: 700;
   font-variant-numeric: tabular-nums;
 }
 
-.pp-stamp-sub {
-  font-size: 0.74rem;
+.pp-stamp-sep {
+  font-size: 0.92rem;
   font-weight: 400;
 }
 
 .pp-stamp:hover:not(:disabled) {
-  background: #143A7B;
+  background: var(--mark-pressed);
+  box-shadow: 0 0 0 2px var(--mark-pressed);
 }
 
-/* Nothing marked: the stamp is not inked. It reads as an unusable block, not a greyed word. */
+.pp-stamp:focus-visible {
+  outline: 2px solid var(--mark);
+  outline-offset: 4px;
+}
+
+/* Nothing marked: the stamp is not inked. A dashed rule and the faint ink, not a greyed word. */
 .pp-stamp:disabled {
-  background: var(--paper-sunk);
-  border-color: var(--paper-sunk);
-  box-shadow: inset 0 0 0 1px var(--rule-strong);
-  color: var(--ink-muted);
+  border: 2px dashed var(--rule-strong);
+  box-shadow: none;
+  background: transparent;
+  color: var(--ink-faint);
   cursor: not-allowed;
 }
 
-/*
- * The other stamp, and it is a stamp: same block, same grade word over the same kind of label,
- * on paper stock rather than inked. Set as a plain word beside the two controls instead, the
- * grade read as a third control that had been greyed out — which is the one thing it is not.
- */
 .pp-refuse {
   grid-column: 1;
-  grid-row: 1 / 3;
+  grid-row: 3;
   justify-self: start;
-  align-self: center;
+  align-self: stretch;
   display: flex;
-  flex-direction: column;
   align-items: center;
-  gap: 2px;
-  padding: 12px 20px;
-  border: 1px solid var(--rule-strong);
-  background: var(--paper-raised);
+  justify-content: center;
+  padding: 9px 16px;
+  border: 1px solid var(--ink);
+  background: transparent;
   color: var(--ink);
   font-family: inherit;
-  font-size: 0.92rem;
+  font-size: 0.78rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
   cursor: pointer;
 }
 
 .pp-refuse:hover:not(:disabled) {
+  background: var(--paper-raised);
   border-color: var(--hold);
   color: var(--hold);
 }
 
 .pp-refuse:disabled {
+  border-style: dashed;
+  border-color: var(--rule-strong);
   color: var(--ink-faint);
   cursor: not-allowed;
 }
 
-/* The grade line, set at the weight the stamp's own grade line is set at. It takes its colour
-   from the button in every state, so it can never read as a disabled thing beside a live one. */
-.pp-refuse-grade {
-  color: var(--ink-muted);
-  font-size: 0.72rem;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.16em;
-}
-
-.pp-refuse:hover:not(:disabled) .pp-refuse-grade,
-.pp-refuse:disabled .pp-refuse-grade {
-  color: inherit;
-}
-
-.pp-refuse-label {
-  font-size: 0.92rem;
-  font-weight: 600;
-}
 
 /* ---------- the returned proof ---------- */
 
@@ -2349,6 +2896,16 @@ body.pp-active .console-table td {
   overflow-wrap: anywhere;
 }
 
+/* What the agent was told, as a sentence under the counts rather than a fifth count. */
+.rc-replan {
+  margin: 6px 0 0;
+  padding-top: 6px;
+  border-top: 1px solid var(--rule);
+  font-size: 0.82rem;
+  line-height: 1.5;
+  color: var(--ink);
+}
+
 .rc-note {
   margin: 10px 0 0;
   max-width: 56ch;
@@ -2476,11 +3033,16 @@ body.pp-active .console-table td {
 
 .al-row-figures {
   display: flex;
-  gap: 9px;
+  flex-wrap: wrap;
+  gap: 2px 9px;
   margin-top: 3px;
   padding-left: 19px;
   font-size: 0.72rem;
   color: var(--ink-muted);
+}
+
+.al-row-figures span {
+  white-space: nowrap;
 }
 
 .al-followup {
@@ -2526,15 +3088,24 @@ body.pp-active .console-table td {
  * before and rejected: a scrollbar during a decision hides the exact columns that make the
  * decision legible behind a scroll gesture, at the moment they matter most.
  */
+/*
+ * Re-measured 2 Sep 2026: beside the panel the console is ~880px wide at 1512, and the earlier
+ * version of this rule hid five of the seven columns there, leaving the house id at one edge
+ * and the revenue at the other with 850px of nothing between. What fits in 880px, and what a
+ * decision mid-proposal actually reads, is the house id, the customer, the promised date and
+ * the revenue, plus the remedy column once one has landed and the external-edit control. The
+ * consol (already in the sheet's own title), the SLA tier and the cargo flags are what go.
+ */
+/*
+ * Beside the panel the table keeps the SLA tier (the sheet's row subtitles name it) and sheds
+ * the consol and the cargo flags. It runs the full width of the sheet: while a proposal is
+ * open the Remedy column carries what the sheet proposes for each row, which is what earns
+ * the width. For part of 2 Sep 2026 it hugged its content instead, and the dead space moved
+ * from inside the columns to a strip of bare sheet beside every row.
+ */
 @media (max-width: 1637px) {
-  body.pp-active .console-table th:nth-child(2),
-  body.pp-active .console-table td:nth-child(2),
   body.pp-active .console-table th:nth-child(3),
   body.pp-active .console-table td:nth-child(3),
-  body.pp-active .console-table th:nth-child(4),
-  body.pp-active .console-table td:nth-child(4),
-  body.pp-active .console-table th:nth-child(5),
-  body.pp-active .console-table td:nth-child(5),
   body.pp-active .console-table th:nth-child(7),
   body.pp-active .console-table td:nth-child(7) {
     display: none;
@@ -2595,19 +3166,56 @@ body.pp-active .console-table td {
     display: none;
   }
 
+  .pp-head {
+    padding: 22px 16px 13px;
+  }
+
+  /*
+   * Refuse left, stamp right, exactly as on the desk. The footer is a fixed 110px here (the
+   * signature line, then 56px buttons, inside 12px above and below), and the scroll area
+   * carries that same 110px as bottom padding so the last row always clears it.
+   */
+  .pp-scroll {
+    padding: 18px 16px 110px;
+  }
+
   .pp-foot {
-    grid-template-columns: 1fr;
+    grid-template-columns: auto 1fr;
+    gap: 10px;
+    padding: 12px 16px;
+  }
+
+  .pp-stamp,
+  .pp-refuse {
+    grid-row: 3;
+    align-self: stretch;
+    box-sizing: border-box;
+    height: 56px;
+    padding: 0 14px;
+    line-height: 1.2;
+    justify-content: center;
   }
 
   .pp-stamp {
-    grid-column: 1;
-    grid-row: 1;
+    grid-column: 2;
+    min-width: 0;
+    padding: 0 10px;
+  }
+
+  /* Two lines on a phone, and the second, "Refer 4 to duty manager", a step down so it clears
+     the stamp's own double rule. */
+  .pp-stamp-label,
+  .pp-stamp-sep {
+    font-size: 0.82rem;
   }
 
   .pp-refuse {
     grid-column: 1;
-    grid-row: 2;
     justify-self: stretch;
+  }
+
+  .dg--referred .dg-body {
+    margin-left: 0;
   }
 }
 
@@ -2624,76 +3232,52 @@ body.pp-active .console-table td {
 /* ---------- the agent's side of the glass ---------- */
 
 /*
- * Bottom-left, not bottom-right. The reference this borrows from puts its tool chip in the
- * right-hand corner, but that corner is already the returned proof's (.rc, above) and the
- * proposal panel's. Left is the only corner where the inventory can be permanently present
- * without ever moving to get out of something's way.
- *
- * z-index 9 puts it *under* the proposal overlay (10) deliberately. While a change is being
- * decided the inventory is not part of the decision, so it dims with everything else instead
- * of floating over the scrim claiming to still be reachable.
+ * In the flight header, not a corner. The chip is the docket's last item, "4 tools" beside
+ * "42 house shipments", and the inventory it opens is a row of the docket under the counts
+ * (see `.app-docket > .tp-panel`). It floated bottom-left until 1 Sep 2026, and covered the
+ * fourth row's waybill number on most desktop shots.
  */
-.tp {
-  position: fixed;
-  left: 26px;
-  bottom: 26px;
-  z-index: 9;
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 10px;
-  max-width: calc(100vw - 52px);
-}
-
+/* Set as the docket's other items are: no box. The registration mark in front is the cue that
+   this one opens, and an open one is underlined in the operator's ink. */
 .tp-chip {
   display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  padding: 7px 13px;
-  background: var(--paper-raised);
-  border: 1px solid var(--rule-strong);
-  border-radius: 2px;
+  align-items: baseline;
+  gap: 5px;
+  padding: 0;
+  background: none;
+  border: 0;
   color: var(--ink);
   font: inherit;
-  font-size: 0.86rem;
   cursor: pointer;
-  box-shadow:
-    0 1px 2px rgba(23, 21, 15, 0.10),
-    0 7px 14px -6px rgba(23, 21, 15, 0.24);
+  vertical-align: baseline;
 }
 
-.tp-chip:hover {
-  border-color: var(--ink-faint);
+.tp-chip:hover,
+.tp-chip[aria-expanded="true"] {
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 3px;
+  text-decoration-color: var(--mark);
+}
+
+.tp-chip .pm {
+  align-self: center;
+  color: var(--ink-muted);
 }
 
 .tp-chip-count {
-  color: var(--ink-muted);
   font-size: 0.78rem;
 }
 
 .tp-panel {
-  width: 430px;
-  max-width: 100%;
-  /*
-   * Sized off the viewport rather than a round number: the four tools' rows plus the two
-   * composed descriptions come to ~590px, and a 62vh cap cut that off on a 720px-tall window —
-   * the last row half-drawn, with no scrollbar to say so. The subtraction is what the chip,
-   * the gap above it and the bottom inset actually occupy, so the panel takes every pixel
-   * between the top of the screen and its own chip and no more. Longer content still scrolls.
-   */
-  max-height: calc(100vh - 96px);
-  overflow-y: auto;
-  padding: 15px 17px 14px;
+  padding: 12px 17px 12px;
   background: var(--paper-raised);
   border: 1px solid var(--rule-strong);
-  box-shadow:
-    0 1px 2px rgba(23, 21, 15, 0.10),
-    0 10px 22px -8px rgba(23, 21, 15, 0.26);
   animation: tp-in 200ms var(--ease);
 }
 
 @keyframes tp-in {
-  from { opacity: 0; transform: translateY(8px); }
+  from { opacity: 0; transform: translateY(-8px); }
 }
 
 .tp-panel-head {
@@ -2764,10 +3348,24 @@ body.pp-active .console-table td {
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  flex-shrink: 0;
+  flex: 1;
   color: var(--mark);
   font-size: 0.76rem;
-  text-align: right;
+}
+
+/* One per tool, so the paragraph the agent reads is a click away and never four times over. */
+.tp-tool-more {
+  flex: none;
+  padding: 0;
+  border: 0;
+  background: none;
+  font-family: inherit;
+  font-size: 0.76rem;
+  color: var(--mark);
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 2px;
+  cursor: pointer;
 }
 
 .tp-tool--read .tp-tool-standing {
@@ -2775,7 +3373,8 @@ body.pp-active .console-table td {
 }
 
 .tp-tool-desc {
-  margin: 0;
+  margin: 4px 0 0;
+  max-width: 82ch;
   color: var(--ink-muted);
   font-size: 0.78rem;
   line-height: 1.45;
@@ -2787,13 +3386,6 @@ body.pp-active .console-table td {
   border-top: 1px solid var(--rule);
   color: var(--ink-muted);
   font-size: 0.76rem;
-}
-
-/* Below this the panel would sit on top of the register it is explaining. The chip stays. */
-@media (max-width: 640px) {
-  .tp-panel {
-    max-height: 46vh;
-  }
 }
 
 /* ---------- tabs, cut into the head of the sheet ---------- */
@@ -2817,55 +3409,143 @@ body.pp-active .console-table td {
  * never asked to carry the state alone. Render the page with no colour at all and every one of
  * the four above still says which tab is open.
  */
-.tab-bar {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: flex-end;
-  /* The row gap is exactly the overlap each tab takes onto the sheet below it, so a bar narrow
-     enough to wrap stacks its rows edge to edge instead of one row biting into the next. */
-  gap: 3px;
+/* ---------- the site bar ---------- */
+
+/*
+ * The name, the sections and the way in, on one bar at the top of every page.
+ *
+ * The sections were index tabs cut into the head of the sheet until 2 Sep 2026, and on the
+ * landing page they sat *under* the hero. A reader who came for the claim met, below it, a
+ * control belonging to a different document: the page read as a marketing page with a widget
+ * bolted beneath. Nothing about the sections changed, only where they sit.
+ *
+ * Still a `tablist` in the markup, because that is what it does. See SiteNav.tsx.
+ */
+.nav {
+  position: sticky;
+  top: 0;
+  z-index: 40;
+  background: var(--paper);
+  border-bottom: 1px solid var(--rule-strong);
 }
 
+.nav-in {
+  display: flex;
+  align-items: center;
+  gap: 26px;
+  max-width: 1420px;
+  margin: 0 auto;
+  padding: 0 26px;
+  min-height: 58px;
+}
+
+/* The name, once, at the left. It is a control because pressing it goes home, and it is not a
+   link because there is nowhere to navigate to: one document, three panels. */
+.nav-brand {
+  appearance: none;
+  background: none;
+  border: 0;
+  padding: 0;
+  margin-right: auto;
+  font-family: var(--face);
+  font-size: 1.06rem;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  color: var(--ink);
+  cursor: pointer;
+}
+
+.nav-brand:focus-visible {
+  outline: 2px solid var(--mark);
+  outline-offset: 3px;
+}
+
+.tab-bar {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/*
+ * A section is a word on the bar. The open one is told by weight, by full ink and by a rule
+ * under it, none of which is a hue: render the bar in greyscale and it still says where you are.
+ */
 .tab-bar-tab {
   appearance: none;
   position: relative;
-  /* Over the sheet's own head rule, so a tab and the sheet are one piece of stock rather than
-     two objects that happen to touch. The sheet paints over a closed tab; the open one paints
-     over the sheet. That single 3px overlap is what the whole index-tab reading rests on. */
-  margin: 0 0 -3px;
-  /* ~44px of target. The old tabs had none at all: the hit box was the word. */
-  padding: 12px 20px 14px;
-  background: var(--paper-sunk);
-  border: 1px solid var(--rule);
-  border-bottom: none;
+  padding: 18px 12px;
+  background: transparent;
+  border: 0;
   font-family: inherit;
   font-size: 0.86rem;
   color: var(--ink-muted);
   cursor: pointer;
 }
 
-/* Lifted, not opened: the raised stock says a hand is on this tab, and it stays a step apart
-   from the open tab's own stock so hovering one never looks like opening it. */
 .tab-bar-tab:hover:not(.tab-bar-tab--active) {
-  background: var(--paper-raised);
   color: var(--ink);
 }
 
 .tab-bar-tab--active {
-  /* Above the sheet, so this tab's own stock covers the head rule and the two read as one
-     surface. A closed tab stays below it and the rule crosses in front of it instead. */
-  z-index: 2;
-  background: var(--paper);
-  border-color: var(--rule-strong);
-  border-top: 3px solid var(--mark);
-  padding: 14px 20px 20px;
   color: var(--ink);
   font-weight: 600;
 }
 
+/* The rule under the open section, drawn on the bar's own bottom edge so it reads as the bar
+   pointing at where you are rather than as an underlined word. */
+.tab-bar-tab--active::after {
+  content: '';
+  position: absolute;
+  left: 12px;
+  right: 12px;
+  bottom: -1px;
+  height: 2px;
+  background: var(--ink);
+}
+
+/*
+ * The way in. The proof is the product, so the bar draws that section as its one action instead
+ * of as a third word: a filled stamp in the operator's own blue, square, at the right-hand end.
+ *
+ * This is the only filled blue outside a proof sheet, and it is site chrome rather than a mark
+ * on a record, so it never competes with the meaning blue carries on the sheet and the register.
+ */
+.tab-bar-tab--cta {
+  margin-left: 14px;
+  padding: 9px 18px;
+  background: var(--mark);
+  color: var(--paper);
+  border: 1px solid var(--mark);
+  font-size: 0.8rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.tab-bar-tab--cta:hover:not(.tab-bar-tab--active) {
+  background: var(--mark-pressed, var(--mark));
+  color: var(--paper);
+}
+
+/*
+ * One grammar for "you are here" on every route: the rule under the open section. The stamp
+ * stays a filled stamp on the proof route too; until 2 Sep 2026 it went outlined there and
+ * lost its rule, which said the same state a second way on one route and the first way on
+ * the other. The stamp is shorter than the words, so its rule is dropped to where theirs
+ * sits: measured 2 Sep 2026 at 1512 on the 59px bar, a word's rule ends 3px above the bar's
+ * bottom border (its box ends 2px above, the rule hangs 1px below the box) and the stamp's box
+ * ends 12px above it, so the stamp's rule hangs 9px below its box and ends on the same line.
+ * Re-measure after any change to the bar's height or the stamp's padding.
+ */
+.tab-bar-tab--cta.tab-bar-tab--active::after {
+  left: 0;
+  right: 0;
+  bottom: -9px;
+}
+
 .tab-bar-tab:focus-visible {
   outline: 2px solid var(--mark);
-  outline-offset: -4px;
+  outline-offset: -3px;
   z-index: 3;
 }
 
@@ -2880,8 +3560,7 @@ body.pp-active .console-table td {
   position: relative;
   z-index: 1;
   background: var(--paper);
-  border-top: 3px double var(--rule-strong);
-  padding: 34px 40px 46px;
+  padding: 30px 40px 46px;
   box-shadow:
     0 1px 2px rgba(23, 21, 15, 0.10),
     0 7px 14px -6px rgba(23, 21, 15, 0.24);
@@ -2927,6 +3606,17 @@ body.pp-active .console-table td {
  */
 .pr {
   --pr-measure: 700px;
+  /*
+   * The reading measure, in pixels rather than `ch`.
+   *
+   * Every prose block on this page used to declare `max-width: 68ch`, which reads like one
+   * measure and is not one: `ch` is the width of the font's zero at that element's own size and
+   * weight, so the same rule gave the body 520px, a consequence 545, the standfirst 605 and a
+   * heading 632. Four right edges from one number, and the page looked ragged for a reason
+   * nobody could point at. 540px is 68 characters of the body face at 0.86rem, which is what
+   * the rule was always trying to say.
+   */
+  --pr-text: 540px;
   --pr-gutter: 56px;
   --pr-margin: 264px;
 
@@ -2936,7 +3626,6 @@ body.pp-active .console-table td {
    * which is what made the old page's rules look ragged against the tab bar's.
    */
   max-width: calc(var(--pr-measure) + var(--pr-gutter) + var(--pr-margin));
-  counter-reset: pr-sec;
 }
 
 /*
@@ -2951,7 +3640,7 @@ body.pp-active .console-table td {
  */
 .pr-standfirst {
   margin: 0 0 34px;
-  max-width: 68ch;
+  max-width: var(--pr-text);
   font-size: 1rem;
   line-height: 1.55;
   color: var(--ink);
@@ -2961,54 +3650,24 @@ body.pp-active .console-table td {
   /* Containing block for everything the section hangs in the margin — the note and the
      section's own number both position against this box's left edge. */
   position: relative;
-  counter-increment: pr-sec;
   margin-top: 40px;
   padding-top: 36px;
   border-top: 1px solid var(--rule);
 }
 
 /*
- * A note in the margin is out of flow, so it adds no height to the section it belongs to. In
- * the middle of the page that costs nothing — the next section's rule is a long way down. At
- * the foot it does: the last section's note would otherwise hang across the imprint rule and
- * off the bottom of the sheet. So the last section reserves the room its note needs. Nothing
- * to reserve once the notes are back in the run, below the fold-in width.
+ * A paragraph and the one note keyed to it. The wrapper is the note's containing block, so the
+ * note sits level with the first line of the paragraph it is about, whatever comes before or
+ * after them in the section. DOM order stays paragraph then note, which is how a screen reader
+ * reads a margin note.
  */
-.pr-sec:last-of-type {
-  padding-bottom: 60px;
+.pr-keyed {
+  position: relative;
 }
 
-/*
- * The section's number, out in the margin beside the heading rather than above it. This is a
- * folio reference, which is the one thing a marginal number legitimately is: on a proof it is
- * how a correction is keyed to the place it belongs. Set at the heading's own first baseline
- * by its static position, so nothing here has to know how tall a heading is.
- *
- * It is also the thread that keeps the margin column from reading as a second empty space. The
- * notes are deliberately few; the numbers run the length of the page.
- */
-.pr-h::before {
-  content: counter(pr-sec);
-  position: absolute;
-  left: calc(var(--pr-measure) + var(--pr-gutter));
-  font-family: var(--face-mono);
-  font-variant-numeric: tabular-nums;
-  font-size: 0.76rem;
-  font-weight: 400;
-  color: var(--ink-muted);
-}
-
-/*
- * A note in the margin, keyed to the paragraph it follows.
- *
- * Absolutely positioned with `top` left at auto, so the browser puts it at its own static
- * position — exactly the height it would have been in the flow — and only the horizontal
- * position moves. That keeps the note next to what it is about without anyone measuring
- * anything, and it keeps the DOM order honest: a screen reader reads the note straight after
- * the paragraph it belongs to, which is what a margin note is.
- */
 .pr-note {
   position: absolute;
+  top: 0;
   left: calc(var(--pr-measure) + var(--pr-gutter));
   width: var(--pr-margin);
   /* Optically level with the first line of the paragraph it sits beside, not with the leading
@@ -3069,10 +3728,6 @@ body.pp-active .console-table td {
     max-width: 700px;
   }
 
-  .pr-h::before {
-    content: none;
-  }
-
   .pr-note {
     position: static;
     width: auto;
@@ -3088,16 +3743,12 @@ body.pp-active .console-table td {
     padding-bottom: 0;
     margin-bottom: 3px;
   }
-
-  .pr-sec:last-of-type {
-    padding-bottom: 0;
-  }
 }
 
 /* More air above a heading than below it: the space belongs to the section it opens. */
 .pr-h {
   margin: 0 0 13px;
-  max-width: 68ch;
+  max-width: var(--pr-text);
   font-size: 1rem;
   font-weight: 600;
   line-height: 1.35;
@@ -3106,7 +3757,7 @@ body.pp-active .console-table td {
 
 .pr-p {
   margin: 0 0 14px;
-  max-width: 68ch;
+  max-width: var(--pr-text);
   font-size: 0.86rem;
   line-height: 1.72;
 }
@@ -3144,6 +3795,13 @@ body.pp-active .console-table td {
   scrollbar-color: var(--rule-strong) var(--paper-sunk);
 }
 
+/* The sum, done under the payload it is done off. A reading, so it is set as one. */
+.pr-check {
+  margin: -8px 0 18px;
+  font-size: 0.78rem;
+  color: var(--ink-muted);
+}
+
 /*
  * A limit, hung off the reference mark that has meant "set apart from the main run" since long
  * before anyone printed in two colours. The mark is redundant by design: the bold clause states
@@ -3153,7 +3811,7 @@ body.pp-active .console-table td {
   position: relative;
   margin: 0 0 15px;
   padding-left: 25px;
-  max-width: 68ch;
+  max-width: var(--pr-text);
   font-size: 0.86rem;
   line-height: 1.72;
 }
@@ -3242,57 +3900,6 @@ body.pp-active .console-table td {
   vertical-align: 0;
 }
 
-/* ---------- the engine, drawn ---------- */
-
-.ed {
-  margin: 20px 0 26px;
-  color: var(--ink);
-}
-
-.ed-svg {
-  display: block;
-  width: 100%;
-  height: auto;
-}
-
-.ed-svg--row {
-  max-width: 700px;
-}
-
-/*
- * One arrangement is shown and the other is removed outright, so exactly one drawing is ever
- * in the accessibility tree. Below this width five stages across stop being readable well
- * before they stop fitting, and a diagram that scrolls sideways is a diagram nobody finishes.
- */
-.ed-svg--column {
-  display: none;
-  max-width: 340px;
-}
-
-@media (max-width: 760px) {
-  .ed-svg--row { display: none; }
-  .ed-svg--column { display: block; }
-}
-
-/* Text inside the drawing is filled, not stroked — the run's stroke belongs to the rules. */
-.ed-label {
-  fill: currentColor;
-  stroke: none;
-  font-family: var(--face);
-  font-size: 0.76rem;
-}
-
-.ed-mono {
-  font-family: var(--face-mono);
-  letter-spacing: -0.01em;
-}
-
-/* The rollback is already said by the dashed rule and by the stet mark. The lighter ink only
-   agrees with them, and it is a luminance step rather than a hue. */
-.ed-return {
-  color: var(--ink-muted);
-}
-
 /* ---------- the problem: why the tool belongs in the page ---------- */
 
 /*
@@ -3305,7 +3912,7 @@ body.pp-active .console-table td {
 .pr-conseq {
   margin: 0 0 16px;
   padding-left: 25px;
-  max-width: calc(68ch + 25px);
+  max-width: var(--pr-text);
   font-size: 0.86rem;
   line-height: 1.72;
 }
@@ -3317,6 +3924,144 @@ body.pp-active .console-table td {
 /* The measured note that closes the argument is not a fifth consequence. Space says so. */
 .pr-conseq + .pr-p {
   margin-top: 26px;
+}
+
+/* ---------- the landing page's figures ---------- */
+
+/*
+ * A drawn figure on the sheet. The house treatment and nothing more: a hairline above, the
+ * picture on the same ivory as the page, an italic caption below. No border, no corner, no
+ * shadow; a framed picture is a print pinned to the sheet, and these are drawn on it. The
+ * figure runs the sheet's full ruled width, past the prose measure, which is what the payload
+ * and the drawings already do: the rhythm on this page is figures wider than the text.
+ */
+.pr-fig {
+  margin: 28px 0 30px;
+  padding-top: 16px;
+  border-top: 1px solid var(--rule);
+}
+
+.pr-fig-img {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.pr-fig-cap {
+  margin: 10px 0 0;
+  max-width: var(--pr-text);
+  font-size: 0.82rem;
+  font-style: italic;
+  line-height: 1.5;
+  color: var(--ink-muted);
+}
+
+/* ---------- entrances on the landing page ---------- */
+
+/*
+ * A heading or a figure rises 10px and fades in the first time it is scrolled to, then stays.
+ * Everything below is visible by default: `rv` is only ever put on by script (`useReveal`),
+ * and only once an observer is standing by to take it off, so a reader with no script, a slow
+ * script, or reduced motion switched on reads a page that never hid anything. The hero's
+ * stage list is the one stagger: five rows in order, agent to operator, because the order is
+ * the argument. The list itself is never hidden; only its rows are.
+ */
+.rv {
+  opacity: 0;
+  transform: translateY(10px);
+}
+
+.rv--in {
+  opacity: 1;
+  transform: none;
+  transition: opacity 260ms var(--ease), transform 260ms var(--ease);
+}
+
+/*
+ * The path from prompt to proof, run once. `useReveal` puts `rv` on the hero section itself,
+ * so the section is never hidden; while `rv` is on, the pieces of the path are, and when the
+ * observer swaps it for `rv--in` they land in order, each on its own delay. Every piece is a
+ * keyframe animation rather than a transition, because the sheet and the stages mount after
+ * the specimen run resolves, which can be after the observer has already fired: an animation
+ * runs on an element that arrives late, a transition does not.
+ *
+ * The order is the argument. The prompt and the runtime line first; then Search, Inspect,
+ * Propose; the sheet comes into being with Propose, its head first and its figures behind it;
+ * Refer, and the referred rows are set apart beside it; Proof, and the stamp; then what the
+ * operator's stamp does, and what goes back to the agent. The last piece lands at 1900ms and
+ * is in by 2180ms. Every figure that lands is the one the specimen run produced; nothing is
+ * counted up on screen.
+ *
+ * Fill mode `both`, so a piece is held at its `from` until its delay and stays at its `to`
+ * after; it plays once and the class is never taken off, so it never replays on scroll.
+ */
+.hero.rv,
+.hero.rv--in {
+  opacity: 1;
+  transform: none;
+  transition: none;
+}
+
+.hero.rv .hero-seq,
+.hero.rv .pp--specimen {
+  opacity: 0;
+}
+
+@keyframes hero-land {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: none; }
+}
+
+.hero.rv--in .hero-seq,
+.hero.rv--in .pp--specimen {
+  animation: hero-land 280ms var(--ease) both;
+}
+
+.hero.rv--in .pp--specimen .pp-scroll > *,
+.hero.rv--in .pp--specimen .pp-list > *,
+.hero.rv--in .pp--specimen .pp-foot {
+  animation: hero-land 280ms var(--ease) both;
+}
+
+/* The left column: the prompt, then a stage every 200ms, then what the stamp does. */
+.hero.rv--in .hero-seq--prompt { animation-delay: 0ms; }
+.hero.rv--in .hero-stage:nth-child(1) { animation-delay: 200ms; }
+.hero.rv--in .hero-stage:nth-child(2) { animation-delay: 400ms; }
+.hero.rv--in .hero-stage:nth-child(3) { animation-delay: 600ms; }
+.hero.rv--in .hero-stage:nth-child(4) { animation-delay: 1100ms; }
+.hero.rv--in .hero-stage:nth-child(5) { animation-delay: 1400ms; }
+.hero.rv--in .hero-seq--after { animation-delay: 1700ms; }
+
+/* The sheet: its frame and head with Propose, then the extent and the remedies behind it,
+   the referred group with Refer, the count of the rest and the stamp with Proof. */
+.hero.rv--in .pp--specimen { animation-delay: 700ms; }
+.hero.rv--in .pp--specimen .pp-scroll > .br { animation-delay: 900ms; }
+.hero.rv--in .pp--specimen .pp-scroll > .rm,
+.hero.rv--in .pp--specimen .pp-scroll > .pp-notes { animation-delay: 1000ms; }
+.hero.rv--in .pp--specimen .pp-list > .pp-refer { animation-delay: 1200ms; }
+.hero.rv--in .pp--specimen .pp-list > .dg,
+.hero.rv--in .pp--specimen .pp-list > .ac,
+.hero.rv--in .pp--specimen .pp-list > .pp-more { animation-delay: 1500ms; }
+.hero.rv--in .pp--specimen .pp-foot { animation-delay: 1500ms; }
+
+/* What goes back to the agent, last. */
+.hero.rv--in .hero-seq--return { animation-delay: 1900ms; }
+
+@media (prefers-reduced-motion: reduce), print {
+  .rv,
+  .rv--in,
+  .hero.rv .hero-seq,
+  .hero.rv .pp--specimen,
+  .hero.rv--in .hero-seq,
+  .hero.rv--in .pp--specimen,
+  .hero.rv--in .pp--specimen .pp-scroll > *,
+  .hero.rv--in .pp--specimen .pp-list > *,
+  .hero.rv--in .pp--specimen .pp-foot {
+    opacity: 1;
+    transform: none;
+    transition: none;
+    animation: none;
+  }
 }
 
 /* ---------- where the tool lives, drawn ---------- */
@@ -3341,14 +4086,21 @@ body.pp-active .console-table td {
  * the accessibility tree. Below this width two five-station runs stop being readable well
  * before they stop fitting.
  *
- * 760px, not the 720px this diagram alone would need: `EngineDiagram` stacks at 760, and the
- * two drawings sit in consecutive sections of one page. Switching them at different widths
- * leaves a 40px window where the reader sees one figure stacked and the other in a row, which
- * reads as a bug in the page rather than as two independent decisions.
  */
 .pd-svg--column {
   display: none;
   max-width: 320px;
+}
+
+.pd-mono {
+  font-family: var(--face-mono);
+  letter-spacing: -0.01em;
+}
+
+/* The rollback is already said by the dashed rule and by the stet mark. The lighter ink only
+   agrees with them, and it is a luminance step rather than a hue. */
+.pd-return {
+  color: var(--ink-muted);
 }
 
 @media (max-width: 760px) {
@@ -3470,4 +4222,754 @@ body.pp-active .console-table td {
   color: var(--ink-muted);
   font-size: 0.78rem;
   line-height: 1.45;
+}
+
+/*
+ * At phone width the bar stops sticking. Wrapped, it stood between 101 and 190px tall and,
+ * being sticky above the panel, covered the head of the proof sheet the panel exists to show.
+ * A bar that hides the document is worse than a bar you have to scroll back to.
+ */
+@media (max-width: 720px) {
+  .nav {
+    position: static;
+  }
+
+  .nav-in {
+    flex-wrap: wrap;
+    gap: 0 14px;
+    padding: 10px 18px 0;
+    min-height: 0;
+  }
+
+  .nav-brand {
+    margin-right: 0;
+    width: 100%;
+    padding-bottom: 4px;
+  }
+
+  .tab-bar {
+    width: 100%;
+    overflow-x: auto;
+    /* The row is a scroller, so the rule under the open section must not be clipped by it. */
+    padding-bottom: 2px;
+  }
+
+  .tab-bar-tab {
+    padding: 12px 8px;
+    white-space: nowrap;
+  }
+
+  .tab-bar-tab--cta {
+    margin-left: 8px;
+  }
+}
+
+/* ---------- the landing page spends the screen ---------- */
+
+/*
+ * The 1100px cap on `.app` is the register's requirement, not the reading page's. On the
+ * landing route the sheet grows with the viewport instead, and the width goes to the pictures
+ * and the margins. It never goes to the sentences: every prose block below keeps its measure,
+ * because a 1600px line of body text is not a wider column, it is an unreadable one.
+ */
+.app--reading {
+  max-width: 1560px;
+}
+
+/* The hero's two halves at their real proportions. The specimen used to be 560 against a 500
+   text column, so the page's own product was the narrower half of its own hero. */
+@media (min-width: 1400px) {
+  .hero-fold {
+    grid-template-columns: minmax(420px, 0.9fr) minmax(0, 1.1fr);
+    column-gap: 64px;
+  }
+
+  .hero-specimen {
+    max-width: none;
+  }
+}
+
+/*
+ * A band: the picture on one side, the argument it makes on the other, and the direction flips
+ * from band to band so the page does not become a column of alternating nothing. Below the
+ * breakpoint they stack, picture first, which is the order they are written in.
+ */
+.pr-band > .pr-fig {
+  margin-top: 0;
+}
+
+@media (min-width: 1240px) {
+  .pr-band {
+    display: grid;
+    grid-template-columns: minmax(0, 1.35fr) minmax(320px, 0.65fr);
+    column-gap: 48px;
+    /* Top, not centre. Centred, the prose floated in the middle of the picture's height with
+       two hundred pixels of nothing above and below it, and the band read as two things that
+       happened to be side by side rather than one thing. */
+    align-items: start;
+  }
+
+  .pr-band--flip {
+    grid-template-columns: minmax(320px, 0.65fr) minmax(0, 1.35fr);
+  }
+
+  /* The figure keeps the larger half; the prose beside it keeps its measure and simply stops. */
+  .pr-band--flip > .pr-fig {
+    order: 2;
+  }
+
+  .pr-band--flip > .pr-band-text {
+    order: 1;
+  }
+
+  .pr-band-text > :first-child {
+    margin-top: 0;
+  }
+
+  .pr-band-text > :last-child {
+    margin-bottom: 0;
+  }
+}
+
+/*
+ * On a wide screen the ruled width grows into the margin, and the bands grow with it, because
+ * a band is the only thing on this page that can honestly use the space. The measure does not
+ * move: `--pr-measure` stays 700px at every width, so a paragraph is the same paragraph on a
+ * laptop and on a 27-inch display, and the extra width goes to the pictures and the air.
+ */
+/*
+ * On a wide screen the reader gets a bigger type size, not a bigger empty margin.
+ *
+ * Widening `.pr` to 1276px so the bands could use the screen left every text section with 736px
+ * of blank paper beside a 540px column and only two margin notes on the whole page to put in
+ * it. Breaking the figures out of a narrow box was worse: they ran past the sheet and the page
+ * scrolled sideways at 1280 and 1512.
+ *
+ * So the space goes into the words. The body steps up from 0.86rem to 0.95rem and the measure
+ * with it, which is the same 68 characters set larger, and the margin beside a paragraph comes
+ * back to something a margin is allowed to be.
+ */
+@media (min-width: 1500px) {
+  .pr {
+    --pr-text: 680px;
+    --pr-margin: 300px;
+    font-size: 1.06rem;
+  }
+
+  .pr-p,
+  .pr-limit,
+  .pr-conseq {
+    font-size: 0.95rem;
+  }
+
+  .pr-standfirst,
+  .pr-lead {
+    font-size: 1.1rem;
+  }
+
+  .pr-h {
+    font-size: 1.08rem;
+  }
+}
+
+/*
+ * The ledger the agent is handed back, in the hero. Two columns on the sheet's own grid: the
+ * field on the left at the caption size, the value in mono against it. It replaced a printed
+ * ToolPayload whose twenty-five lines made this column 691px taller than the claim beside it.
+ */
+.hero-ledger {
+  margin: 10px 0 0;
+  font-size: 0.82rem;
+}
+
+.hero-ledger > div {
+  display: grid;
+  grid-template-columns: minmax(0, 150px) minmax(0, 1fr);
+  gap: 0 18px;
+  padding: 5px 0;
+  border-top: 1px solid var(--rule);
+}
+
+.hero-ledger > div:last-child {
+  border-bottom: 1px solid var(--rule);
+}
+
+.hero-ledger dt {
+  color: var(--ink-muted);
+}
+
+.hero-ledger dd {
+  margin: 0;
+  color: var(--ink);
+}
+
+/*
+ * The ruled figure and the drawn diagram share one right edge. The diagram sat at its own
+ * intrinsic width and stopped 640px short of the figures above it, which is most of what made
+ * eight different right edges on one page.
+ */
+.pr .pl-fig,
+.pr .pl-fig > svg {
+  width: 100%;
+  max-width: none;
+  height: auto;
+}
+
+/*
+ * The two figures that were not sharing the figures' edge.
+ *
+ * The payload block and the architecture plate are figures: on this page a figure runs the full
+ * ruled width and prose stops at the measure, and that difference is the page's rhythm. These
+ * two stopped at 1016 and 1145 while the drawings beside them ran to 1592, which is three right
+ * edges where there should be one.
+ */
+.pr-payload,
+.pr .pr-fig {
+  max-width: none;
+}
+
+/* A consequence indents its text without moving its right edge. */
+
+
+/* The one line a section leads on: its whole argument, before any of the argument. */
+.pr-lead {
+  margin: 0 0 22px;
+  max-width: var(--pr-text);
+  font-size: 1rem;
+  line-height: 1.45;
+  color: var(--ink);
+}
+
+/* A heading inside a section, under the section's own. Same weight, no rule of its own. */
+.pr-h--sub {
+  margin-top: 30px;
+}
+
+/*
+ * The drawn diagram shares the figures' width. It sat at its own 700px and stopped 576px short
+ * of the illustration directly above it, which put a third right edge into a section that had
+ * just been given two.
+ */
+.pr .pd-svg {
+  width: 100%;
+  max-width: none;
+  height: auto;
+}
+
+/*
+ * The four things that change, as a grid rather than a stack.
+ *
+ * Numbers, rules and paper: no card, no border box, no shadow, no radius. The rule above each
+ * one is the page's own hairline, so the four read as a set cut from the same sheet the prose
+ * is on. Two columns from 1240px, one below it, which is where the measure stops fitting twice.
+ */
+.pr-grid {
+  margin: 18px 0 0;
+  display: grid;
+  gap: 0;
+}
+
+@media (min-width: 1240px) {
+  .pr-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    column-gap: 48px;
+  }
+}
+
+.pr-grid > .pr-conseq {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  column-gap: 16px;
+  align-items: baseline;
+  margin: 0;
+  max-width: none;
+  padding: 16px 0 18px;
+  border-top: 1px solid var(--rule);
+}
+
+/* The last row keeps a foot, so the set is closed rather than trailing off. */
+@media (min-width: 1240px) {
+  .pr-grid > .pr-conseq:nth-last-child(-n+2) {
+    border-bottom: 1px solid var(--rule);
+  }
+}
+
+@media (max-width: 1239px) {
+  .pr-grid > .pr-conseq:last-child {
+    border-bottom: 1px solid var(--rule);
+  }
+}
+
+.pr-conseq-n {
+  margin: 0;
+  font-size: 0.78rem;
+  color: var(--ink-faint);
+  letter-spacing: 0.04em;
+}
+
+.pr-conseq-body {
+  margin: 0;
+}
+
+/* ---------- the fold ---------- */
+
+/*
+ * The hero is two bands now. The fold carries four things and the sheet beside them; everything
+ * else moved under it. It was nine things above the fold until 2 Sep 2026, and the largest of
+ * them was a figure in a card rather than the claim.
+ */
+.hero-fold {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 30px;
+  align-items: center;
+  min-height: 62vh;
+}
+
+@media (min-width: 1180px) {
+  .hero-fold {
+    grid-template-columns: minmax(420px, 0.95fr) minmax(0, 1.05fr);
+    column-gap: 56px;
+  }
+}
+
+/* The eyebrow: small, tracked, above the claim, saying who is driving the page. */
+.hero-webmcp {
+  margin: 0 0 18px;
+}
+
+/* The claim, at the scale's display size. This is the largest thing on the page. */
+.hero-claim-lead {
+  margin: 0 0 18px;
+  font-size: 50px;
+  font-weight: 400;
+  line-height: 1.06;
+  letter-spacing: -0.018em;
+}
+
+.hero-claim-line {
+  display: block;
+}
+
+.hero-claim {
+  margin: 0 0 30px;
+  max-width: 46ch;
+  font-size: 1.02rem;
+  line-height: 1.55;
+  color: var(--ink-muted);
+}
+
+/* Two ways in, on the page rather than only in the bar. */
+.hero-acts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin: 0;
+}
+
+.hero-act {
+  display: inline-block;
+  padding: 12px 22px;
+  border: 1px solid var(--rule-strong);
+  background: var(--paper);
+  color: var(--ink);
+  font-size: 0.8rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  text-decoration: none;
+}
+
+.hero-act:hover {
+  border-color: var(--ink);
+}
+
+/* The one filled control on the page, the same ink the operator's stamp is printed in. */
+.hero-act--go {
+  background: var(--mark);
+  border-color: var(--mark);
+  color: var(--paper);
+}
+
+.hero-act--go:hover {
+  background: var(--mark-pressed, var(--mark));
+  border-color: var(--mark-pressed, var(--mark));
+}
+
+.hero-act:focus-visible {
+  outline: 2px solid var(--mark);
+  outline-offset: 3px;
+}
+
+/* Under the fold: the path, and what the agent is handed back, side by side where there is room. */
+.hero-below {
+  margin-top: 52px;
+  padding-top: 34px;
+  border-top: 1px solid var(--rule);
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 34px;
+}
+
+@media (min-width: 1180px) {
+  .hero-below {
+    grid-template-columns: minmax(0, 1.5fr) minmax(300px, 0.5fr);
+    column-gap: 56px;
+    align-items: start;
+  }
+}
+
+.hero-below .hero-return {
+  margin-top: 0;
+}
+
+/*
+ * The bar is sticky, so anything jumped to has to clear it or it arrives with its own heading
+ * cut in half. 76px is the bar's 59 plus a line of air.
+ */
+:target,
+#from-prompt-to-proof,
+.pr-sec {
+  scroll-margin-top: 76px;
+}
+
+/*
+ * Vertical rhythm, tightened. The page was 6309px, and 76px between every section on a laptop
+ * viewport is a screenful of paper spent on gaps over the length of an essay.
+ */
+.pr-sec {
+  margin-top: 30px;
+  padding-top: 28px;
+}
+
+.hero-below {
+  margin-top: 40px;
+  padding-top: 28px;
+}
+
+.pr-fig {
+  margin: 22px 0 24px;
+}
+
+/*
+ * Where the guard stops: the five compact constraints share the consequences' grid, and the
+ * sixth takes the whole width because it is the one that tells a technical reader where the
+ * reference implementation ends.
+ */
+.pr-grid--limits > .pr-limit {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  column-gap: 16px;
+  align-items: baseline;
+  margin: 0;
+  max-width: none;
+  padding: 16px 0 18px;
+  border-top: 1px solid var(--rule);
+}
+
+@media (min-width: 1240px) {
+  .pr-grid--limits > .pr-limit:nth-last-child(-n+1) {
+    border-bottom: 1px solid var(--rule);
+  }
+}
+
+@media (max-width: 1239px) {
+  .pr-grid--limits > .pr-limit:last-child {
+    border-bottom: 1px solid var(--rule);
+  }
+}
+
+.pr-limit-body {
+  margin: 0;
+}
+
+/* The sixth, at full measure, under a rule of its own. */
+.pr-limit-major {
+  margin-top: 34px;
+  padding-top: 26px;
+  border-top: 1px solid var(--rule-strong);
+}
+
+.pr-limit-major .pr-h--sub {
+  margin-top: 0;
+}
+
+/*
+ * The interface's eight members, in the same grid the consequences use. The member name takes
+ * the number column, so it is the thing the eye lands on and the gloss hangs off it.
+ */
+.pr-grid--members .pr-conseq-n {
+  color: var(--ink);
+  font-size: 0.82rem;
+  letter-spacing: 0;
+}
+
+@media (min-width: 1240px) {
+  .pr-grid--members > .pr-conseq {
+    grid-template-columns: minmax(0, 118px) minmax(0, 1fr);
+  }
+
+  /* Eight rows, so the closing pair carries the foot rule. */
+  .pr-grid--members > .pr-conseq:nth-last-child(-n+2) {
+    border-bottom: 1px solid var(--rule);
+  }
+}
+
+/*
+ * 06 is a different kind of statement from 01 to 05: those are constraints of the mechanism,
+ * this is the boundary of the implementation. It gets a heavier top rule, its number at display
+ * weight beside the title, and the measurement set as an instrument reading rather than as
+ * another sentence.
+ */
+.pr-major-head {
+  display: flex;
+  align-items: baseline;
+  gap: 16px;
+  margin: 0 0 14px;
+}
+
+.pr-major-n {
+  font-size: 0.86rem;
+  color: var(--ink-faint);
+  letter-spacing: 0.04em;
+}
+
+.pr-major-title {
+  font-size: 1.16rem;
+  font-weight: 600;
+  letter-spacing: -0.008em;
+}
+
+/* The lab-notebook annotation. Its own hairline, tight leading, no prose around it. */
+.pr-measured {
+  margin-top: 22px;
+  padding-top: 14px;
+  border-top: 1px solid var(--rule);
+  max-width: var(--pr-text);
+}
+
+.pr-measured-cap {
+  margin: 0 0 8px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.11em;
+  text-transform: uppercase;
+  color: var(--ink-muted);
+}
+
+.pr-measured-line {
+  margin: 0;
+  font-size: 0.82rem;
+  line-height: 1.6;
+  color: var(--ink);
+}
+
+.pr-measured-say {
+  margin: 10px 0 0;
+  font-size: 0.86rem;
+  font-style: italic;
+  color: var(--ink-muted);
+}
+
+/* ---------- the agent's permission surface, docked ---------- */
+
+/*
+ * A browser's security inspector, not an API reference: what can the agent do on this page.
+ *
+ * Docked bottom left of the viewport. It sat in the flight header from 2 Sep 2026, where its
+ * count read as a developer's figure in a row of business ones; before that it floated over the
+ * register at rest and covered a shipment id. This is the third placement and the first one that
+ * is honest about what it is: a thing you open, resting on the page rather than cut into it.
+ */
+.tp-dock {
+  position: fixed;
+  left: 22px;
+  bottom: 22px;
+  z-index: 12;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 10px;
+  max-width: calc(100vw - 44px);
+}
+
+/* Shut, it is a chip. It never covers a cell, because a cell is never 22px from the viewport
+   foot on this layout, and open it is deliberately on top. */
+.tp-chip {
+  appearance: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 14px;
+  background: var(--paper);
+  border: 1px solid var(--rule-strong);
+  font-family: inherit;
+  font-size: 0.78rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ink);
+  cursor: pointer;
+  box-shadow: 0 1px 2px rgba(23, 21, 15, 0.10), 0 7px 14px -8px rgba(23, 21, 15, 0.22);
+}
+
+.tp-chip:hover { border-color: var(--ink); }
+.tp-chip:focus-visible { outline: 2px solid var(--mark); outline-offset: 3px; }
+
+.tp-panel {
+  width: 372px;
+  max-width: 100%;
+  background: var(--paper);
+  border: 1px solid var(--rule-strong);
+  box-shadow: 0 1px 2px rgba(23, 21, 15, 0.10), 0 14px 34px -14px rgba(23, 21, 15, 0.34);
+}
+
+.tp-panel-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 0;
+  padding: 14px 16px 8px;
+}
+
+.tp-panel-title {
+  font-size: 0.94rem;
+  font-weight: 600;
+}
+
+.tp-panel-count {
+  font-size: 0.76rem;
+  color: var(--ink-muted);
+}
+
+/* The promise, at the head, framing everything under it. */
+.tp-panel-promise {
+  display: flex;
+  align-items: baseline;
+  gap: 7px;
+  margin: 0;
+  padding: 0 16px 12px;
+  border-bottom: 1px solid var(--rule-strong);
+  font-size: 0.8rem;
+  color: var(--ink-muted);
+}
+
+.tp-scroll {
+  max-height: min(52vh, 460px);
+  overflow-y: auto;
+  padding: 0 16px;
+}
+
+.tp-group {
+  margin: 14px 0 0;
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.11em;
+  text-transform: uppercase;
+  color: var(--ink-muted);
+}
+
+.tp-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.tp-tool {
+  padding: 12px 0;
+  border-top: 1px solid var(--rule);
+}
+
+.tp-tool:first-child { border-top: 0; }
+
+/* A read tool is one line: a name and a tag is the whole of what there is to know. */
+.tp-list--reads .tp-tool { padding: 8px 0; }
+
+.tp-tool-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  margin: 0;
+}
+
+.tp-tool-name {
+  font-size: 0.82rem;
+  color: var(--ink);
+}
+
+.tp-tool-tag {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 5px;
+  flex: none;
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--ink-muted);
+}
+
+/* Two short rows, label against value, so the access model is read rather than parsed. */
+.tp-meta {
+  margin: 8px 0 0;
+  font-size: 0.78rem;
+}
+
+.tp-meta > div {
+  display: grid;
+  grid-template-columns: 74px minmax(0, 1fr);
+  gap: 0 10px;
+  padding: 2px 0;
+}
+
+.tp-meta dt { color: var(--ink-faint); }
+.tp-meta dd { margin: 0; color: var(--ink); }
+
+.tp-tool-more {
+  appearance: none;
+  margin: 9px 0 0;
+  padding: 0;
+  background: none;
+  border: 0;
+  border-bottom: 1px solid var(--rule-strong);
+  font-family: inherit;
+  font-size: 0.74rem;
+  color: var(--ink-muted);
+  cursor: pointer;
+}
+
+.tp-tool-more:hover { color: var(--ink); border-bottom-color: var(--ink); }
+.tp-tool-more:focus-visible { outline: 2px solid var(--mark); outline-offset: 2px; }
+
+/* The registered string itself, in the words the agent reads. */
+.tp-tool-desc {
+  margin: 9px 0 0;
+  padding: 10px 12px;
+  background: var(--paper-sunk);
+  font-size: 0.78rem;
+  line-height: 1.6;
+  color: var(--ink-muted);
+}
+
+.tp-foot {
+  margin: 0;
+  padding: 11px 16px 13px;
+  border-top: 1px solid var(--rule-strong);
+  font-size: 0.76rem;
+  color: var(--ink-muted);
+}
+
+/* On a phone the panel takes the width it needs and the chip stays reachable. */
+@media (max-width: 480px) {
+  .tp-dock { left: 12px; bottom: 12px; }
+  .tp-panel { width: calc(100vw - 24px); }
+  .tp-scroll { max-height: 44vh; }
+}
+
+/* A read tool's one clause, under its name. */
+.tp-tool-read {
+  margin: 4px 0 0;
+  font-size: 0.78rem;
+  color: var(--ink-muted);
 }

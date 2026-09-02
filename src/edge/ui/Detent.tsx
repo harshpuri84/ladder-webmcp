@@ -27,7 +27,7 @@ export function Detent({
       className={`dt ${checked ? 'dt--on' : 'dt--off'}${referred ? ' dt--referred' : ''}`}
       aria-pressed={checked}
       disabled={referred}
-      aria-label={referred ? `${read.id} — not yours to authorise; goes to the ${referredTo}` : undefined}
+      aria-label={referred ? `${read.id}. Not yours to authorise, it goes to the ${referredTo}` : undefined}
       onClick={onToggle}
     >
       <span className="dt-top">
@@ -44,7 +44,7 @@ export function Detent({
         {read.from} <span className="to">→ {read.to ?? '—'}</span>
       </span>
       {referred && (
-        <span className="dt-referred">Not yours — goes to the {referredTo}</span>
+        <span className="dt-referred">Not yours. Goes to the {referredTo}</span>
       )}
     </button>
   );

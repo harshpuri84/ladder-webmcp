@@ -95,7 +95,7 @@ describe('the loop closing, on the page', () => {
 
     const line = flat(document.querySelector('.pp-followup'));
     expect(line, 'the panel did not state the link').toMatch(
-      /^Follows the \d{2}:\d{2} run — asks only about 2 rows the operator struck out\.$/,
+      /^Follows the \d{2}:\d{2} run\. Asks only about 2 rows the operator struck out\.$/,
     );
 
     // The run log carries it too, because the log is the surface a run of calls is read on.
@@ -105,7 +105,7 @@ describe('the loop closing, on the page', () => {
     });
     const logged = [...document.querySelectorAll('.al-followup')].map(flat);
     expect(logged[0]).toMatch(
-      /^Follows \d{2}:\d{2} — asks only about 2 rows the operator struck out$/,
+      /^Follows \d{2}:\d{2}, asks only about 2 rows the operator struck out$/,
     );
     // Exactly one line has it: the first of the two runs answered nothing.
     expect(logged.length).toBe(1);

@@ -16,6 +16,15 @@ export interface BlastRadiusProps {
   datasetSize: number;
   valueDelta: number;
   /**
+   * What the rows above this operator's limit would cost, in total. Set at the same size as
+   * the count, because it is the tension on the sheet: money this reader cannot sign for. The
+   * referred rows are on the sheet but never in `valueDelta`, because they are not this
+   * person's to mark.
+   */
+  referredValue?: number;
+  /** How many rows that money is spread over, for the figure's own label. */
+  referredCount?: number;
+  /**
    * False when nothing in the diff touches a priced field. A status-only change has a net of
    * zero and always will, and a large "EUR 0" competing with the record count for hero space
    * says nothing — so the figure appears only when it carries information.
@@ -30,31 +39,24 @@ export interface BlastRadiusProps {
   actionsOnly: boolean;
 }
 
-/** Fraction 0–1, with a sliver floor so one record out of two hundred is still visible. */
-function share(n: number, total: number) {
-  if (total <= 0 || n <= 0) return 0;
-  return Math.max(n / total, 0.008);
-}
-
 /**
- * The extent of the change, stated three ways so no one of them has to be trusted alone: the
- * count, the money, and the proportion of the register the marked rows occupy.
- *
- * The bar is driven by `transform: scaleX` from a left origin, never by animating `width` —
- * this is the most-watched motion in the product and it must not force layout on every frame.
- * Nothing sits inside the scaled elements, so nothing needs counter-scaling. The requested
- * extent is hatched and the marked extent is solid: a texture difference, legible with the
- * colour taken out, with the tick at the requested edge as the third reading.
+ * The extent of the change: the count, with the ask struck beside it when the operator has cut
+ * it down, and the money on either side of the authority line. Three figures on one baseline,
+ * set in the serif's own lining figures at the display size; mono is kept for what is looked up
+ * down a column. The caption under them is the same fact in words, for a screen reader.
  */
 export function BlastRadius(props: BlastRadiusProps) {
-  const { records, requested, datasetSize, valueDelta, showMoney, irreversible, actionsOnly } = props;
+  const {
+    records, requested, datasetSize, valueDelta, referredValue = 0, referredCount = 0,
+    showMoney, irreversible, actionsOnly,
+  } = props;
 
   if (actionsOnly) {
     return (
       <section className="br" aria-label="Extent of this change">
         <div className="br-figures">
           <div className="br-figure">
-            <span key={irreversible} className="br-count mono">{irreversible}</span>
+            <span key={irreversible} className="br-count">{irreversible}</span>
             <span className="br-label">
               {irreversible === 1 ? 'message held' : 'messages held'}
             </span>
@@ -62,35 +64,49 @@ export function BlastRadius(props: BlastRadiusProps) {
         </div>
         <p className="br-held">
           <ProofMark name="dagger" size={13} />
-          No records change. Each one leaves for a customer and cannot be recalled.
+          <span>No records change. Each one leaves for a customer and cannot be recalled.</span>
         </p>
       </section>
     );
   }
 
   const narrowed = records < requested;
+  const referredWord = referredCount === 1 ? 'shipment' : 'shipments';
 
   return (
     <section className="br" aria-label="Extent of this change">
+      {/*
+        * Three figures at one size on one baseline. The count is what this operator decides;
+        * the referred money is what they cannot; the net on the marked rows is what the stamp
+        * will cost. Which is which is said by the caption under each, never by a size step.
+        */}
       <div className="br-figures">
         <div className="br-figure">
           <span className="br-count-line">
             {/* Keyed on the value so the pulse restarts when the number moves — but the pulse
                 is never the only signal: the struck original beside it says the same thing in
                 a mark, and the caption says it in words. */}
-            <span key={records} className="br-count mono">{records}</span>
+            <span key={records} className="br-count">{records}</span>
             {/* The ask, struck. Hidden from assistive tech because the caption below already
                 says "struck down from 47" in words — this is the same fact as a mark. */}
             {narrowed && (
-              <span className="br-count-was mono" aria-hidden="true">{requested}</span>
+              <span className="br-count-was" aria-hidden="true">{requested}</span>
             )}
           </span>
-          <span className="br-label">records marked</span>
+          <span className="br-label">marked</span>
         </div>
+        {referredValue > 0 && (
+          <div className="br-figure br-figure--referred">
+            <span className="br-money br-money--referred">{money.format(referredValue)}</span>
+            <span className="br-label">
+              referred, {referredCount} {referredWord}
+            </span>
+          </div>
+        )}
         {showMoney && (
-          <div className="br-figure br-figure--money">
-            <span key={valueDelta} className="br-money mono">{money.format(valueDelta)}</span>
-            <span className="br-label">net change</span>
+          <div className="br-figure br-figure--net">
+            <span key={valueDelta} className="br-money br-money--net">{money.format(valueDelta)}</span>
+            <span className="br-label">{referredValue > 0 ? 'net on the marked rows' : 'net change'}</span>
           </div>
         )}
       </div>
@@ -98,39 +114,27 @@ export function BlastRadius(props: BlastRadiusProps) {
       {irreversible > 0 && (
         <p className="br-held">
           <ProofMark name="dagger" size={13} />
-          <span className="mono">{irreversible}</span>
-          {irreversible === 1 ? ' irreversible action' : ' irreversible actions'} held below,
-          counted in neither figure above
+          <span>
+            {irreversible}
+            {irreversible === 1 ? ' irreversible action' : ' irreversible actions'} held below,
+            counted in neither figure above
+          </span>
         </p>
       )}
 
-      <div
-        className="br-bar"
-        role="img"
-        aria-label={`${records} of ${datasetSize} shipments in the register`}
-      >
-        <div className="br-bar-ask" style={{ transform: `scaleX(${share(requested, datasetSize)})` }} />
-        <div className="br-bar-take" style={{ transform: `scaleX(${share(records, datasetSize)})` }} />
-        {/* At 11 of 200 the hatched ask is a sliver, so the fill retreating inside it would read
-            only in the caption. This tick marks where the ask ended and stays legible at any
-            fill. It sits outside both scaled elements, so it needs no counter-scaling. */}
-        <div className="br-bar-tick" style={{ left: `${share(requested, datasetSize) * 100}%` }} />
-      </div>
-
       {/*
-        * The one announced sentence on this panel. Everything above it — the hero count, the
-        * struck original, the bar — is the same fact drawn; the caption is the same fact in
-        * words, so it is the half worth speaking. `role="status"` is polite: it waits for a gap
-        * rather than cutting across the operator, and it is the only live region here, because
-        * two would read one untick out twice. It is driven by the selection, never by the
-        * register's filter, so it cannot fire on a keystroke.
+        * The one announced sentence on this panel, and spoken only: the count and the struck
+        * original above are the same fact drawn, and printing it a second time under them
+        * stated the figures twice in a hundred pixels. `role="status"` is polite: it waits for
+        * a gap rather than cutting across the operator, and it is the only live region here,
+        * because two would read one untick out twice. It is driven by the selection, never by
+        * the register's filter, so it cannot fire on a keystroke.
         */}
-      <p className="br-caption" role="status">
-        <span className="mono">{records}</span> of <span className="mono">{datasetSize}</span>{' '}
-        shipments in the register
+      <p className="br-caption vh" role="status">
+        {records} of {datasetSize} shipments in the register
         {narrowed && (
           <span className="br-caption-narrowed">
-            {' '}· struck down from <span className="mono">{requested}</span>
+            {' '}· struck down from {requested}
           </span>
         )}
       </p>

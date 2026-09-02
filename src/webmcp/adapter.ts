@@ -993,7 +993,7 @@ export function registerLadderTool(spec: LadderToolSpec) {
       ...rejectedFrom(shadow.notes),
       ...(referredCount > 0 ? [{
         count: referredCount,
-        reason: `above the ${role.label.toLowerCase()}'s ${authorityVocabulary().amount(role.limit)} ${authorityVocabulary().bound} — referred to a ${awaiting}, not refused`,
+        reason: `above the ${role.label.toLowerCase()}'s ${authorityVocabulary().amount(role.limit)} ${authorityVocabulary().bound}, referred to a ${awaiting}`,
         ids: referredIds,
         pending: awaiting,
       }] : []),
