@@ -42,8 +42,9 @@ preview never showed rolls the entire commit back.
 ## Operating Context
 
 The operator is working inside an ordinary records console. The agent arrives through the
-browser's WebMCP runtime, either ChatGPT desktop's built-in browser or Chrome 149+ with
-`chrome://flags/#enable-webmcp-testing` enabled. Proposals interrupt whatever the operator was
+browser's WebMCP runtime: ChatGPT desktop's built-in browser, or Chrome 149+ with
+`chrome://flags/#enable-webmcp-testing` enabled and the Model Context Tool Inspector extension
+from Chrome's origin-trial documentation, which is what supplies the agent. Proposals interrupt whatever the operator was
 doing, so the decision surface has to be readable cold.
 
 Judging happens on 3 September 2026, by a panel of platform and developer-relations engineers

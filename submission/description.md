@@ -88,12 +88,17 @@ spec-conformant; neither is exercised in the runtime a judge will open.
 We also measured that a pending `execute` survives 96 seconds and returns its structured result
 intact, which is why the approval can take as long as a person needs.
 
-**On what the demo video shows.** Chrome's flag registers a page's tools with the browser, but no
-shipping runtime lets a third-party agent invoke them, so the calls in the video go through the
-page's own registration rather than the browser's transport. Everything after the call is the
-production path unchanged: the fork, the preview against a `structuredClone`, the recording
-Proxy, the human's edit, the guarded re-run, the rollback and the structured refusal. We would
-rather state that here than have you find it. The dev-only test double that makes it possible
+**On what the demo video shows.** A real agent, in a real runtime. Observed on 2 September 2026:
+Chrome 149+ with `chrome://flags/#enable-webmcp-testing` and the Model Context Tool Inspector
+extension from Chrome's origin-trial documentation. The prompt at the head of the sheet went to
+the model; the model called `propose_remedy` with `{"consol":"CONSOL-A"}`; the proof opened at 23
+of 27 with four referred. The same loop runs in ChatGPT desktop's built-in browser with no setup.
+Two host defects measured on 28 August, a shim advertising `requestUserInteraction` and refusing
+it, and a host offering `registerTool` with no `unregisterTool`, were fixed on 29 August.
+
+Everything after the call is the production path unchanged: the fork, the preview against a
+`structuredClone`, the recording Proxy, the human's edit, the guarded re-run, the rollback and the
+structured refusal. The dev-only test double that makes it possible
 says the same thing in its own source, and it is gated out of the production build.
 
 ## Why the recommendation differs per shipment

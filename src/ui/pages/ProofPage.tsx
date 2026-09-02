@@ -20,36 +20,57 @@ const BANNER_GRACE_MS = 1500;
 // 1.5s every time, which reads as a flicker rather than a deliberate first-load grace.
 let graceElapsedOnce = false;
 
+/**
+ * One line under the flight header when the browser has no WebMCP runtime, with the two
+ * routes to one behind a single word. The console below works either way, and the line
+ * says no more than that: a paragraph here stood between the operator and the register.
+ */
 function WebmcpBanner() {
+  const [open, setOpen] = useState(false);
   return (
     <div className="webmcp-banner">
-      <h2 className="webmcp-banner-heading">The agent half needs WebMCP — the console below works either way</h2>
-      <p>
-        This browser can't reach the four tools an agent would call, but every house shipment
-        is still here to browse by hand. To turn the agent half on, open this page in one of:
+      <p className="webmcp-banner-line">
+        <span className="webmcp-banner-heading">Agent half needs WebMCP.</span>{' '}
+        The register below works either way.{' '}
+        <button
+          className="webmcp-banner-how"
+          type="button"
+          aria-expanded={open}
+          onClick={() => setOpen(v => !v)}
+        >
+          How.
+        </button>
       </p>
-      <ul className="webmcp-banner-list">
-        {/*
-          * Both bullets used to promise more than either route delivers. The first said ChatGPT's
-          * browser "supports WebMCP with no setup", which is the announcement's wording and not
-          * something anyone here has run. The second sent a judge through a flag dance that ends
-          * in a page which still cannot be driven — the likeliest unprompted move on this page,
-          * and the one that made it look broken. Each now says what is known and where it stops.
-          */}
-        <li>
-          <strong>ChatGPT desktop's built-in browser</strong> — announced as supporting WebMCP
-          with no setup. Announced, not verified here. It's the only route we know of to a browser
-          that ships an agent able to call these tools.
-        </li>
-        <li>
-          <strong>Google Chrome 149 or newer</strong> — enable{' '}
-          <code className="webmcp-banner-code">chrome://flags/#enable-webmcp-testing</code>{' '}
-          and restart. Paste this into your address bar — Chrome won't let a page link to a
-          chrome:// URL directly. The flag registers this page's four tools; it does not bring an
-          agent, and no shipping Chrome has one yet. So it gets you the toolset to inspect — the
-          chip at the bottom left — and nothing that can call it.
-        </li>
-      </ul>
+      {open && (
+        <ul className="webmcp-banner-list">
+          {/*
+            * Each route says what is known, and each was run. Until 2 September 2026 this list
+            * said the flag "brings no agent" and that ChatGPT desktop was "announced, not
+            * verified here". Both were true when written and both understated it: the extension
+            * from Chrome's origin-trial documentation supplies the agent, and the whole loop has
+            * now been driven end to end. A page that undersells what it can do is as wrong as
+            * one that oversells it, and this is the claim the rest of the submission rests on.
+            */}
+          <li>
+            <strong>Google Chrome 149 or newer, with the WebMCP extension.</strong> Enable{' '}
+            <code className="webmcp-banner-code">chrome://flags/#enable-webmcp-testing</code>{' '}
+            and restart. Paste it into the address bar; a page cannot link to it. Then install
+            the Model Context Tool Inspector extension from Chrome&rsquo;s origin-trial
+            documentation and give it a model key. Observed 2 September 2026: the prompt at the
+            head of this sheet went to the model, the model called{' '}
+            <code className="webmcp-banner-code">propose_remedy</code>, and the proof opened.
+          </li>
+          <li>
+            <strong>ChatGPT desktop&rsquo;s built-in browser.</strong> No setup and no flag.
+          </li>
+          <li>
+            <strong>Chrome 149 or newer, flag only.</strong> The flag registers this page&rsquo;s
+            tools and brings no agent, so it gives you the toolset to inspect and nothing that
+            can call it. Add the extension above, or drive the sheet by hand from the seven
+            steps under the register.
+          </li>
+        </ul>
+      )}
     </div>
   );
 }
