@@ -27,8 +27,8 @@ describe('TabBar', () => {
     const tabs = screen.getAllByRole('tab');
     expect(tabs.map(t => t.textContent)).toEqual([
       'The problem',
-      'The proof',
       'Same engine, other work',
+      'The proof',
     ]);
     // A button, so it has a hit target, a focus ring and keyboard activation without anyone
     // reimplementing them.
@@ -64,11 +64,11 @@ describe('TabBar', () => {
   it('moves between tabs with the arrow keys, and wraps', () => {
     const { setTab } = setup('problem');
     fireEvent.keyDown(screen.getByRole('tab', { name: 'The problem' }), { key: 'ArrowRight' });
-    expect(setTab).toHaveBeenCalledWith('proof');
+    expect(setTab).toHaveBeenCalledWith('elsewhere');
 
     setTab.mockClear();
     fireEvent.keyDown(screen.getByRole('tab', { name: 'The problem' }), { key: 'ArrowLeft' });
-    expect(setTab).toHaveBeenCalledWith('elsewhere');
+    expect(setTab).toHaveBeenCalledWith('proof');
   });
 
   /**
@@ -77,23 +77,23 @@ describe('TabBar', () => {
    * is the specific failure this holds shut.
    */
   it('sends End to the last tab and Home to the first', () => {
-    const { setTab } = setup('proof');
-    fireEvent.keyDown(screen.getByRole('tab', { name: 'The proof' }), { key: 'End' });
-    expect(setTab).toHaveBeenCalledWith('elsewhere');
+    const { setTab } = setup('elsewhere');
+    fireEvent.keyDown(screen.getByRole('tab', { name: 'Same engine, other work' }), { key: 'End' });
+    expect(setTab).toHaveBeenCalledWith('proof');
 
     setTab.mockClear();
-    fireEvent.keyDown(screen.getByRole('tab', { name: 'The proof' }), { key: 'Home' });
+    fireEvent.keyDown(screen.getByRole('tab', { name: 'Same engine, other work' }), { key: 'Home' });
     expect(setTab).toHaveBeenCalledWith('problem');
   });
 
   /** From the ends, neither key wraps: End on the last tab stays put, Home on the first does. */
   it('does not wrap on Home or End', () => {
-    const { setTab } = setup('elsewhere');
-    fireEvent.keyDown(screen.getByRole('tab', { name: 'Same engine, other work' }), { key: 'End' });
-    expect(setTab).toHaveBeenCalledWith('elsewhere');
+    const { setTab } = setup('proof');
+    fireEvent.keyDown(screen.getByRole('tab', { name: 'The proof' }), { key: 'End' });
+    expect(setTab).toHaveBeenCalledWith('proof');
 
     setTab.mockClear();
-    fireEvent.keyDown(screen.getByRole('tab', { name: 'Same engine, other work' }), { key: 'Home' });
+    fireEvent.keyDown(screen.getByRole('tab', { name: 'The proof' }), { key: 'Home' });
     expect(setTab).toHaveBeenCalledWith('problem');
   });
 

@@ -1,9 +1,10 @@
 import { useEffect } from 'react';
 import { ProposalPanel } from './ui/ProposalPanel';
+import { LandingHero } from './ui/LandingHero';
 import { ActivityList } from './ui/ActivityList';
+import { TABPANEL_ID, tabButtonId } from './ui/TabBar';
+import { SiteNav } from './ui/SiteNav';
 import { ToolPill } from './ui/ToolPill';
-import { TabBar, TABPANEL_ID, tabButtonId } from './ui/TabBar';
-import { RegistrationCorners } from './ui/ProofMark';
 import { useTab } from './ui/useTab';
 import { ProofPage } from './ui/pages/ProofPage';
 import { ProblemPage } from './ui/pages/ProblemPage';
@@ -42,6 +43,8 @@ function App() {
     <ProblemPage />;
 
   return (
+    <>
+    <SiteNav tab={tab} setTab={setTab} />
     <div className="app-shell">
       {/*
         * One width for all three tabs. The register genuinely needs the full 1100px, and the
@@ -56,13 +59,10 @@ function App() {
         * edge; it says which mode the sheet inside is set for.
         */}
       <div className={tab === 'proof' ? 'app' : 'app app--reading'}>
-        <header className="app-header">
-          <h1>Ladder</h1>
-          <p className="app-subtitle">
-            Every agent write comes here as a proof before it lands
-          </p>
-        </header>
-        <TabBar tab={tab} setTab={setTab} />
+        {/* The landing page opens on the product itself: the name, the claim and a specimen
+            proof sheet, above the tab strip. The two working tabs start on the instrument; the
+            name is in the document title and on the first tab, and nowhere on the tab row. */}
+        {tab === 'problem' && <LandingHero />}
         {/*
           * The sheet the index tabs are cut into. It is stock on the desk, not a card: one
           * ground, the head rule the tab bar used to draw for itself, and the shadow recipe of
@@ -76,17 +76,16 @@ function App() {
           aria-labelledby={tabButtonId(tab)}
           tabIndex={0}
         >
-          <RegistrationCorners />
           {page}
         </div>
       </div>
       {/*
-       * Always mounted, regardless of tab — ActivityList's run log and ToolPill's standing-rule
-       * state both live in local component state, so unmounting either on a tab change would
-       * wipe them, and a result with no proposal (a standing rule firing automatically, or a
+       * Always mounted, regardless of tab — ActivityList's run log lives in local component
+       * state, so unmounting it on a tab change would wipe it, and a result with no proposal (a standing rule firing automatically, or a
        * call with nothing to decide) never touches the tab at all and would go unlogged forever
        * if the list wasn't there to catch it. Hidden with CSS instead of being left unmounted,
-       * so their subscriptions and state ride out a tab change untouched.
+       * so its subscription and state ride out a tab change untouched. The tool inventory sits
+       * in the proof page's own flight header, where the register's counts are.
        */}
       {/* `app-rail` is only a name for the shell to reach: this wrapper, not the rail inside it,
           is the box the shell lays out, so it is the box that has to run the full height of the
@@ -97,11 +96,12 @@ function App() {
       >
         <ActivityList />
       </div>
-      <div className={tab === 'proof' ? undefined : 'app-tab-offstage'} aria-hidden={tab !== 'proof'}>
-        <ToolPill />
-      </div>
       <ProposalPanel />
+      {/* The agent's permission surface, docked at the foot of the working page. Only on the
+          proof route: the reading tabs have no register for it to be about. */}
+      {tab === 'proof' && <ToolPill />}
     </div>
+    </>
   );
 }
 

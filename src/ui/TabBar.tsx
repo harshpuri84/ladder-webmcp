@@ -1,10 +1,13 @@
 import { useRef } from 'react';
 import type { TabId } from './useTab';
 
+// Reading order on the bar, which is also the order the arrow keys walk. The proof is last
+// because it is drawn as the bar's action and an action belongs at the end of a bar, not in
+// the middle of the words.
 const TAB_ORDER: { id: TabId; label: string }[] = [
   { id: 'problem', label: 'The problem' },
-  { id: 'proof', label: 'The proof' },
   { id: 'elsewhere', label: 'Same engine, other work' },
+  { id: 'proof', label: 'The proof' },
 ];
 
 interface TabBarProps {
@@ -22,22 +25,15 @@ export const TABPANEL_ID = 'ladder-tabpanel';
 export const tabButtonId = (id: TabId) => `tab-${id}`;
 
 /**
- * Index tabs cut into the head of the sheet, which is what a proof sheet in a job bag actually
- * has. Four signals say which one is open and not one of them is a hue:
+ * The three sections, drawn as words on the site bar with the proof as its one action.
  *
- *   — stock: the open tab is on the same paper as the sheet below it, the closed ones on the
- *     duller stock behind;
- *   — continuity: the open tab breaks the sheet's head rule, so tab and sheet are one surface,
- *     while a closed tab is shut off from it by that same rule running past;
- *   — height: a closed tab sits lower, the way a tab behind another one does;
- *   — weight: the open tab's label is set at 600 in the full ink.
+ * Three signals say which section is open and not one of them is a hue: weight, the full ink,
+ * and a rule on the bar's own bottom edge under the open word. The operator this is built for
+ * has red-green colour vision deficiency; render the bar in greyscale and all three survive.
  *
- * The blue top edge is the fifth thing and the only optional one. It agrees with the four; the
- * operator this is built for has red-green colour vision deficiency, so it is never asked to
- * carry the state on its own. Render the page in greyscale and every signal above survives.
- *
- * The tab is also a real object now rather than a word in a row: ~44px of hit target, a border
- * on three sides, and a background you can aim at.
+ * These were index tabs cut into the head of the sheet until 2 Sep 2026. On the landing page
+ * that put them below the hero, where they read as a widget from another document bolted under
+ * a marketing page. See SiteNav.tsx.
  */
 export function TabBar({ tab, setTab }: TabBarProps) {
   const buttonRefs = useRef<(HTMLButtonElement | null)[]>([]);
@@ -60,6 +56,8 @@ export function TabBar({ tab, setTab }: TabBarProps) {
     else if (e.key === 'End') { e.preventDefault(); goTo(TAB_ORDER.length - 1); }
   };
 
+  // The name stood at the far end of this row on the two working tabs until 2 Sep 2026, at the
+  // tab labels' own size and weight, and read as a fourth tab. The tabs are the row.
   return (
     <div className="tab-bar" role="tablist" aria-label="Ladder sections">
       {TAB_ORDER.map(({ id, label }, i) => {
@@ -74,7 +72,14 @@ export function TabBar({ tab, setTab }: TabBarProps) {
             aria-selected={active}
             aria-controls={TABPANEL_ID}
             tabIndex={active ? 0 : -1}
-            className={active ? 'tab-bar-tab tab-bar-tab--active' : 'tab-bar-tab'}
+            className={[
+              'tab-bar-tab',
+              // The proof is the way in, so the bar draws it as its one action rather than as a
+              // third word. Same control, same role, same keys; it only looks like what it is
+              // for. Every other state class still lands on it.
+              id === 'proof' ? 'tab-bar-tab--cta' : '',
+              active ? 'tab-bar-tab--active' : '',
+            ].filter(Boolean).join(' ')}
             onClick={() => setTab(id)}
             onKeyDown={e => onKeyDown(e, i)}
           >

@@ -182,7 +182,7 @@ function applyRemedy(s: Shipment, remedy: RemedyId): void {
   if (blocked.length > 0) s.blockedAlternatives = blocked;
 }
 
-const proposeRemedy: LadderToolSpec = {
+export const proposeRemedy: LadderToolSpec = {
   name: 'propose_remedy',
   description: "Propose a remedy for shipments matching a filter. Without `remedy`, each shipment gets the cheapest remedy available to it — most get the free same-carrier rebook. With `remedy`, that specific remedy is applied only where it is not blocked; blocked rows are skipped and reported with the rule that blocked them.",
   inputSchema: {

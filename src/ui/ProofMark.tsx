@@ -99,13 +99,3 @@ export function ProofMark({ name, size = 14, className, title }: ProofMarkProps)
     </svg>
   );
 }
-
-/** The four corner targets that make a sheet read as a sheet rather than as a card. */
-export function RegistrationCorners() {
-  return (
-    <div className="reg" aria-hidden="true">
-      <ProofMark name="registration" size={11} className="reg-tl" />
-      <ProofMark name="registration" size={11} className="reg-tr" />
-    </div>
-  );
-}
