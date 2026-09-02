@@ -47,7 +47,10 @@ describe('ToolPill shows the toolset as the agent sees it', () => {
   });
   afterAll(() => { delete (document as any).modelContext; });
 
-  const open = () => fireEvent.click(screen.getByRole('button', { name: /Ladder/ }));
+  const open = () => fireEvent.click(screen.getByRole('button', { name: /tools$/ }));
+  // The paragraph the agent reads sits behind one disclosure per tool.
+  const describe_ = (tool: string) =>
+    fireEvent.click(screen.getByRole('button', { name: `What the agent reads for ${tool}` }));
 
   const rule = (): Policy => ({
     id: 'pol-test', tool: 'propose_remedy', maxRecords: 20, maxValue: 500,
@@ -57,7 +60,7 @@ describe('ToolPill shows the toolset as the agent sees it', () => {
 
   it('counts every registered tool on the chip, reads included', () => {
     render(<ToolPill />);
-    expect(screen.getByText('3 tools')).toBeTruthy();
+    expect(screen.getByText('3 agent tools')).toBeTruthy();
   });
 
   it('lists read tools as well as write tools, so the panel is the whole surface', () => {
@@ -66,15 +69,15 @@ describe('ToolPill shows the toolset as the agent sees it', () => {
 
     expect(screen.getByText('search_shipments')).toBeTruthy();
     expect(screen.getByText('propose_remedy')).toBeTruthy();
-    expect(screen.getByText('reads only — changes nothing')).toBeTruthy();
+    expect(screen.getByText('changes nothing')).toBeTruthy();
   });
 
   it('separates a tool that can never be automatic from one that is merely unruled', () => {
     render(<ToolPill />);
     open();
 
-    expect(screen.getByText('never automatic — always reviewed')).toBeTruthy();
-    expect(screen.getByText('every change reviewed first')).toBeTruthy();
+    expect(screen.getByText('never automatic, whatever rules exist')).toBeTruthy();
+    expect(screen.getByText('every change waits for you')).toBeTruthy();
   });
 
   /** The video beat, and the reason the panel exists at all. */
@@ -82,39 +85,42 @@ describe('ToolPill shows the toolset as the agent sees it', () => {
     render(<ToolPill />);
     open();
 
+    describe_('propose_remedy');
     const before = screen.getByText(/Proposes a remedy for each shipment\./).textContent ?? '';
     expect(before).not.toContain('without review');
 
-    fireEvent.click(screen.getByRole('button', { name: /Ladder/ }));  // close
+    fireEvent.click(screen.getByRole('button', { name: /tools$/ }));  // close
     act(() => ratify(rule()));
     open();
+    describe_('propose_remedy');
 
     const after = screen.getByText(/Proposes a remedy for each shipment\./).textContent ?? '';
     expect(after).toContain('up to 20 records');
     expect(after).toContain('without review');
-    expect(screen.getByText('standing rule in force')).toBeTruthy();
+    expect(screen.getByText('a ratified rule lands it without review')).toBeTruthy();
   });
 
   it('updates while the panel is already open, without a remount', () => {
     render(<ToolPill />);
     open();
 
-    expect(screen.getByText('every change reviewed first')).toBeTruthy();
+    expect(screen.getByText('every change waits for you')).toBeTruthy();
     act(() => ratify(rule()));
 
-    expect(screen.getByText('standing rule in force')).toBeTruthy();
-    expect(screen.queryByText('every change reviewed first')).toBeNull();
+    expect(screen.getByText('a ratified rule lands it without review')).toBeTruthy();
+    expect(screen.queryByText('every change waits for you')).toBeNull();
   });
 
   it('puts the description back when the rule is revoked', () => {
     render(<ToolPill />);
     open();
     act(() => ratify(rule()));
-    expect(screen.getByText('standing rule in force')).toBeTruthy();
+    expect(screen.getByText('a ratified rule lands it without review')).toBeTruthy();
 
     act(() => revoke('propose_remedy'));
 
-    expect(screen.getByText('every change reviewed first')).toBeTruthy();
+    expect(screen.getByText('every change waits for you')).toBeTruthy();
+    describe_('propose_remedy');
     const desc = screen.getByText(/Proposes a remedy for each shipment\./).textContent ?? '';
     expect(desc).not.toContain('without review');
   });
